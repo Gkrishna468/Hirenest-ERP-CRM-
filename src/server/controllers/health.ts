@@ -28,7 +28,7 @@ if (!getApps()?.length) {
         projectId: projectId,
       });
     }
-    db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId);
+    db = getFirestore(adminApp);
   } catch (error) {
     console.error("Firebase initialization error", error);
   }
@@ -37,7 +37,7 @@ if (!getApps()?.length) {
   try {
     const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
     const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId);
+    db = getFirestore(adminApp);
   } catch(err) {
     db = getFirestore(adminApp);
   }

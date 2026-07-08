@@ -1,6 +1,6 @@
 import { dbProxy } from '@/services/firebase/db-proxy';
 import type { Job } from '@/types';
-import { syncOrchestrator } from '@/services/firebase/syncOrchestrator';
+import { SystemRepository } from '@/repositories/SystemRepository';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString, safeBudget } from '@/utils/safe';
 
@@ -173,7 +173,7 @@ export const RequirementRepository = {
 
     try {
       // Publish to central Sync Orchestrator / Company Ledger
-      await syncOrchestrator.publishEvent('REQUIREMENT_CREATED', {
+      await SystemRepository.logEvent('REQUIREMENT_CREATED', "system", {
         requirementId: id,
         title: requirement.title,
         performedBy
@@ -242,7 +242,7 @@ export const RequirementRepository = {
 
     try {
       // Publish to central Sync Orchestrator / Company Ledger
-      await syncOrchestrator.publishEvent('REQUIREMENT_CREATED', {
+      await SystemRepository.logEvent('REQUIREMENT_CREATED', "system", {
         requirementId: id,
         title: requirement.title,
         performedBy,
@@ -276,7 +276,7 @@ export const RequirementRepository = {
 
     try {
       // Publish to central Sync Orchestrator / Company Ledger
-      await syncOrchestrator.publishEvent('REQUIREMENT_UPDATED', {
+      await SystemRepository.logEvent('REQUIREMENT_UPDATED', "system", {
         requirementId: id,
         updates: Object.keys(updates),
         performedBy
@@ -295,7 +295,7 @@ export const RequirementRepository = {
 
     try {
       // Publish to central Sync Orchestrator / Company Ledger
-      await syncOrchestrator.publishEvent('REQUIREMENT_DELETED', {
+      await SystemRepository.logEvent('REQUIREMENT_DELETED', "system", {
         requirementId: id,
         performedBy
       });

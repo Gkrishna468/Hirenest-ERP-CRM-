@@ -31,7 +31,7 @@ export function getFirestoreDB(): Firestore | null {
           projectId: projectId,
         });
       }
-      db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId);
+      db = getFirestore(adminApp);
     } catch (error) {
       console.error("Firebase initialization error in aiGateway", error);
     }
@@ -40,7 +40,7 @@ export function getFirestoreDB(): Firestore | null {
     try {
       const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
       const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-      db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId);
+      db = getFirestore(adminApp);
     } catch(err) {
       db = getFirestore(adminApp);
     }

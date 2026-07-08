@@ -46,7 +46,7 @@ export function setupAgentRuntime() {
         const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
         if (fs.existsSync(configPath)) {
             const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-            db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId);
+            db = getFirestore(adminApp);
         } else {
             db = getFirestore(adminApp);
         }

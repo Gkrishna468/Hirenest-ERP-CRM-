@@ -1,5 +1,4 @@
 import { dbProxy } from '@/services/firebase/db-proxy';
-import { syncOrchestrator } from '@/services/firebase/syncOrchestrator';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString } from '@/utils/safe';
 
@@ -24,15 +23,10 @@ export const SystemRepository = {
     };
     
     try {
-      // Publish via syncOrchestrator to enforce unified event bus pipelines
-      await syncOrchestrator.publishEvent(type, {
-        ...metadata,
-        performedBy
-      }, id);
+      await dbProxy.setDoc('system_events', id, event);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `system_events/${id}`);
     }
-
     return event;
   },
 
