@@ -13,7 +13,8 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (
         request.auth.uid == 'executive-root' || 
-        request.auth.token.role == 'admin'
+        request.auth.token.role == 'admin' ||
+        request.auth.token.email == 'gopalkrishna0046@gmail.com'
       );
     }
 

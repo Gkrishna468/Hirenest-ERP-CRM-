@@ -49,28 +49,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        // Check for Executive Session first
-        const execSession = localStorage.getItem('hirenest_exec_session');
-        if (execSession) {
-          const parsed = JSON.parse(execSession);
-          if (parsed.email === 'admin@hirenest.com') {
-             parsed.email = 'gopal@hirenestworkforce.com';
-             parsed.name = 'Gopal Krishna';
-             localStorage.setItem('hirenest_exec_session', JSON.stringify(parsed));
-          }
-          setUser(parsed);
-          setLoading(false);
-          return;
-        }
-      } catch (err) {
-        console.error('Session check failed:', err);
-      }
-    };
-
-    checkSession();
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
@@ -122,11 +100,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
         }
       } else {
-        // Only set null if there's no executive bypass active
-        const execSession = localStorage.getItem('hirenest_exec_session');
-        if (!execSession) {
-          setUser(null);
-        }
+        // Force re-login if Firebase session is missing to ensure Firestore works
+        localStorage.removeItem('hirenest_exec_session');
+        setUser(null);
       }
       setLoading(false);
     });
@@ -141,15 +117,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (email === 'admin@hirenestworkforce.com' && password === 'founding2026') ||
       (email === 'admin@hirenest.com' && password === 'admin123')
     ) {
+      const uid = email === 'admin@hirenestworkforce.com' ? 'me995j91dmNkwfXXfaCyrDo8oa03' : 'executive-root';
+      const userEmail = email === 'admin@hirenest.com' ? 'gopal@hirenestworkforce.com' : email;
+
       const execUser: User = { 
-        id: email === 'admin@hirenestworkforce.com' ? 'me995j91dmNkwfXXfaCyrDo8oa03' : 'executive-root', 
-        email: email === 'admin@hirenest.com' ? 'gopal@hirenestworkforce.com' : email, // Force email sync for Gmail connection
+        id: uid, 
+        email: userEmail,
         name: 'Gopal Krishna', 
         role: 'admin', 
         status: 'active',
         loginCount: 3, // Bypasses constraint
       };
       
+      try {
+        // Authenticate with Firebase using a backend-generated custom token
+        const response = await fetch('/api/firebase-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secret: 'founding2026_exec_bypass', uid, email: userEmail })
+        });
+        
+        if (response.ok) {
+          const { firebaseToken } = await response.json();
+          const { signInWithCustomToken } = await import('firebase/auth');
+          await signInWithCustomToken(auth, firebaseToken);
+        } else {
+          console.error("Failed to generate custom token for bypass");
+        }
+      } catch (err) {
+        console.error("Bypass custom token error", err);
+      }
+
       setUser(execUser);
       localStorage.setItem('hirenest_exec_session', JSON.stringify(execUser));
       toast.success('Executive access granted');
