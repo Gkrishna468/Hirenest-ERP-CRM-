@@ -1,0 +1,274 @@
+{
+  "entities": {
+    "account": {
+      "title": "Account",
+      "description": "Represents the core business units",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "companyName": { "type": "string" },
+        "industry": { "type": "string" },
+        "status": { "type": "string" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["id", "companyName", "ownerId"]
+    },
+    "contact": {
+      "title": "Contact",
+      "description": "Represents individuals associated with an Account",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "accountId": { "type": "string" },
+        "name": { "type": "string" },
+        "designation": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" }
+      },
+      "required": ["id", "accountId", "name"]
+    },
+    "vendor": {
+      "title": "Vendor",
+      "description": "Represents third-party agencies or partners",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "companyName": { "type": "string" },
+        "tier": { "type": "string" },
+        "responseRate": { "type": "number" },
+        "performanceScore": { "type": "number" }
+      },
+      "required": ["id", "companyName"]
+    },
+    "requirement": {
+      "title": "Requirement",
+      "description": "Represents job orders",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "accountId": { "type": "string" },
+        "title": { "type": "string" },
+        "status": { "type": "string" },
+        "priority": { "type": "string" },
+        "experienceMin": { "type": "number" },
+        "experienceMax": { "type": "number" },
+        "salaryMin": { "type": "number" },
+        "salaryMax": { "type": "number" },
+        "salaryType": { "type": "string" },
+        "workMode": { "type": "string" },
+        "noticePeriod": { "type": "string" },
+        "shiftTiming": { "type": "string" },
+        "interviewMode": { "type": "string" },
+        "interviewRounds": { "type": "number" },
+        "joiningTimeline": { "type": "string" },
+        "education": { "type": "string" },
+        "certifications": { "type": "string" },
+        "visaAuthorization": { "type": "string" },
+        "replacementPeriod": { "type": "string" },
+        "publishTo": { "type": "object" },
+        "versions": { "type": "array" },
+        "changeLog": { "type": "array" },
+        "pendingUpdates": { "type": "object" }
+      },
+      "required": ["id", "title"]
+    },
+    "systemEvent": {
+      "title": "System Event",
+      "description": "Immutable ledger of actions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "eventType": { "type": "string" },
+        "entityType": { "type": "string" },
+        "entityId": { "type": "string" },
+        "actorId": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "eventType", "entityType", "entityId", "timestamp"]
+    },
+    "user": {
+      "title": "User",
+      "description": "User profile and RBAC roles",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["FOUNDER", "ADMIN", "RECRUITER", "VENDOR", "CLIENT"] }
+      },
+      "required": ["id", "email", "role"]
+    },
+    "migrationMetrics": {
+      "title": "Migration Metrics",
+      "description": "Logs parity checks between Supabase and Firebase",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "collectionName": { "type": "string" },
+        "supabaseCount": { "type": "number" },
+        "firebaseCount": { "type": "number" },
+        "parity": { "type": "number" },
+        "fieldParity": { "type": "number" },
+        "relationshipParity": { "type": "number" },
+        "eventParity": { "type": "number" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "collectionName", "supabaseCount", "firebaseCount", "parity", "fieldParity", "relationshipParity", "eventParity", "status"]
+    },
+    "vendorCandidatePool": {
+      "title": "Vendor Candidate Pool",
+      "description": "Represents candidates stored in the active vendor inventory",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "vendorId": { "type": "string" },
+        "stage": { "type": "string" },
+        "currentTitle": { "type": "string" },
+        "skills": { "type": "array" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "vendorId", "stage"]
+    },
+    "candidateIdentityVault": {
+      "title": "Candidate Identity Vault",
+      "description": "Secure storage for candidate cryptographic hash identity verification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "candidateHash": { "type": "string" },
+        "vendorId": { "type": "string" },
+        "ownershipLocked": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "candidateHash", "vendorId", "ownershipLocked"]
+    },
+    "candidateVersion": {
+      "title": "Candidate Version",
+      "description": "Historical timeline of candidate profile updates and resume files",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "candidateId": { "type": "string" },
+        "resumeUrl": { "type": "string" },
+        "parsedSkills": { "type": "array" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "candidateId", "resumeUrl", "updatedAt"]
+    },
+    "candidateAssignment": {
+      "title": "Candidate Assignment",
+      "description": "Active or historical matches of talent pool candidates to client requirements",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "candidateId": { "type": "string" },
+        "requirementId": { "type": "string" },
+        "assignedBy": { "type": "string" },
+        "assignedAt": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "candidateId", "requirementId", "status"]
+    },
+    "candidateAvailability": {
+      "title": "Candidate Availability",
+      "description": "Tracks real-time notice periods and rotation parameters for candidates",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "candidateId": { "type": "string" },
+        "status": { "type": "string" },
+        "noticePeriod": { "type": "string" },
+        "lastCheckedAt": { "type": "string" }
+      },
+      "required": ["id", "candidateId", "status", "noticePeriod"]
+    },
+    "candidateActivity": {
+      "title": "Candidate Activity",
+      "description": "Auditable log of candidate submissions, rotations, and status transitions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "candidateId": { "type": "string" },
+        "activityType": { "type": "string" },
+        "performedBy": { "type": "string" },
+        "description": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "candidateId", "activityType", "timestamp"]
+    },
+    "candidateFeedback": {
+      "title": "Candidate Feedback",
+      "description": "Client screenings, interviews, and visual scorecards mapping feedback loop SLA",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "candidateId": { "type": "string" },
+        "requirementId": { "type": "string" },
+        "clientId": { "type": "string" },
+        "feedbackText": { "type": "string" },
+        "rating": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "candidateId", "requirementId", "feedbackText"]
+    }
+  },
+  "firestore": {
+    "accounts/{accountId}": {
+      "schema": { "$ref": "#/entities/account" },
+      "description": "Stores accounts"
+    },
+    "contacts/{contactId}": {
+      "schema": { "$ref": "#/entities/contact" },
+      "description": "Stores contacts"
+    },
+    "vendors/{vendorId}": {
+      "schema": { "$ref": "#/entities/vendor" },
+      "description": "Stores vendors"
+    },
+    "requirements/{requirementId}": {
+      "schema": { "$ref": "#/entities/requirement" },
+      "description": "Stores requirements"
+    },
+    "system_events/{eventId}": {
+      "schema": { "$ref": "#/entities/systemEvent" },
+      "description": "Stores system events"
+    },
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/user" },
+      "description": "Stores user roles and profiles"
+    },
+    "migration_metrics/{metricId}": {
+      "schema": { "$ref": "#/entities/migrationMetrics" },
+      "description": "Stores migration parity check reports"
+    },
+    "vendor_candidate_pool/{candidateId}": {
+      "schema": { "$ref": "#/entities/vendorCandidatePool" },
+      "description": "Vendor's passive talent pool assets"
+    },
+    "candidate_identity_vault/{vaultId}": {
+      "schema": { "$ref": "#/entities/candidateIdentityVault" },
+      "description": "Cryptographic representation lock records"
+    },
+    "candidate_versions/{versionId}": {
+      "schema": { "$ref": "#/entities/candidateVersion" },
+      "description": "Historized resume files and parsed skill trees"
+    },
+    "candidate_assignments/{assignmentId}": {
+      "schema": { "$ref": "#/entities/candidateAssignment" },
+      "description": "Mappings linking candidates to specific client requirements"
+    },
+    "candidate_availability/{availabilityId}": {
+      "schema": { "$ref": "#/entities/candidateAvailability" },
+      "description": "Tracks notice periods and rotation status"
+    },
+    "candidate_activity/{activityId}": {
+      "schema": { "$ref": "#/entities/candidateActivity" },
+      "description": "Action history logging for individual profiles"
+    },
+    "candidate_feedback/{feedbackId}": {
+      "schema": { "$ref": "#/entities/candidateFeedback" },
+      "description": "Client feedback and interview scores"
+    }
+  }
+}
