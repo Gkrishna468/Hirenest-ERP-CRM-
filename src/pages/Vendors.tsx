@@ -636,10 +636,11 @@ export default function Vendors() {
             }
           };
         } else {
+          const errorText = await response.text().catch(() => 'AI Gateway unavailable');
           updated[i] = { 
             ...updated[i], 
             status: 'failed', 
-            error: 'AI Gateway unavailable',
+            error: errorText,
             stages: {
               upload: 'success',
               parse: 'failed',
@@ -647,14 +648,14 @@ export default function Vendors() {
               identityRes: 'skipped',
               firestore: 'skipped'
             },
-            resultMessage: 'AI Gateway unavailable'
+            resultMessage: 'Parse Failed'
           };
         }
       } catch (err) {
         updated[i] = { 
           ...updated[i], 
           status: 'failed', 
-          error: 'AI Gateway unavailable',
+          error: 'Connection error',
           stages: {
             upload: 'success',
             parse: 'failed',
@@ -662,7 +663,7 @@ export default function Vendors() {
             identityRes: 'skipped',
             firestore: 'skipped'
           },
-          resultMessage: 'AI Gateway unavailable'
+          resultMessage: 'Connection Error'
         };
       }
       setBulkResumes([...updated]);
@@ -673,7 +674,6 @@ export default function Vendors() {
   const runIdentityResolution = async () => {
     setBulkStep(4);
     const updated = [...bulkResumes];
-    const collectionName = bulkUploadMode === 'talent-pool' ? 'vendor_candidate_pool' : 'candidates';
     
     for (let i = 0; i < updated.length; i++) {
       if (updated[i].status === 'failed') {
@@ -682,56 +682,20 @@ export default function Vendors() {
         }
         continue;
       }
-      const email = updated[i].parsedData?.email?.toLowerCase()?.trim();
-      if (!email) {
-        if (updated[i].stages) {
-          updated[i].stages.identityRes = 'skipped';
-        }
+      
+      const email = updated[i].parsedData?.email;
+      const phone = updated[i].parsedData?.phone;
+      
+      if (!email && !phone) {
+        updated[i].resultMessage = 'Missing Identity';
+        if (updated[i].stages) updated[i].stages.identityRes = 'failed';
         continue;
       }
       
-      try {
-        const snap = await getDocs(collection(db, collectionName));
-        const conflict = snap.docs.find(doc => doc.data().email?.toLowerCase() === email);
-        if (conflict) {
-          updated[i] = {
-            ...updated[i],
-            stages: {
-              upload: 'success',
-              parse: 'success',
-              dupCheck: 'duplicate',
-              identityRes: 'duplicate',
-              firestore: 'skipped'
-            },
-            resultMessage: 'Duplicate skipped',
-            parsedData: {
-              ...updated[i].parsedData,
-              hasConflict: true,
-              conflictDetails: `Conflict: Already exists in ${collectionName === 'vendor_candidate_pool' ? 'Vendor Talent Pool' : 'database'}.`
-            }
-          };
-        } else {
-          updated[i] = {
-            ...updated[i],
-            stages: {
-              upload: 'success',
-              parse: 'success',
-              dupCheck: 'success',
-              identityRes: 'success',
-              firestore: 'pending'
-            },
-            resultMessage: 'Identity unique',
-            parsedData: { ...updated[i].parsedData, hasConflict: false }
-          };
-        }
-      } catch (err) {
-        console.error(err);
-        if (updated[i].stages) {
-          updated[i].stages.identityRes = 'failed';
-        }
-      }
+      // We'll defer the actual check to the backend during save for atomicity
+      updated[i].stages!.identityRes = 'success';
+      updated[i].resultMessage = 'Identity Ready';
       setBulkResumes([...updated]);
-      await new Promise(r => setTimeout(r, 300));
     }
   };
 
@@ -815,27 +779,37 @@ export default function Vendors() {
           });
 
           if (response.ok) {
+            const data = await response.json();
             successCount++;
             if (updated[i].stages) {
               updated[i].stages.firestore = 'success';
             }
-            updated[i].resultMessage = 'Imported';
+            updated[i].resultMessage = data.action === 'UPDATED' ? 'Updated Existing' : 'Imported';
           } else {
-            const errorResult = await response.json().catch(() => ({}));
+            let errorResult: any = {};
+            try {
+              errorResult = await response.json();
+            } catch (e) {
+              errorResult = { error: await response.text().catch(() => 'Sync Failed') };
+            }
+
             if (updated[i].stages) {
               updated[i].stages.firestore = 'failed';
             }
-            updated[i].resultMessage = errorResult.reason === 'ownership_conflict' ? 'Ownership Conflict' : (errorResult.error || 'Sync Failed');
             
-            if (errorResult.duplicate || errorResult.reason === 'ownership_conflict') {
+            if (response.status === 409) {
+              updated[i].resultMessage = 'Ownership Conflict';
+              if (updated[i].stages) updated[i].stages.dupCheck = 'duplicate';
               skippedCount++;
+            } else {
+              updated[i].resultMessage = errorResult.error || 'Sync Failed';
             }
           }
         } catch (err) {
           if (updated[i].stages) {
             updated[i].stages.firestore = 'failed';
           }
-          updated[i].resultMessage = 'Write error';
+          updated[i].resultMessage = 'Network error';
         }
         setBulkResumes([...updated]);
         await new Promise(r => setTimeout(r, 150)); // aesthetic visual pace
