@@ -1,5 +1,4 @@
-import { db } from "@/services/firebase/config";
-import { addDoc, collection } from "firebase/firestore";
+import { dbProxy } from "@/services/firebase/db-proxy";
 import { recordDeal } from "./financialService";
 import { calculateAdjustedBudget } from "./marketplaceService";
 import { safeString, safeSkills, safeNumber, safeArray } from "@/utils/safe";
@@ -19,7 +18,7 @@ export async function processNewJob(job: any) {
   await RequirementRepository.update(job.id, { adjustedBudget } as any);
 
   // 3. Log System Action
-  await addDoc(collection(db, 'agent_logs'), {
+  await dbProxy.setDoc('agent_logs', crypto.randomUUID(), {
     type: 'revenue',
     level: 'info',
     message: `[CFO AGENT] Budget adjusted for ${job.title}. Client Gross: ₹${job.budget} -> Vendor Net: ₹${adjustedBudget}`,
@@ -171,7 +170,7 @@ export async function scoreCandidateForJob(job: any, candidate: any): Promise<Ma
  */
 export async function runDecisionAgent() {
   // 1. Log Start
-  await addDoc(collection(db, 'agent_logs'), {
+  await dbProxy.setDoc('agent_logs', crypto.randomUUID(), {
     type: 'decision',
     message: 'Autonomous Decision Agent cycle started.',
     level: 'info',
@@ -228,7 +227,8 @@ export async function runDecisionAgent() {
       });
       
       // CFO LAYER: Record potential revenue
-      const estimatedValue = 150000; // Mock 15% of annual salary ₹10L
+      const budgetValue = Number(bestMatch.job.budget) || 0;
+      const estimatedValue = Math.round(budgetValue * 0.15); // Standard 15% placement fee
       await recordDeal(bestMatch.job, candidate, estimatedValue);
       
       decisions++;
@@ -236,7 +236,7 @@ export async function runDecisionAgent() {
   }
 
   // 4. Log Completion
-  await addDoc(collection(db, 'agent_logs'), {
+  await dbProxy.setDoc('agent_logs', crypto.randomUUID(), {
     type: 'decision',
     message: `Cycle complete. Processed ${pendingCandidates.length} profiles. Auto-Shortlisted: ${decisions} | Flagged for Review: ${reviews}.`,
     level: 'success',

@@ -115,7 +115,18 @@ async function startServer() {
     }
   });
 
-  // 9. Health Gateway
+  // 9. DB Proxy Gateway
+  app.all("/api/db", async (req, res) => {
+    try {
+      const { default: handler } = await import("./api/db");
+      await handler(req as any, res as any);
+    } catch (error) {
+      console.error("[DB Proxy Error]", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+
+  // 10. Health Gateway
   app.all("/api/health/checks", async (req, res) => {
     try {
       const { default: handler } = await import("./api/health");

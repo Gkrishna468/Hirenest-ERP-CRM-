@@ -12,7 +12,7 @@ async function run() {
     projectId: firebaseConfig.projectId,
   });
 
-  const db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId);
+  const db = getFirestore(adminApp); // Default database
 
   console.log("=== ALL COLLECTION IDS ===");
   const collections = await db.listCollections();

@@ -393,24 +393,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           requiresReview: (insight.profile.confidence || 0.9) < 0.95
         };
         
-        const reqRef = await db.collection("requirements_private").add(reqData);
-
-        // Sync sanitized version to public collection
-        const publicReqData = {
-          title: reqData.title,
-          location: reqData.location,
-          employmentType: reqData.employmentType,
-          experience: reqData.experience,
-          skills: reqData.skills,
-          status: reqData.status,
-          source: reqData.source,
-          createdBy: "system",
-          createdAt: reqData.createdAt,
-          confidence: reqData.confidence,
-          requiresReview: reqData.requiresReview,
-          parentRequirementId: reqRef.id
-        };
-        await db.collection("requirements_public").doc(reqRef.id).set(publicReqData);
+        const reqRef = await db.collection("requirements").add(reqData);
 
         await db.collection("system_events").add({
           type: "lifecycle_automation",
@@ -450,7 +433,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           requiresReview: (insight.profile.confidence || 0.9) < 0.95
         };
         
-        const candRef = await db.collection("candidatePool").add(candData);
+        const candRef = await db.collection("candidates").add(candData);
         
         // Ownership mapping for the vendor
         await db.collection("candidateOwnership").add({

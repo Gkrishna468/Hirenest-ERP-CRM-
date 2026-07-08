@@ -82,103 +82,64 @@ export default function Candidate360({ candidateId, onClose }: Candidate360Props
 
   // Fallbacks for data structures (supporting direct Firestore persistence)
   const skills = Array.isArray(candidate.skills) ? candidate.skills : [];
-  const currentTitle = candidate.currentTitle || "Senior Professional";
-  const currentCompany = candidate.currentCompany || "Technology Firm";
-  const location = candidate.location || "Bengaluru, India";
-  const currentCTC = (candidate as any).currentCTC || "₹14,00,000";
-  const expectedCTC = candidate.expectedSalary || "₹18,50,000";
-  const noticePeriod = (candidate as any).noticePeriod || "30 Days";
-  const availability = (candidate as any).availability || "Immediate (🟢 Available)";
+  const currentTitle = candidate.currentTitle || "";
+  const currentCompany = candidate.currentCompany || "";
+  const location = candidate.location || "";
+  const currentCTC = (candidate as any).currentCTC || "";
+  const expectedCTC = candidate.expectedSalary || "";
+  const noticePeriod = (candidate as any).noticePeriod || "";
+  const availability = (candidate as any).availability || "";
   const resumeUrl = candidate.resumeUrl || "#";
 
   // Scorecard values (deterministic mapping based on matchScore)
   const scorecard = (candidate as any).scorecard || {
-    resumeQuality: 92,
-    communication: 88,
-    skillMatch: candidate.aiMatchScore || 85,
-    availability: 100,
-    stability: 84,
-    overall: Math.round(((candidate.aiMatchScore || 85) * 2 + 92 + 88 + 100 + 84) / 6)
+    resumeQuality: 0,
+    communication: 0,
+    skillMatch: candidate.aiMatchScore || 0,
+    availability: 0,
+    stability: 0,
+    overall: candidate.aiMatchScore || 0
   };
 
   // Extract custom notes array
-  const customNotes = (candidate as any).customNotes || [
-    { id: "1", date: "2026-07-02", text: "Called candidate to review expectations. Available immediately.", author: "Gopal Krishna" },
-    { id: "2", date: "2026-07-03", text: "Confirmed standard notice period buy-out option. Strong communication.", author: "Lead Recruiter" }
-  ];
+  const customNotes = (candidate as any).customNotes || [];
 
   // Extract communication logs
-  const commHistory = (candidate as any).commHistory || [
-    { id: "1", date: "2026-07-01T10:00:00Z", channel: "email", text: "Sent introductory careers invitation.", author: "Super Admin" },
-    { id: "2", date: "2026-07-02T14:30:00Z", channel: "call", text: "Initial phone screen regarding Figma and React expertise.", author: "Gopal Krishna" },
-    { id: "3", date: "2026-07-03T11:15:00Z", channel: "whatsapp", text: "Shared location coordinates and interview link.", author: "Recruitment Coordinator" }
-  ];
+  const commHistory = (candidate as any).commHistory || [];
 
   // Submissions array
-  const mockSubmissions = (candidate as any).mockSubmissions || [
-    { id: "sub-1", client: "Infosys", title: "Senior UI Architect", status: "Rejected", date: "2026-06-25" },
-    { id: "sub-2", client: "TCS", title: "React Developer", status: "Interview", date: "2026-06-28" }
-  ];
+  const submissions = (candidate as any).submissions || [];
 
   // Dynamic Skill Mapping for Percentage Levels
-  const skillProgress: Record<string, number> = {
-    figma: 95,
-    "adobe xd": 85,
-    html: 90,
-    css: 85,
-    react: 80,
-    angular: 50,
-    accessibility: 85,
-    "design systems": 90,
-    javascript: 90,
-    typescript: 85,
-    python: 60,
-    java: 75,
-    sql: 70
-  };
+  const skillProgress: Record<string, number> = (candidate as any).skillMastery || {};
 
   const getSkillLevel = (skillName: string): number => {
     const key = skillName.toLowerCase().trim();
     if (skillProgress[key]) return skillProgress[key];
-    // Return structured pseudo-random level between 60 and 90
-    let hash = 0;
-    for (let i = 0; i < key.length; i++) {
-      hash = key.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return 65 + (Math.abs(hash) % 26);
+    return 0;
   };
 
   // Experience timeline (derived dynamically)
-  const experienceTimeline = (candidate as any).experienceTimeline || [
-    { period: "2024–Present", company: currentCompany, role: currentTitle, description: "Leading interface layouts, design frameworks, and coordinating with engineers." },
-    { period: "2022–2024", company: "XYZ Tech Systems", role: "UI Designer", description: "Owned responsive layout optimization, accessibility pipelines, and cross-platform systems." },
-    { period: "2021–2022", company: "Junior Design Studio", role: "Associate Visual Designer", description: "Created high-fidelity landing pages and styled typography assets." }
-  ];
+  const experienceTimeline = (candidate as any).experienceTimeline || [];
 
   // AI Resume insights
   const aiInsights = (candidate as any).aiInsights || {
-    totalExperience: `${candidate.yearsExperience || candidate.experience || "5"} Years`,
-    relevantExperience: `${Math.max(0.5, (Number(candidate.yearsExperience || candidate.experience) || 5) - 0.5)} Years`,
-    domain: "Product Design, Tech-Staffing Solutions",
-    education: "B.Des in Communication Design / B.Tech Computer Science",
-    certifications: "Google Certified UX Specialist, Accessibility Core (IAAP)",
-    portfolioLink: "https://behance.net/gopala-portfolio",
-    languages: "English, Hindi, Telugu"
+    totalExperience: `${candidate.yearsExperience || candidate.experience || "0"} Years`,
+    relevantExperience: `${candidate.yearsExperience || candidate.experience || "0"} Years`,
+    domain: "",
+    education: "",
+    certifications: "",
+    portfolioLink: "",
+    languages: ""
   };
 
   // Strengths list
-  const aiStrengths = (candidate as any).aiStrengths || [
-    "Excellent Design Systems development and management.",
-    "Strong Responsive & Mobile-First styling implementation.",
-    "Expert-level Figma component configuration and auto-layout mastery.",
-    "Strict compliance with WCAG Accessibility Guidelines.",
-    "Flat team collaboration and Agile lifecycle experience."
-  ];
+  const aiStrengths = (candidate as any).aiStrengths || [];
 
   // AI Summary
   const initialSummary = candidate.notes?.includes("From resume:")
-    ? `${candidate.name} is a seasoned ${currentTitle} with ${candidate.experience || "5"} years of experience. Highly skilled in ${skills.slice(0, 4).join(", ")}, collaborating with engineering teams, and optimizing interface workflows.`
-    : (candidate.notes || `${candidate.name} is a highly accomplished ${currentTitle} with over ${candidate.experience || "5"} years of industry experience. They possess strong expertise in ${skills.slice(0, 4).join(", ")}, with a focus on product interfaces, responsive architectures, and clean systems design.`);
+    ? `${candidate.name} is a seasoned ${currentTitle} with ${candidate.experience || "0"} years of experience. Highly skilled in ${skills.slice(0, 4).join(", ")}, collaborating with engineering teams, and optimizing interface workflows.`
+    : (candidate.notes || "");
 
   const aiSummaryText = (candidate as any).customSummary || initialSummary;
 
@@ -260,11 +221,11 @@ export default function Candidate360({ candidateId, onClose }: Candidate360Props
       });
 
       // Append submission record
-      const updatedMockSubs = [
+      const updatedSubs = [
         { id: `sub-${Date.now()}`, client: selectedJob?.clientName || "Direct Partner", title: jobTitle, status: "Submitted", date: new Date().toISOString().split("T")[0] },
-        ...mockSubmissions
+        ...submissions
       ];
-      await updateCandidate(candidate.id, { mockSubmissions: updatedMockSubs } as any);
+      await updateCandidate(candidate.id, { submissions: updatedSubs } as any);
 
       toast.success(`Candidate submitted to "${jobTitle}" successfully!`);
     } catch (err: any) {
@@ -797,10 +758,10 @@ export default function Candidate360({ candidateId, onClose }: Candidate360Props
                   <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
                     <h4 className="font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
                       <Zap className="text-indigo-500 w-5 h-5" />
-                      Historic Submissions Ledger
+                      Submissions Ledger
                     </h4>
                     <div className="space-y-3">
-                      {mockSubmissions.map((sub: any, idx: number) => (
+                      {submissions.map((sub: any, idx: number) => (
                         <div key={idx} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-medium">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">

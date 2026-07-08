@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { RequirementRepository } from '@/repositories/RequirementRepository';
 import { VendorRepository } from '@/repositories/VendorRepository';
-import { collection, query, where, getDocs, getDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/services/firebase/config';
+import { dbProxy } from '@/services/firebase/db-proxy';
 import { 
   Briefcase, 
   MapPin, 
@@ -111,9 +110,8 @@ export default function VendorSubmit() {
     if (!authenticatedVendor) return;
     setLoadingPool(true);
     try {
-      const vSnap = await getDoc(doc(db, 'vendors', authenticatedVendor.id));
-      if (vSnap.exists()) {
-        const vData = vSnap.data();
+      const vData = await dbProxy.getDoc('vendors', authenticatedVendor.id);
+      if (vData) {
         setComplianceStats({
           performanceScore: vData.performanceScore || 85,
           responseRate: vData.responseRate || 90,
@@ -122,16 +120,10 @@ export default function VendorSubmit() {
         });
       }
 
-      const q = query(
-        collection(db, 'vendor_candidate_pool'), 
-        where('vendorId', '==', authenticatedVendor.id)
-      );
-      const snap = await getDocs(q);
-      const list: any[] = [];
-      snap.forEach(d => {
-        list.push({ id: d.id, ...d.data() });
+      const docs = await dbProxy.getDocs('candidates', {
+        where: [{ field: 'vendorId', op: '==', value: authenticatedVendor.id }]
       });
-      setPoolCandidates(list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')));
+      setPoolCandidates(docs.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || '')));
     } catch (err) {
       console.error('Error fetching pool data:', err);
     } finally {
@@ -238,7 +230,7 @@ export default function VendorSubmit() {
       setOtpStep(true);
       
       toast.success(`Security Verification Code Dispatched!`, {
-        description: `[SECURE CHALLENGE] Simulated Email OTP is: ${randomOtp}`,
+        description: `Please check your registered email for the 6-digit verification code.`,
         duration: 12000,
       });
     }, 1200);
@@ -246,7 +238,7 @@ export default function VendorSubmit() {
 
   const handleVerifyOtp = (e: React.FormEvent) => {
     e.preventDefault();
-    if (otpCodeInput.trim() !== generatedOtp && otpCodeInput.trim() !== '481516') {
+    if (otpCodeInput.trim() !== generatedOtp) {
       toast.error('Invalid OTP Verification Code.');
       return;
     }
@@ -432,7 +424,7 @@ export default function VendorSubmit() {
               email,
               phone,
               linkedin: `https://linkedin.com/in/${cleanNameForEmail}`,
-              resume_url: "https://drive.google.com/file/d/sample-bulk/view",
+              resume_url: "",
               current_company: "Standard Tech Partner",
               current_title: job?.title || "Consultant",
               current_ctc: "₹9,50,000",
@@ -621,7 +613,7 @@ export default function VendorSubmit() {
               email,
               phone,
               linkedin: `https://linkedin.com/in/${cleanNameForEmail}`,
-              resume_url: "https://drive.google.com/file/d/sample-pool/view",
+              resume_url: "",
               current_company: "Standard Tech Partner",
               current_title: "Consultant",
               current_ctc: "₹9,50,000",
@@ -899,7 +891,7 @@ export default function VendorSubmit() {
                   className="w-full px-4 py-3 bg-slate-950 border border-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none rounded-xl text-lg text-center font-mono tracking-[0.5em] text-white placeholder-slate-600 transition-all font-bold"
                 />
                 <p className="text-[9px] text-slate-400 text-center font-sans mt-2">
-                  Check the browser toast alert for your simulated verification OTP, or enter <span className="font-mono font-bold text-amber-400">481516</span> to bypass.
+                  Check your registered email for your verification OTP.
                 </p>
               </div>
 

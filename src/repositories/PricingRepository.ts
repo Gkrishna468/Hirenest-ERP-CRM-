@@ -1,5 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
-import { db } from '@/services/firebase/config';
+import { dbProxy } from '@/services/firebase/db-proxy';
 import type { Deal } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString } from '@/utils/safe';
@@ -7,11 +6,10 @@ import { safeISOString } from '@/utils/safe';
 export const PricingRepository = {
   async getDealById(id: string): Promise<Deal | null> {
     try {
-      const snap = await getDoc(doc(db, 'deals', id));
-      if (!snap.exists()) return null;
-      const data = snap.data();
+      const data = await dbProxy.getDoc('deals', id);
+      if (!data) return null;
       return {
-        id: snap.id,
+        id: id,
         jobId: data.jobId || data.job_id || '',
         candidateId: data.candidateId || data.candidate_id || '',
         vendorId: data.vendorId || data.vendor_id || '',
@@ -41,11 +39,10 @@ export const PricingRepository = {
 
   async listDeals(): Promise<Deal[]> {
     try {
-      const snap = await getDocs(collection(db, 'deals'));
-      return snap.docs.map(d => {
-        const data = d.data();
+      const docs = await dbProxy.getDocs('deals');
+      return docs.map((data: any) => {
         return {
-          id: d.id,
+          id: data.id,
           jobId: data.jobId || data.job_id || '',
           candidateId: data.candidateId || data.candidate_id || '',
           vendorId: data.vendorId || data.vendor_id || '',
@@ -100,7 +97,7 @@ export const PricingRepository = {
       revenue_amount: data.revenueAmount || data.revenue_amount || 0, // compatibility
     };
     try {
-      await setDoc(doc(db, 'deals', id), deal);
+      await dbProxy.setDoc('deals', id, deal);
       return deal;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `deals/${id}`);
@@ -110,7 +107,7 @@ export const PricingRepository = {
 
   async updateDeal(id: string, updates: Partial<Deal>): Promise<void> {
     try {
-      await updateDoc(doc(db, 'deals', id), updates);
+      await dbProxy.updateDoc('deals', id, updates);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `deals/${id}`);
     }
@@ -118,7 +115,7 @@ export const PricingRepository = {
 
   async deleteDeal(id: string): Promise<void> {
     try {
-      await deleteDoc(doc(db, 'deals', id));
+      await dbProxy.deleteDoc('deals', id);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `deals/${id}`);
     }

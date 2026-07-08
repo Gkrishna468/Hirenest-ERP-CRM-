@@ -1,5 +1,4 @@
-import { db } from '@/services/firebase/config';
-import { getDocs, collection, addDoc } from 'firebase/firestore';
+import { dbProxy } from '@/services/firebase/db-proxy';
 
 /**
  * Learning Agent: Analyzes outcomes to improve decision thresholds
@@ -7,8 +6,7 @@ import { getDocs, collection, addDoc } from 'firebase/firestore';
 export async function runLearningAgent() {
   let outcomes: any[] = [];
   try {
-    const snap = await getDocs(collection(db, 'candidate_outcomes'));
-    outcomes = snap.docs.map(doc => doc.data());
+    outcomes = await dbProxy.getDocs('candidate_outcomes');
   } catch (error) {
     console.warn("Could not load candidate_outcomes:", error);
   }
@@ -19,7 +17,7 @@ export async function runLearningAgent() {
   const avgImprovement = totalScore / outcomes.length;
 
   // Log insight
-  await addDoc(collection(db, 'agent_logs'), {
+  await dbProxy.addDoc('agent_logs', {
     type: 'learning',
     message: `System Learning: Current AI Shortlist Precision is ${(avgImprovement * 20).toFixed(1)}%.`,
     level: 'info',

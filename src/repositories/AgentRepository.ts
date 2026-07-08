@@ -1,56 +1,45 @@
-import { collection, query, where, getDocs, onSnapshot, orderBy, limit } from 'firebase/firestore';
-import { db } from '@/services/firebase/config';
+import { dbProxy } from '@/services/firebase/db-proxy';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 
 export const AgentRepository = {
   subscribeToTasks(callback: (tasks: any[]) => void, onError?: (err: any) => void) {
-    return onSnapshot(
-      collection(db, 'agent_tasks'),
-      (snap) => {
-        const tasks: any[] = [];
-        snap.forEach((doc) => {
-          tasks.push({ id: doc.id, ...doc.data() });
-        });
-        callback(tasks);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'agent_tasks');
-        if (onError) onError(error);
-      }
-    );
+    this.listTasks().then(callback).catch(onError);
+    return () => {}; // No-op unsubscribe
+  },
+
+  async listTasks(): Promise<any[]> {
+    try {
+      const docs = await dbProxy.getDocs('agent_tasks');
+      return docs;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'agent_tasks');
+      return [];
+    }
   },
 
   subscribeToExecutions(callback: (executions: any[]) => void, onError?: (err: any) => void) {
-    const q = query(collection(db, 'agent_executions'));
-    return onSnapshot(
-      q,
-      (snap) => {
-        const execs: any[] = [];
-        snap.forEach((doc) => {
-          execs.push({ id: doc.id, ...doc.data() });
-        });
-        execs.sort((a, b) => new Date(b.startedAt || 0).getTime() - new Date(a.startedAt || 0).getTime());
-        callback(execs);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'agent_executions');
-        if (onError) onError(error);
-      }
-    );
+    this.listExecutions().then(callback).catch(onError);
+    return () => {}; // No-op unsubscribe
+  },
+
+  async listExecutions(): Promise<any[]> {
+    try {
+      const execs = await dbProxy.getDocs('agent_executions', {
+        orderBy: [{ field: 'startedAt', direction: 'desc' }]
+      });
+      return execs;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'agent_executions');
+      return [];
+    }
   },
 
   async getExecutionLogs(taskId: string): Promise<any[]> {
     try {
-      const q = query(
-        collection(db, 'agent_logs'),
-        where('taskId', '==', taskId)
-      );
-      const snap = await getDocs(q);
-      const logs: any[] = [];
-      snap.forEach((d) => {
-        logs.push({ id: d.id, ...d.data() });
+      const logs = await dbProxy.getDocs('agent_logs', {
+        where: [{ field: 'taskId', op: '==', value: taskId }],
+        orderBy: [{ field: 'timestamp', direction: 'asc' }]
       });
-      logs.sort((a, b) => new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime());
       return logs;
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'agent_logs');
@@ -60,8 +49,8 @@ export const AgentRepository = {
 
   async listLogs(): Promise<any[]> {
     try {
-      const snap = await getDocs(collection(db, 'agent_logs'));
-      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const docs = await dbProxy.getDocs('agent_logs');
+      return docs;
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'agent_logs');
       return [];

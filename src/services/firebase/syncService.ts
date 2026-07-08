@@ -1,5 +1,5 @@
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
-import { db, auth } from './config';
+import { dbProxy } from './db-proxy';
+import { auth } from './config';
 import { eventService } from './eventService';
 
 export const syncService = {
@@ -22,83 +22,75 @@ export const syncService = {
     }
   },
 
-  // Dual-write Client
+  // Write Client to Unified SSOT
   syncClient: async (id: string, data: any) => {
     try {
-      // 1. Write to Firebase Firestore (CRM Domain - crm_accounts)
-      const crmAccountRef = doc(db, 'crm_accounts', id);
-      await setDoc(crmAccountRef, {
+      await dbProxy.setDoc('clients', id, {
         ...data,
         id,
         updatedAt: new Date().toISOString()
-      }, { merge: true });
+      });
 
-      // 2. Log event
+      // Log event
       await syncService.logEvent('CLIENT_CREATED_OR_UPDATED', 'client', id, { company: data.company });
     } catch (err) {
-      console.error('[Sync] Client sync failed:', err);
+      console.error('[Platform] Client write failed:', err);
     }
   },
 
-  // Dual-write Vendor
+  // Write Vendor to Unified SSOT
   syncVendor: async (id: string, data: any) => {
     try {
-      // 1. Write to Firebase Firestore (CRM Domain - crm_vendor_accounts)
-      const crmVendorRef = doc(db, 'crm_vendor_accounts', id);
-      await setDoc(crmVendorRef, {
+      await dbProxy.setDoc('vendors', id, {
         ...data,
         id,
         updatedAt: new Date().toISOString()
-      }, { merge: true });
+      });
 
-      // 2. Log event
+      // Log event
       await syncService.logEvent('VENDOR_CREATED_OR_UPDATED', 'vendor', id, { name: data.name, company: data.company });
     } catch (err) {
-      console.error('[Sync] Vendor sync failed:', err);
+      console.error('[Platform] Vendor write failed:', err);
     }
   },
 
-  // Dual-write Requirement
+  // Write Requirement to Unified SSOT
   syncRequirement: async (id: string, data: any) => {
     try {
-      // 1. Write to Firebase Firestore (OS Domain - requirements)
-      const reqRef = doc(db, 'requirements', id);
-      await setDoc(reqRef, {
+      await dbProxy.setDoc('requirements', id, {
         ...data,
         id,
         updatedAt: new Date().toISOString()
-      }, { merge: true });
+      });
 
-      // 2. Log event
+      // Log event
       await syncService.logEvent('REQUIREMENT_SYNCED', 'requirement', id, { 
         title: data.title, 
         status: data.status,
         approvalStatus: data.approvalStatus
       });
     } catch (err) {
-      console.error('[Sync] Requirement sync failed:', err);
+      console.error('[Platform] Requirement write failed:', err);
     }
   },
 
-  // Dual-write Candidate
+  // Write Candidate to Unified SSOT
   syncCandidate: async (id: string, data: any) => {
     try {
-      // 1. Write to Firebase Firestore (OS Domain - candidates)
-      const candRef = doc(db, 'candidates', id);
-      await setDoc(candRef, {
+      await dbProxy.setDoc('candidates', id, {
         ...data,
         id,
         updatedAt: new Date().toISOString()
-      }, { merge: true });
+      });
 
-      // 2. Log event
+      // Log event
       await syncService.logEvent('CANDIDATE_SYNCED', 'candidate', id, { 
         name: data.name, 
         stage: data.stage,
         status: data.status
       });
     } catch (err) {
-      console.error('[Sync] Candidate sync failed:', err);
+      console.error('[Platform] Candidate write failed:', err);
     }
   }
 };

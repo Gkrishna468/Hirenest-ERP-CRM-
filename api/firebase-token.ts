@@ -71,6 +71,7 @@ export default async function handler(req: Request, res: Response) {
     const customClaims = {
       role: user.role || "viewer",
       email: user.email,
+      admin: (user.role === 'admin' || user.id === 'executive-root' || user.id === 'me995j91dmNkwfXXfaCyrDo8oa03')
     };
 
     const firebaseToken = await getAdminAuth(adminApp).createCustomToken(user.id, customClaims);

@@ -1,5 +1,5 @@
-import { collection, doc, setDoc, getDocs, updateDoc, getDoc } from 'firebase/firestore';
-import { db, auth } from './config';
+import { dbProxy } from './db-proxy';
+import { auth } from './config';
 import { handleFirestoreError, OperationType } from './error';
 import { eventService } from './eventService';
 
@@ -19,7 +19,7 @@ export const accountService = {
       if (!ownerId) throw new Error('Unauthenticated');
       
       const account: Account = { ...data, id, ownerId };
-      await setDoc(doc(db, 'accounts', id), account);
+      await dbProxy.setDoc('accounts', id, account);
       
       // Log event
       await eventService.logEvent({
@@ -36,8 +36,8 @@ export const accountService = {
 
   getAccounts: async () => {
     try {
-      const snapshot = await getDocs(collection(db, 'accounts'));
-      return snapshot.docs.map(doc => doc.data() as Account);
+      const docs = await dbProxy.getDocs('accounts');
+      return docs as Account[];
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'accounts');
       return [];

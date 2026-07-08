@@ -60,7 +60,7 @@ export default async function handler(req: any, res: any) {
       }
 
       // 1. Get requirement
-      const reqRef = await db.collection("jobs").doc(requirementId).get();
+      const reqRef = await db.collection("requirements").doc(requirementId).get();
       if (!reqRef.exists) {
         return res.status(404).json({ error: "Requirement not found" });
       }
@@ -120,7 +120,7 @@ export default async function handler(req: any, res: any) {
       });
       
       // Update requirement metrics
-      const requirementUpdateRef = db.collection("jobs").doc(requirementId);
+      const requirementUpdateRef = db.collection("requirements").doc(requirementId);
       batch.update(requirementUpdateRef, {
          broadcastsSent: (reqRef.data()?.broadcastsSent || 0) + sentCount
       });

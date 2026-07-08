@@ -1,5 +1,5 @@
-import { doc, getDoc, setDoc, updateDoc, collection, addDoc, query, where, getDocs } from "firebase/firestore";
-import { db, auth } from "./config";
+import { dbProxy } from "./db-proxy";
+import { auth } from "./config";
 import { eventService } from "./eventService";
 
 export interface DomainEvent {
@@ -22,11 +22,10 @@ export const syncOrchestrator = {
    */
   publishEvent: async (eventType: string, payload: any, customEventId?: string): Promise<string> => {
     const eventId = customEventId || crypto.randomUUID();
-    const eventRef = doc(db, "system_events", eventId);
 
     // Idempotency check: check if event already exists
-    const existingSnap = await getDoc(eventRef);
-    if (existingSnap.exists()) {
+    const existingData = await dbProxy.getDoc("system_events", eventId);
+    if (existingData) {
       console.warn(`[SyncOrchestrator] Duplicate event detected. Skipping publish for ID: ${eventId}`);
       return eventId;
     }
@@ -43,7 +42,7 @@ export const syncOrchestrator = {
     };
 
     // Save event to immutable Company Ledger
-    await setDoc(eventRef, domainEvent);
+    await dbProxy.setDoc("system_events", eventId, domainEvent);
     console.log(`[SyncOrchestrator] Published event ${eventType} (${eventId})`);
 
     // Trigger local asynchronous event processing only in non-browser environments
@@ -66,14 +65,11 @@ export const syncOrchestrator = {
    * Prevents duplicate processing, tracks execution status, handles retries, and updates states.
    */
   consumeEvent: async (eventId: string): Promise<void> => {
-    const eventRef = doc(db, "system_events", eventId);
-    const eventSnap = await getDoc(eventRef);
+    const event = await dbProxy.getDoc("system_events", eventId);
 
-    if (!eventSnap.exists()) {
+    if (!event) {
       throw new Error(`Event ${eventId} not found.`);
     }
-
-    const event = eventSnap.data() as DomainEvent;
 
     // Prevent double processing
     if (event.status === "processed" || event.status === "processing" && (Date.now() - new Date(event.timestamp).getTime() < 30000)) {
@@ -84,7 +80,7 @@ export const syncOrchestrator = {
     console.log(`[SyncOrchestrator] Consuming event: ${event.eventType} (${eventId})`);
 
     // Mark as processing
-    await updateDoc(eventRef, {
+    await dbProxy.updateDoc("system_events", eventId, {
       status: "processing",
       updatedAt: new Date().toISOString()
     });
@@ -94,7 +90,7 @@ export const syncOrchestrator = {
       await syncOrchestrator.routeEvent(event.eventType, event.payload);
 
       // Mark as successfully processed
-      await updateDoc(eventRef, {
+      await dbProxy.updateDoc("system_events", eventId, {
         status: "processed",
         processedAt: new Date().toISOString(),
         error: null
@@ -108,7 +104,7 @@ export const syncOrchestrator = {
       const nextRetry = event.retries + 1;
       if (nextRetry <= event.maxRetries) {
         // Retry logic with state update
-        await updateDoc(eventRef, {
+        await dbProxy.updateDoc("system_events", eventId, {
           status: "pending",
           retries: nextRetry,
           error: `${errorMsg} (Attempt ${nextRetry}/${event.maxRetries})`,
@@ -117,7 +113,7 @@ export const syncOrchestrator = {
         console.log(`[SyncOrchestrator] Queued retry attempt ${nextRetry} for event ${eventId}`);
       } else {
         // Perm failed
-        await updateDoc(eventRef, {
+        await dbProxy.updateDoc("system_events", eventId, {
           status: "failed",
           error: `Failed after ${event.maxRetries} attempts. Last error: ${errorMsg}`,
           processedAt: new Date().toISOString()
@@ -173,14 +169,12 @@ export const syncOrchestrator = {
    */
   reprocessPendingEvents: async (): Promise<number> => {
     console.log("[SyncOrchestrator] Scanning for pending or stale events to reprocess...");
-    const q = query(
-      collection(db, "system_events"),
-      where("status", "==", "pending")
-    );
-    const snap = await getDocs(q);
+    const docs = await dbProxy.getDocs("system_events", {
+      where: [{ field: 'status', op: '==', value: 'pending' }]
+    });
     let count = 0;
-    for (const docSnap of snap.docs) {
-      await syncOrchestrator.consumeEvent(docSnap.id);
+    for (const data of docs) {
+      await syncOrchestrator.consumeEvent(data.id);
       count++;
     }
     return count;

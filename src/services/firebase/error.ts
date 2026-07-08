@@ -11,6 +11,7 @@ export enum OperationType {
 
 export interface FirestoreErrorInfo {
   error: string;
+  rawError?: any;
   operationType: OperationType;
   path: string | null;
   authInfo: {
@@ -29,6 +30,7 @@ export interface FirestoreErrorInfo {
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
+    rawError: error,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,

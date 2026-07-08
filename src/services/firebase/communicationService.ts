@@ -1,5 +1,4 @@
-import { collection, doc, setDoc, getDocs, query, where } from 'firebase/firestore';
-import { db } from './config';
+import { dbProxy } from './db-proxy';
 import { handleFirestoreError, OperationType } from './error';
 import { eventService } from './eventService';
 
@@ -22,7 +21,7 @@ export const communicationService = {
         id,
         timestamp: new Date().toISOString()
       };
-      await setDoc(doc(db, 'communications', id), communication);
+      await dbProxy.setDoc('communications', id, communication);
       
       await eventService.logEvent({
         eventType: 'COMMUNICATION_LOGGED',
@@ -39,12 +38,13 @@ export const communicationService = {
   getCommunications: async (entityId?: string) => {
     try {
       if (entityId) {
-        const q = query(collection(db, 'communications'), where('entityId', '==', entityId));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => doc.data() as Communication);
+        const docs = await dbProxy.getDocs('communications', {
+          where: [{ field: 'entityId', op: '==', value: entityId }]
+        });
+        return docs as Communication[];
       }
-      const snapshot = await getDocs(collection(db, 'communications'));
-      return snapshot.docs.map(doc => doc.data() as Communication);
+      const docs = await dbProxy.getDocs('communications');
+      return docs as Communication[];
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'communications');
       return [];

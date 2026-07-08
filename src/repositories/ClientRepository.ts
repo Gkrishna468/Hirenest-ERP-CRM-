@@ -1,5 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
-import { db } from '@/services/firebase/config';
+import { dbProxy } from '@/services/firebase/db-proxy';
 import type { Client } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString, safeBudget } from '@/utils/safe';
@@ -7,11 +6,10 @@ import { safeISOString, safeBudget } from '@/utils/safe';
 export const ClientRepository = {
   async getById(id: string): Promise<Client | null> {
     try {
-      const snap = await getDoc(doc(db, 'clients', id));
-      if (!snap.exists()) return null;
-      const data = snap.data();
+      const data = await dbProxy.getDoc('clients', id);
+      if (!data) return null;
       return {
-        id: snap.id,
+        id: id,
         company: data.company || '',
         name: data.name || '',
         email: data.email || '',
@@ -36,11 +34,10 @@ export const ClientRepository = {
 
   async list(): Promise<Client[]> {
     try {
-      const snap = await getDocs(collection(db, 'clients'));
-      let firebaseClients: Client[] = snap.docs.map(d => {
-        const data = d.data();
+      const docs = await dbProxy.getDocs('clients');
+      let firebaseClients: Client[] = docs.map((data: any) => {
         return {
-          id: d.id,
+          id: data.id,
           company: data.company || '',
           name: data.name || '',
           email: data.email || '',
@@ -61,10 +58,9 @@ export const ClientRepository = {
       });
 
       // Extract organization names from users
-      const usersSnap = await getDocs(collection(db, 'users'));
+      const usersDocs = await dbProxy.getDocs('users');
       const orgNames = new Map<string, string>();
-      usersSnap.docs.forEach(d => {
-        const data = d.data();
+      usersDocs.forEach((data: any) => {
         if (data.organizationId) {
           let name = data.companyName;
           if (!name && data.email) {
@@ -79,10 +75,9 @@ export const ClientRepository = {
       });
 
       // Extract unique clients from requirements (OS data)
-      const reqsSnap = await getDocs(collection(db, 'requirements'));
+      const reqsDocs = await dbProxy.getDocs('requirements');
       const reqsClientsMap = new Map<string, Client>();
-      reqsSnap.docs.forEach(d => {
-        const data = d.data();
+      reqsDocs.forEach((data: any) => {
         const clientId = data.clientId || data.client_id;
         let clientName = data.clientName || data.client_name;
         if (!clientName && clientId) {
@@ -115,47 +110,8 @@ export const ClientRepository = {
       // Combine avoiding duplicates by ID
       const existingIds = new Set(firebaseClients.map(c => c.id));
       const newExtracted = extractedClients.filter(c => !existingIds.has(c.id));
-      firebaseClients = [...firebaseClients, ...newExtracted];
+      const combined = [...firebaseClients, ...newExtracted];
 
-      // Extract unique clients from requirements_public (CRM data)
-      const pubReqsSnap = await getDocs(collection(db, 'requirements_public'));
-      const pubClientsMap = new Map<string, Client>();
-      pubReqsSnap.docs.forEach(d => {
-        const data = d.data();
-        const clientId = data.clientId || data.client_id;
-        let clientName = data.clientName || data.client_name;
-        if (!clientName && clientId) {
-          clientName = orgNames.get(clientId) || `Client ${clientId.slice(-5)}`;
-        }
-        if (clientId && !pubClientsMap.has(clientId)) {
-          pubClientsMap.set(clientId, {
-            id: clientId,
-            company: clientName,
-            name: clientName,
-            email: '',
-            phone: '',
-            location: '',
-            industry: '',
-            budget: 'Medium',
-            contactPerson: '',
-            website: '',
-            clientCode: clientId,
-            notes: 'Extracted from requirements_public (CRM)',
-            userId: '',
-            companyId: clientId,
-            createdAt: safeISOString(data.createdAt || data.created_at),
-            updatedAt: safeISOString(data.updatedAt || data.updated_at),
-            source: 'crm' as 'crm'
-          });
-        }
-      });
-
-      const extractedPubClients = Array.from(pubClientsMap.values()) as Client[];
-
-      const finalExistingIds = new Set(firebaseClients.map(c => c.id));
-      const newPubExtracted = extractedPubClients.filter(c => !finalExistingIds.has(c.id));
-
-      const combined = [...newPubExtracted, ...firebaseClients];
       const seen = new Set<string>();
       const unique = combined.filter(c => {
         if (!c.id || seen.has(c.id)) return false;
@@ -191,7 +147,7 @@ export const ClientRepository = {
       updatedAt: new Date().toISOString(),
     };
     try {
-      await setDoc(doc(db, 'clients', id), client);
+      await dbProxy.setDoc('clients', id, client);
       return client;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `clients/${id}`);
@@ -202,7 +158,7 @@ export const ClientRepository = {
   async update(id: string, updates: Partial<Client>): Promise<void> {
     const cleanUpdates = { ...updates, updatedAt: new Date().toISOString() };
     try {
-      await updateDoc(doc(db, 'clients', id), cleanUpdates);
+      await dbProxy.updateDoc('clients', id, cleanUpdates);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `clients/${id}`);
     }
@@ -210,7 +166,7 @@ export const ClientRepository = {
 
   async delete(id: string): Promise<void> {
     try {
-      await deleteDoc(doc(db, 'clients', id));
+      await dbProxy.deleteDoc('clients', id);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `clients/${id}`);
     }

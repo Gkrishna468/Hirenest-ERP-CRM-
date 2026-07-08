@@ -27,8 +27,7 @@ import {
   Check
 } from 'lucide-react';
 import { SourceBadge } from '@/components/SourceBadge';
-import { collection, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/services/firebase/config';
+import { dbProxy } from '@/services/firebase/db-proxy';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -74,105 +73,30 @@ export default function Contacts() {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        let snap = await getDocs(collection(db, 'contacts'));
-        let fetchedContacts: Contact[] = snap.docs.map(d => {
-          const data = d.data();
+        let snapDocs = await dbProxy.getDocs('contacts');
+        let fetchedContacts: Contact[] = snapDocs.map((data: any) => {
           return {
-            id: d.id,
+            id: data.id,
             name: data.name || 'Unknown',
-            title: data.title || 'HR Head',
-            company: data.company || 'ABC Technologies',
+            title: data.title || '',
+            company: data.company || '',
             email: data.email || '',
-            phone: data.phone || '+91 98860 12345',
-            location: data.location || 'Bangalore',
+            phone: data.phone || '',
+            location: data.location || '',
             source: (data.source || 'crm') as 'crm' | 'os',
-            rating: data.rating || 4,
-            lastMeeting: data.lastMeeting || '4 days ago',
-            birthday: data.birthday || 'September 14',
+            rating: data.rating || 0,
+            lastMeeting: data.lastMeeting || '',
+            birthday: data.birthday || '',
             linkedin: data.linkedin || '',
             callsCount: data.callsCount || 0,
             emailsCount: data.emailsCount || 0,
             whatsappCount: data.whatsappCount || 0,
             requirementsGiven: data.requirementsGiven || 0,
             placementsCount: data.placementsCount || 0,
-            personalNotes: data.personalNotes || 'Focuses on team alignment SLA loops.',
-            aiSummary: data.aiSummary || 'A crucial technology recruitment stakeholder.'
+            personalNotes: data.personalNotes || '',
+            aiSummary: data.aiSummary || ''
           };
         });
-
-        if (fetchedContacts.length === 0) {
-          // Dynamic Firebase Seeding
-          const demoContacts: Omit<Contact, 'id'>[] = [
-            {
-              name: 'John Smith',
-              title: 'Delivery Manager',
-              company: 'ABC Technologies',
-              email: 'john.smith@abctech.com',
-              phone: '+91 99000 88221',
-              location: 'Hyderabad, India',
-              source: 'crm',
-              rating: 5,
-              lastMeeting: '2 days ago',
-              birthday: 'October 24',
-              linkedin: 'https://linkedin.com/in/johnsmith-delivery',
-              callsCount: 18,
-              emailsCount: 42,
-              whatsappCount: 8,
-              requirementsGiven: 15,
-              placementsCount: 6,
-              personalNotes: 'Always looks for candidates with strong architectural and communication skills. Dislikes generic submissions.',
-              aiSummary: 'Main key contact in ABC Technologies. Drives 70% of tech requisitions. Maintain regular weekly touchpoints.'
-            },
-            {
-              name: 'Priyanka Sen',
-              title: 'Talent Acquisition Head',
-              company: 'Infosys',
-              email: 'priyanka.s@infosys.com',
-              phone: '+91 98801 77334',
-              location: 'Pune, India',
-              source: 'crm',
-              rating: 4,
-              lastMeeting: 'Yesterday',
-              birthday: 'January 12',
-              linkedin: 'https://linkedin.com/in/priyankasen-ta',
-              callsCount: 12,
-              emailsCount: 31,
-              whatsappCount: 15,
-              requirementsGiven: 19,
-              placementsCount: 8,
-              personalNotes: 'Prefers batch resume submissions with custom screening scores attached.',
-              aiSummary: 'Strategic HR partner. Coordinates core vendor billing frameworks.'
-            },
-            {
-              name: 'Rahul Nair',
-              title: 'Engineering Director',
-              company: 'Cloud Assure',
-              email: 'rahul.nair@cloudassure.com',
-              phone: '+91 99805 11002',
-              location: 'Bangalore, India',
-              source: 'crm',
-              rating: 4,
-              lastMeeting: 'Last week',
-              birthday: 'December 05',
-              linkedin: 'https://linkedin.com/in/rahulnair-cloud',
-              callsCount: 6,
-              emailsCount: 14,
-              whatsappCount: 2,
-              requirementsGiven: 4,
-              placementsCount: 1,
-              personalNotes: 'Requires deep backend experience (Golang, Kubernetes). Prioritizes quality over speed.',
-              aiSummary: 'Direct hiring manager. Prefers receiving short profiles via WhatsApp first.'
-            }
-          ];
-
-          for (const item of demoContacts) {
-            await addDoc(collection(db, 'contacts'), item);
-          }
-
-          // Refetch to populate correctly with Firestore-assigned IDs
-          snap = await getDocs(collection(db, 'contacts'));
-          fetchedContacts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Contact));
-        }
 
         setContacts(fetchedContacts);
       } catch (error) {
@@ -192,7 +116,7 @@ export default function Contacts() {
 
   const handleUpdateRating = async (contactId: string, newRating: number) => {
     try {
-      await updateDoc(doc(db, 'contacts', contactId), { rating: newRating });
+      await dbProxy.updateDoc('contacts', contactId, { rating: newRating });
       setContacts(prev => prev.map(c => c.id === contactId ? { ...c, rating: newRating } : c));
       if (selectedContact && selectedContact.id === contactId) {
         setSelectedContact(prev => prev ? { ...prev, rating: newRating } : null);
@@ -233,8 +157,8 @@ export default function Contacts() {
         aiSummary: 'Awaiting interaction logs.'
       };
 
-      const docRef = await addDoc(collection(db, 'contacts'), payload);
-      const added: Contact = { id: docRef.id, ...payload };
+      const result = await dbProxy.addDoc('contacts', payload);
+      const added: Contact = { id: result.id, ...payload };
 
       setContacts(prev => [added, ...prev]);
       setIsModalOpen(false);

@@ -17,8 +17,7 @@ import { RequirementRepository } from "@/repositories/RequirementRepository";
 import { CandidateRepository } from "@/repositories/CandidateRepository";
 import { PricingRepository } from "@/repositories/PricingRepository";
 import { UserRepository } from "@/repositories/UserRepository";
-import { db } from "@/services/firebase/config";
-import { collection, query, orderBy, limit, onSnapshot, doc, setDoc } from "firebase/firestore";
+import { dbProxy } from "@/services/firebase/db-proxy";
 import type { Client, Vendor, Job, Candidate, AgentLog, Deal } from "@/types";
 
 interface DataContextType {
@@ -92,37 +91,35 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refreshAll();
   }, [refreshAll]);
 
-  // Realtime logs via Firestore onSnapshot
+  // Realtime logs via Polling (onSnapshot bypass)
   useEffect(() => {
     if (!user) return;
 
-    const q = query(
-      collection(db, "agent_logs"),
-      orderBy("createdAt", "desc"),
-      limit(50)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const logsList: AgentLog[] = [];
-      snapshot.forEach((d) => {
-        const l = d.data();
-        logsList.push({
-          id: d.id,
+    const fetchLogs = async () => {
+      try {
+        const docs = await dbProxy.getDocs("agent_logs", {
+           orderBy: [{ field: 'createdAt', direction: 'desc' }],
+           limit: 50
+        });
+        const logsList: AgentLog[] = docs.map((l: any) => ({
+          id: l.id,
           type: l.type || "info",
           level: l.level === "success" ? "success" : l.level || "info",
           message: l.message || "",
           metadata: l.metadata,
           companyId: l.companyId || l.company_id,
           createdAt: l.createdAt || l.created_at || new Date().toISOString(),
-        } as AgentLog);
-      });
-      setLogs(logsList);
-    }, (error) => {
-      // Index error might happen in firestore if index is not ready yet, fallback gracefully
-      console.warn("Firestore onSnapshot warning for agent_logs (likely missing index):", error);
-    });
+        } as AgentLog));
+        setLogs(logsList);
+      } catch (error) {
+        console.warn("Proxy fetch logs error:", error);
+      }
+    };
 
-    return () => unsubscribe();
+    fetchLogs();
+    const interval = setInterval(fetchLogs, 10000); // Poll every 10 seconds
+
+    return () => clearInterval(interval);
   }, [user]);
 
   const addClient = async (data: Partial<Client>) => {
@@ -146,7 +143,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     
     // Log event in Firestore Company Ledger
     const logId = crypto.randomUUID();
-    await setDoc(doc(db, "agent_logs", logId), {
+    await dbProxy.setDoc("agent_logs", logId, {
       type: "client",
       level: "info",
       message: `Client "${data.company}" added to CRM ledger.`,
@@ -205,7 +202,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     // Log event in Firestore
     const logId = crypto.randomUUID();
-    await setDoc(doc(db, "agent_logs", logId), {
+    await dbProxy.setDoc("agent_logs", logId, {
       type: "vendor",
       level: "info",
       message: `Vendor Partner "${data.name}" onboarded under permanent code ${vendorPayload.vendorCode}.`,
@@ -214,7 +211,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Law 1 Ledger Event
-    await setDoc(doc(db, "system_events", crypto.randomUUID()), {
+    await dbProxy.setDoc("system_events", crypto.randomUUID(), {
       type: "VENDOR_CREATED",
       message: `Vendor Partner "${data.name}" onboarded under permanent code ${vendorPayload.vendorCode}.`,
       timestamp: new Date().toISOString(),
@@ -249,7 +246,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     // Log event in Firestore
     const logId = crypto.randomUUID();
-    await setDoc(doc(db, "agent_logs", logId), {
+    await dbProxy.setDoc("agent_logs", logId, {
       type: "job",
       level: "info",
       message: `Requisition "${data.title}" drafted and pending approval.`,
@@ -277,7 +274,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     // Log event in Firestore
     const logId = crypto.randomUUID();
-    await setDoc(doc(db, "agent_logs", logId), {
+    await dbProxy.setDoc("agent_logs", logId, {
       type: "candidate",
       level: "info",
       message: `Candidate profile "${data.name}" ingested into core pool.`,
@@ -311,7 +308,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     // Log event in Firestore
     const logId = crypto.randomUUID();
-    await setDoc(doc(db, "agent_logs", logId), {
+    await dbProxy.setDoc("agent_logs", logId, {
       type: "revenue",
       level: "success",
       message: `CFO approved requisition ID ${id} with target budget ₹${budget}.`,

@@ -28,6 +28,7 @@ export interface User {
   name: string;
   role: Role;
   companyId?: string;
+  organizationId?: string;
   avatar?: string;
   phone?: string;
   status: 'active' | 'inactive';

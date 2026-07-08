@@ -6,8 +6,8 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/services/firebase/config';
-import { collection, addDoc } from 'firebase/firestore';
+import { dbProxy } from '@/services/firebase/db-proxy';
+import { eventService } from '@/services/firebase/eventService';
 import { 
   Plus, 
   Search, 
@@ -56,7 +56,7 @@ import {
   generateFollowUpSuggestions 
 } from '@/services/RelationshipIntelligenceEngine';
 
-// Default mock pipeline stages for Kanban
+// Sales pipeline stages for Kanban
 const PIPELINE_STAGES = [
   "Lead",
   "Qualified",
@@ -111,44 +111,13 @@ export default function Clients() {
   // Initialize data when client is selected
   useEffect(() => {
     if (selectedClient) {
-      // Setup mock pipeline state if not present
+      // Setup pipeline state if not present
       if (!pipelineState[selectedClient.id]) {
         setPipelineState(prev => ({
           ...prev,
           [selectedClient.id]: selectedClient.pipelineStage || "Active Client"
         }));
       }
-
-      // Setup mock org chart
-      setOrgNodes([
-        { id: 'node-1', role: 'CEO', name: 'Alok Mishra', email: 'alok@client.com', phone: '+91 9900112233' },
-        { id: 'node-2', role: 'HR Head', name: 'Ritu Sharma', email: 'ritu@client.com', phone: '+91 9900112244', parentId: 'node-1' },
-        { id: 'node-3', role: 'Talent Acquisition', name: 'Sunil Rao', email: 'sunil@client.com', phone: '+91 9900112255', parentId: 'node-2' },
-        { id: 'node-4', role: 'Delivery Manager', name: 'John Doe', email: 'john@client.com', phone: '+91 9900112266', parentId: 'node-1' },
-        { id: 'node-5', role: 'Hiring Manager (Tech)', name: 'Srinivas K.', email: 'srinivas@client.com', phone: '+91 9900112277', parentId: 'node-4' }
-      ]);
-
-      // Setup mock meetings
-      setMeetings([
-        {
-          id: 'meet-1',
-          agenda: 'Q3 Sourcing & Delivery Alignment',
-          participants: 'John Doe, Sunil Rao, Priya (Recruiter)',
-          date: '2 days ago',
-          summary: 'Reviewed pipeline for Frontend Architect roles. Agreed on shortening feedback SLA from 72h to 24h.',
-          decisions: 'Approve vendor candidate submission caps of 5 per requirement.',
-          actionItems: 'Share revised JD additions, release next batch of screening assessments.'
-        },
-        {
-          id: 'meet-2',
-          agenda: 'Account Review & Contract Negotiation',
-          participants: 'Alok Mishra, Gopal (BDM)',
-          date: 'Last week',
-          summary: 'Discussed high volume engagement discounts and MSA markup policies.',
-          decisions: 'Discount tier set to 12% on placements exceeding 15 hires per annum.',
-          actionItems: 'Draft and sign the MSA Addendum.'
-        }
-      ]);
 
       // Reset Copilot
       setCopilotMessages([
@@ -196,12 +165,15 @@ export default function Clients() {
 
     // Record system event (Law 1: append-only immutable ledger)
     try {
-      await addDoc(collection(db, "system_events"), {
-        type: 'ACCOUNT_STAGE_CHANGED',
-        description: `Account [${selectedClient.company}] sales pipeline transitioned to stage [${newStage}] by BDM.`,
+      await eventService.logEvent({
         entityType: 'client',
         entityId: selectedClient.id,
-        timestamp: new Date().toISOString()
+        eventType: 'ACCOUNT_STAGE_CHANGED',
+        metadata: {
+          company: selectedClient.company,
+          newStage,
+          description: `Account [${selectedClient.company}] sales pipeline transitioned to stage [${newStage}] by BDM.`
+        }
       });
     } catch (err) {
       console.error("Failed to append system ledger event:", err);
@@ -232,12 +204,15 @@ export default function Clients() {
 
     // Record system event
     try {
-      addDoc(collection(db, "system_events"), {
-        type: 'MEETING_WORKSPACE_CREATED',
-        description: `Meeting workspace established for [${selectedClient.company}] on: ${newMeet.agenda}`,
+      eventService.logEvent({
         entityType: 'meeting',
         entityId: newMeet.id,
-        timestamp: new Date().toISOString()
+        eventType: 'MEETING_WORKSPACE_CREATED',
+        metadata: {
+          company: selectedClient.company,
+          agenda: newMeet.agenda,
+          description: `Meeting workspace established for [${selectedClient.company}] on: ${newMeet.agenda}`
+        }
       });
     } catch (err) {
       console.error("Failed to append system ledger event:", err);
@@ -743,26 +718,7 @@ export default function Clients() {
                       <div className="space-y-6 relative font-sans pl-6">
                         <div className="absolute left-2.5 top-2 bottom-2 w-px bg-slate-200 shadow-[1px_0_0_white]" />
                         
-                        {[
-                          { title: "Strategic Account Transition", desc: "Account transitioned to Active Client pipeline stage by BDM Gopal.", type: "SYSTEM", date: "Yesterday" },
-                          { title: "Technical Alignment Sync Logged", desc: "Meeting Workspace created: Sourcing and core JD expansions synchronized.", type: "MEETING", date: "2 days ago" },
-                          { title: "Contract Agreement Signed (MSA)", desc: "Corporate Legal MSA filed and finalized inside Secure Deal Room.", type: "LEGAL", date: "Last week" },
-                          { title: "JD Received & Parsed", desc: "Parsed JD for Senior Frontend Architect. Triggered budget assessment pipeline.", type: "REQUISITION", date: "2 weeks ago" },
-                        ].map((item, idx) => (
-                          <div key={idx} className="relative group">
-                            <div className="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full bg-indigo-600 border border-indigo-200 shadow-inner group-hover:scale-125 transition-transform" />
-                            <div>
-                              <div className="flex items-center justify-between mb-1">
-                                <h4 className="text-xs font-bold text-slate-950 uppercase tracking-wide">{item.title}</h4>
-                                <span className="text-[10px] text-slate-400 font-mono">{item.date}</span>
-                              </div>
-                              <p className="text-xs text-slate-600">{item.desc}</p>
-                              <span className="text-[9px] font-black tracking-widest font-mono text-indigo-500 uppercase mt-1.5 inline-block">
-                                TYPE: {item.type}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
+                        <div className="text-xs text-slate-400 italic">No events recorded in ledger for this account yet.</div>
                       </div>
                     </div>
                   </div>

@@ -110,16 +110,7 @@ export default function Workspaces() {
   const getTimelineEvents = (jobId: string): TimelineEvent[] => {
     const events: TimelineEvent[] = [];
 
-    // 1. Core historical seed events
-    events.push({
-      id: "seed-1",
-      type: "email",
-      description: "Initial client intake requirement registered & telemetry mapping approved.",
-      timestamp: selectedJob?.createdAt || new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      author: "System"
-    });
-
-    // 2. Map actual matching candidates to timeline events
+    // 1. Map actual matching candidates to timeline events
     jobCandidates.forEach((c) => {
       events.push({
         id: `cand-sub-${c.id}`,
@@ -150,7 +141,7 @@ export default function Workspaces() {
       }
     });
 
-    // 3. Map Firestore system events associated with this client or job
+    // 2. Map Firestore system events associated with this client or job
     if (selectedJob) {
       const matchClientName = selectedJob.clientName?.toLowerCase();
       const associatedSysEvents = systemEventsList.filter(ev => {
@@ -174,7 +165,7 @@ export default function Workspaces() {
       });
     }
 
-    // 4. Custom BDM logged interactions
+    // 3. Custom BDM logged interactions
     const customList = customTimelines[jobId] || [];
     
     // Merge, deduplicate, and sort descending

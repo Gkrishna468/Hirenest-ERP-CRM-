@@ -1,5 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc, runTransaction } from 'firebase/firestore';
-import { db } from '@/services/firebase/config';
+import { dbProxy } from '@/services/firebase/db-proxy';
 import type { Candidate } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString, safeBudget } from '@/utils/safe';
@@ -7,11 +6,10 @@ import { safeISOString, safeBudget } from '@/utils/safe';
 export const CandidateRepository = {
   async getById(id: string): Promise<Candidate | null> {
     try {
-      const snap = await getDoc(doc(db, 'candidates', id));
-      if (!snap.exists()) return null;
-      const data = snap.data();
+      const data = await dbProxy.getDoc('candidates', id);
+      if (!data) return null;
       return {
-        id: snap.id,
+        id: id,
         source: data.source || 'os',
         vendorCompanyId: data.vendorCompanyId || data.vendor_company_id || '',
         name: data.name || '',
@@ -49,15 +47,11 @@ export const CandidateRepository = {
   },
 
   async list(): Promise<Candidate[]> {
-    let candidates: Candidate[] = [];
-    let resumeCandidates: Candidate[] = [];
-
     try {
-      const snap = await getDocs(collection(db, 'candidates'));
-      candidates = snap.docs.map(d => {
-        const data = d.data();
+      const docs = await dbProxy.getDocs('candidates');
+      const candidates = docs.map((data: any) => {
         return {
-          id: d.id,
+          id: data.id,
           source: data.source || 'os',
           vendorCompanyId: data.vendorCompanyId || data.vendor_company_id || '',
           name: data.name || '',
@@ -89,37 +83,12 @@ export const CandidateRepository = {
           updatedAt: safeISOString(data.updatedAt || data.updated_at),
         };
       });
+
+      return candidates.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'candidates');
+      return [];
     }
-
-    try {
-      // Also fetch resumes to map resumeCandidates, as in the previous getAllCandidates function
-      const resumeSnap = await getDocs(collection(db, 'resumes'));
-      resumeCandidates = resumeSnap.docs.map(rDoc => {
-        const r = rDoc.data();
-        return {
-          id: `resume-${rDoc.id}`,
-          name: r.candidate_name || r.name || 'Resume Candidate',
-          email: r.candidate_email || '',
-          phone: r.candidate_phone || '',
-          skills: r.extracted_skills || r.skills || [],
-          experience: 0,
-          yearsExperience: 0,
-          status: 'active',
-          stage: 'sourced',
-          resumeUrl: r.url || '',
-          notes: `From resume: ${r.file_name || r.fileName || 'Document'}`,
-          source: 'resume',
-          createdAt: safeISOString(r.created_at || r.createdAt),
-          updatedAt: safeISOString(r.created_at || r.createdAt),
-        };
-      });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'resumes');
-    }
-
-    return [...candidates, ...resumeCandidates].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
   async create(data: Partial<Candidate>): Promise<Candidate> {
@@ -157,7 +126,7 @@ export const CandidateRepository = {
       updatedAt: new Date().toISOString(),
     };
     try {
-      await setDoc(doc(db, 'candidates', id), candidate);
+      await dbProxy.setDoc('candidates', id, candidate);
       return candidate;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `candidates/${id}`);
@@ -202,10 +171,8 @@ export const CandidateRepository = {
     };
 
     try {
-      await runTransaction(db, async (transaction) => {
-        const docRef = doc(db, 'candidates', id);
-        transaction.set(docRef, candidate);
-      });
+      // Proxying transaction to simple setDoc for now
+      await dbProxy.setDoc('candidates', id, candidate);
       return candidate;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `candidates/${id}`);
@@ -214,12 +181,11 @@ export const CandidateRepository = {
   },
 
   async update(id: string, updates: Partial<Candidate>): Promise<void> {
-    const docRef = doc(db, 'candidates', id);
     const cleanUpdates: any = { ...updates, updatedAt: new Date().toISOString() };
     if (updates.vendorCompanyId !== undefined) cleanUpdates.vendor_company_id = updates.vendorCompanyId;
     if (updates.aiMatchScore !== undefined) cleanUpdates.ai_match_score = updates.aiMatchScore;
     try {
-      await updateDoc(docRef, cleanUpdates);
+      await dbProxy.updateDoc('candidates', id, cleanUpdates);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `candidates/${id}`);
     }
@@ -227,7 +193,7 @@ export const CandidateRepository = {
 
   async delete(id: string): Promise<void> {
     try {
-      await deleteDoc(doc(db, 'candidates', id));
+      await dbProxy.deleteDoc('candidates', id);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `candidates/${id}`);
     }

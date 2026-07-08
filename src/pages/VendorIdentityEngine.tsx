@@ -3,55 +3,49 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { Users, UserPlus, Key, ShieldCheck, Mail, Check, Activity, ShieldAlert, Fingerprint } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Users, UserPlus, Key, ShieldCheck, Mail, Check, Activity, ShieldAlert, Fingerprint, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { OrganizationUser } from './VendorTypes';
+import { UserRepository } from '@/repositories/UserRepository';
 
 interface VendorIdentityEngineProps {
   selectedVendor: any;
 }
 
 export default function VendorIdentityEngine({ selectedVendor }: VendorIdentityEngineProps) {
-  // Hardcoded or dynamically seeded initial organization users
-  const [teamUsers, setTeamUsers] = useState<OrganizationUser[]>([
-    {
-      id: 'usr-1',
-      name: selectedVendor?.name || 'Priya Sharma',
-      email: selectedVendor?.email || 'priya@apexstaffing.com',
-      role: 'Admin',
-      status: 'active',
-      lastActive: '10 mins ago',
-      permissions: ['Submit Candidate', 'View Requirements', 'View Analytics', 'Manage Users', 'View Billing']
-    },
-    {
-      id: 'usr-2',
-      name: 'Rahul Nair',
-      email: 'rahul@apexstaffing.com',
-      role: 'Recruiter 1',
-      status: 'active',
-      lastActive: '2 hours ago',
-      permissions: ['Submit Candidate', 'View Requirements']
-    },
-    {
-      id: 'usr-3',
-      name: 'Suresh Kumar',
-      email: 'suresh@apexstaffing.com',
-      role: 'Finance',
-      status: 'active',
-      lastActive: 'Yesterday',
-      permissions: ['View Billing', 'Manage Invoices']
-    },
-    {
-      id: 'usr-4',
-      name: 'Elena Rostova',
-      email: 'elena@apexstaffing.com',
-      role: 'Delivery Manager',
-      status: 'pending',
-      lastActive: 'Never',
-      permissions: ['Submit Candidate', 'View Requirements', 'View Analytics']
+  const [teamUsers, setTeamUsers] = useState<OrganizationUser[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function loadTeam() {
+      if (!selectedVendor?.id) return;
+      setLoading(true);
+      try {
+        const allUsers = await UserRepository.list();
+        // Filter users belonging to this vendor's organization
+        const filtered = allUsers
+          .filter(u => u.companyId === selectedVendor.id)
+          .map(u => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: (u.role === 'admin' ? 'Admin' : u.role) as any,
+            status: u.status as any,
+            lastActive: u.loginCount > 0 ? 'Recently' : 'Never',
+            permissions: u.role === 'admin' 
+              ? ['Submit Candidate', 'View Requirements', 'View Analytics', 'Manage Users', 'View Billing']
+              : ['Submit Candidate', 'View Requirements']
+          }));
+        setTeamUsers(filtered);
+      } catch (err) {
+        console.error("Failed to load team users:", err);
+      } finally {
+        setLoading(false);
+      }
     }
-  ]);
+    loadTeam();
+  }, [selectedVendor]);
 
   const [newUser, setNewUser] = useState({
     name: '',

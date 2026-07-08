@@ -1,5 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
-import { db } from '@/services/firebase/config';
+import { dbProxy } from '@/services/firebase/db-proxy';
 import type { VendorBroadcast } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString } from '@/utils/safe';
@@ -7,11 +6,10 @@ import { safeISOString } from '@/utils/safe';
 export const BroadcastRepository = {
   async getById(id: string): Promise<VendorBroadcast | null> {
     try {
-      const snap = await getDoc(doc(db, 'broadcasts', id));
-      if (!snap.exists()) return null;
-      const data = snap.data();
+      const data = await dbProxy.getDoc('broadcasts', id);
+      if (!data) return null;
       return {
-        id: snap.id,
+        id: id,
         broadcastId: data.broadcastId || data.broadcast_id || '',
         requirementId: data.requirementId || data.requirement_id || '',
         requirementTitle: data.requirementTitle || data.requirement_title || '',
@@ -30,11 +28,10 @@ export const BroadcastRepository = {
 
   async list(): Promise<VendorBroadcast[]> {
     try {
-      const snap = await getDocs(collection(db, 'broadcasts'));
-      return snap.docs.map(d => {
-        const data = d.data();
+      const docs = await dbProxy.getDocs('broadcasts');
+      return docs.map((data: any) => {
         return {
-          id: d.id,
+          id: data.id,
           broadcastId: data.broadcastId || data.broadcast_id || '',
           requirementId: data.requirementId || data.requirement_id || '',
           requirementTitle: data.requirementTitle || data.requirement_title || '',
@@ -45,7 +42,7 @@ export const BroadcastRepository = {
           status: data.status || 'sent',
           source: data.source || '',
         };
-      }).sort((a, b) => b.sentAt.localeCompare(a.sentAt));
+      }).sort((a: any, b: any) => b.sentAt.localeCompare(a.sentAt));
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'broadcasts');
       return [];
@@ -67,7 +64,7 @@ export const BroadcastRepository = {
       source: data.source || '',
     };
     try {
-      await setDoc(doc(db, 'broadcasts', id), broadcast);
+      await dbProxy.setDoc('broadcasts', id, broadcast);
       return broadcast;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `broadcasts/${id}`);
@@ -77,7 +74,7 @@ export const BroadcastRepository = {
 
   async update(id: string, updates: Partial<VendorBroadcast>): Promise<void> {
     try {
-      await updateDoc(doc(db, 'broadcasts', id), updates);
+      await dbProxy.updateDoc('broadcasts', id, updates);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `broadcasts/${id}`);
     }
@@ -85,7 +82,7 @@ export const BroadcastRepository = {
 
   async delete(id: string): Promise<void> {
     try {
-      await deleteDoc(doc(db, 'broadcasts', id));
+      await dbProxy.deleteDoc('broadcasts', id);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `broadcasts/${id}`);
     }

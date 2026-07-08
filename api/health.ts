@@ -104,6 +104,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           send: true
         });
       })();
+    case 'inspect':
+      return await (async () => {
+        if (!db) return res.status(500).json({ error: 'Firestore Admin is not initialized' });
+        const collections = ["requirements", "jobs", "requirements_public", "requirements_private", "clients", "vendors", "candidates", "submissions"];
+        const results: any = {};
+        for (const col of collections) {
+          try {
+            const snap = await db.collection(col).limit(5).get();
+            const countSnap = await db.collection(col).count().get();
+            results[col] = {
+              count: countSnap.data().count,
+              samples: snap.docs.map(d => ({ id: d.id, ...d.data() }))
+            };
+          } catch (err: any) {
+            results[col] = { error: err.message };
+          }
+        }
+        return res.json(results);
+      })();
     default:
       return res.status(400).json({ error: "Invalid action: " + action });
   }

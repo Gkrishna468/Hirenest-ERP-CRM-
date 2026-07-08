@@ -1,5 +1,4 @@
-import { collection, doc, setDoc, getDocs, updateDoc } from 'firebase/firestore';
-import { db } from './config';
+import { dbProxy } from './db-proxy';
 import { handleFirestoreError, OperationType } from './error';
 import { eventService } from './eventService';
 
@@ -16,7 +15,7 @@ export const requirementService = {
     try {
       const id = crypto.randomUUID();
       const requirement: Requirement = { ...data, id };
-      await setDoc(doc(db, 'requirements', id), requirement);
+      await dbProxy.setDoc('requirements', id, requirement);
       
       await eventService.logEvent({
         eventType: 'REQUIREMENT_CREATED',
@@ -32,8 +31,8 @@ export const requirementService = {
 
   getRequirements: async () => {
     try {
-      const snapshot = await getDocs(collection(db, 'requirements'));
-      return snapshot.docs.map(doc => doc.data() as Requirement);
+      const docs = await dbProxy.getDocs('requirements');
+      return docs as Requirement[];
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'requirements');
       return [];

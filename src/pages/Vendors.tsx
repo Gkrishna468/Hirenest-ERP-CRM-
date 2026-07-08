@@ -60,9 +60,8 @@ import { safeArray, safeString } from '@/utils/safe';
 import { cn } from '@/lib/utils';
 import { SourceBadge } from "@/components/SourceBadge";
 
-// Firebase/Firestore App Config
-import { doc, setDoc, collection, getDocs, addDoc } from 'firebase/firestore';
-import { db } from '@/services/firebase/config';
+import { dbProxy } from '@/services/firebase/db-proxy';
+import { eventService } from '@/services/firebase/eventService';
 
 // Import our advanced modular sub-components
 import { CandidateHealthScore, CandidateVersion, CandidateOwnershipTimeline, InvoiceRecord } from './VendorTypes';
@@ -209,16 +208,7 @@ export default function Vendors() {
     const loadTimeline = async () => {
       setEventsLoading(true);
       try {
-        const snap = await getDocs(collection(db, 'system_events'));
-        const events = snap.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter((e: any) => 
-            e.entityId === selectedVendor.id || 
-            e.data?.vendorId === selectedVendor.id ||
-            safeString(e.message).includes(selectedVendor.company) ||
-            safeString(e.message).includes(selectedVendor.name)
-          )
-          .sort((a: any, b: any) => safeString(b.timestamp).localeCompare(safeString(a.timestamp)));
+        const events = await eventService.getEventsByEntity('vendor', selectedVendor.id);
         setSystemEvents(events);
       } catch (err) {
         console.error("Failed to load timeline events", err);
@@ -234,21 +224,23 @@ export default function Vendors() {
     setIsSubmitting(true);
     try {
       for (const id of candidateIds) {
-        // Mock updating candidate stage in firestore as well as ledger logs
-        const candRef = doc(db, 'candidates', id);
-        await setDoc(candRef, { 
+        // Update candidate stage via proxy
+        await dbProxy.updateDoc('candidates', id, { 
           stage: actionType.toLowerCase().includes('reject') ? 'rejected' : 'interview',
           feedbackNotes: feedbackText,
           updatedAt: new Date().toISOString()
-        }, { merge: true });
+        });
 
         // Add System Event log
-        await addDoc(collection(db, 'system_events'), {
+        await eventService.logEvent({
+          entityType: 'vendor',
           entityId: selectedVendor.id,
-          type: 'BULK_FEEDBACK_DISPATCHED',
-          message: `Bulk Feedback applied for candidate ${id} with status: ${actionType}`,
-          timestamp: new Date().toISOString(),
-          actor: user?.email || 'Admin'
+          eventType: 'BULK_FEEDBACK_DISPATCHED',
+          metadata: {
+            candidateId: id,
+            status: actionType,
+            message: `Bulk Feedback applied for candidate ${id} with status: ${actionType}`
+          }
         });
       }
       if (typeof refreshAll === 'function') {
@@ -279,15 +271,19 @@ export default function Vendors() {
         updatedAt: new Date().toISOString()
       };
       
-      await addDoc(collection(db, 'candidates'), payload);
+      await dbProxy.addDoc('candidates', payload);
 
       // Add to Ledger Log
-      await addDoc(collection(db, 'system_events'), {
+      await eventService.logEvent({
+        entityType: 'vendor',
         entityId: selectedVendor.id,
-        type: 'CANDIDATE_ROTATION_TRIGGERED',
-        message: `Continuous Rotation Engine: Relocated candidate ${candidate.name} to Job Requirement: ${targetJob.title} (Match Score: ${score}%)`,
-        timestamp: new Date().toISOString(),
-        actor: user?.email || 'Admin'
+        eventType: 'CANDIDATE_ROTATION_TRIGGERED',
+        metadata: {
+          candidateName: candidate.name,
+          targetJobTitle: targetJob.title,
+          score,
+          message: `Continuous Rotation Engine: Relocated candidate ${candidate.name} to Job Requirement: ${targetJob.title} (Match Score: ${score}%)`
+        }
       });
 
       toast.success(`Rotation Approved! Submitted ${candidate.name} for ${targetJob.title}.`);
@@ -301,35 +297,21 @@ export default function Vendors() {
     }
   };
 
-  // Trigger Candidate Detail visual card & compute random versions/health metrics
+  // Trigger Candidate Detail visual card
   const triggerCandidateDetail = (cand: any) => {
     setSelectedCandidateDetail(cand);
     
-    // Seed high-fidelity versions
-    setSelectedCandidateVersions([
-      { version: 'v3.0', updatedAt: '2 hours ago', size: '154 KB', author: 'Priya Sharma', sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', isCurrent: true },
-      { version: 'v2.0', updatedAt: '3 days ago', size: '152 KB', author: 'System parser', sha256: 'f5a894a429fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b8341', isCurrent: false },
-      { version: 'v1.0', updatedAt: '12 days ago', size: '148 KB', author: 'Vendor initial upload', sha256: 'a29b4c4298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b112', isCurrent: false },
-    ]);
-
-    // Seed visual ownership timeline milestones
-    setSelectedCandidateTimeline([
-      { event: 'Initial Upload', timestamp: '12 days ago', notes: 'Uploaded by Recruiter A via Bulk Upload Resumes portal.' },
-      { event: 'Resume SHA-256 Registered', timestamp: '12 days ago', notes: 'Cryptographic hash generated. Registered in Candidate Identity Vault.' },
-      { event: 'Accenture Java Requirement Match', timestamp: '10 days ago', notes: 'Continuous matching scorer identified 92% JD overlap.' },
-      { event: 'Technical L1 Interview Scheduled', timestamp: '3 days ago', notes: 'Feedback from client received. Enforced SLA response speed.' },
-      { event: 'Resume v3.0 Uploaded', timestamp: '2 hours ago', notes: 'Updated certifications section with AWS Associate Cloud Developer license.' },
-    ]);
-
-    // Seed high-fidelity radial scores
-    setSelectedCandidateHealth({
-      overall: 91,
-      completeness: 94,
-      skillConfidence: 89,
-      parseConfidence: 97,
+    // In production, these should be fetched from Firestore collections
+    setSelectedCandidateVersions((cand as any).versions || []);
+    setSelectedCandidateTimeline((cand as any).timeline || []);
+    setSelectedCandidateHealth((cand as any).health || {
+      overall: 0,
+      completeness: 0,
+      skillConfidence: 0,
+      parseConfidence: 0,
       contactValidation: 100,
-      duplicateRisk: 2,
-      availabilityConfidence: 85
+      duplicateRisk: 0,
+      availabilityConfidence: 0
     });
   };
 
@@ -381,26 +363,28 @@ export default function Vendors() {
       };
 
       // Create Organization Document
-      await setDoc(doc(db, 'organizations', vendorId), {
+      await dbProxy.setDoc('organizations', vendorId, {
         id: vendorId,
         name: partnerForm.companyName,
         industry: 'IT Staffing & Consulting',
         gst: partnerForm.gst,
         pan: partnerForm.pan,
         createdAt: new Date().toISOString()
-      }, { merge: true });
+      });
 
       // Create Vendor Document
-      await setDoc(doc(db, 'vendors', vendorId), payload, { merge: true });
+      await dbProxy.setDoc('vendors', vendorId, payload);
 
       // Add audit event to immutable Company Ledger
-      await addDoc(collection(db, 'system_events'), {
+      await eventService.logEvent({
+        entityType: 'vendor',
         entityId: vendorId,
-        type: 'VENDOR_CREATED',
-        message: `Delivery Partner onboarded under Code ${vendorCode}. Organization Group Mapped.`,
-        timestamp: new Date().toISOString(),
-        actor: user?.email || 'Admin',
-        data: { vendorId, company: partnerForm.companyName }
+        eventType: 'VENDOR_CREATED',
+        metadata: {
+          vendorCode,
+          company: partnerForm.companyName,
+          message: `Delivery Partner onboarded under Code ${vendorCode}. Organization Group Mapped.`
+        }
       });
 
       if (partnerForm.createLogin && partnerForm.temporaryPassword) {
@@ -549,18 +533,18 @@ export default function Vendors() {
         name: f.name,
         size: `${(f.size / 1024).toFixed(1)} KB`,
         status: 'pending' as const,
-        text: `Resume details for ${parsedName}.\nExperienced Professional in full-stack engineering, development, specialized skills, and tools.`,
+        text: '',
         parsedData: {
           name: parsedName,
-          email: `${f.name.replace(/\.[^/.]+$/, "").toLowerCase().replace(/[^a-z0-9]/g, "")}@example.com`,
-          phone: `+91 98${Math.floor(10000000 + Math.random() * 90000000)}`,
-          currentTitle: 'Software Engineer',
-          skills: ['React', 'Node.js', 'TypeScript', 'SQL'],
-          experience: `${Math.floor(2 + Math.random() * 8)} Years`,
-          currentCompany: 'Apex Tech Solutions',
-          noticePeriod: 'Immediate',
-          expectedSalary: `${Math.floor(8 + Math.random() * 12)} LPA`,
-          location: 'Bangalore'
+          email: '',
+          phone: '',
+          currentTitle: '',
+          skills: [],
+          experience: '',
+          currentCompany: '',
+          noticePeriod: '',
+          expectedSalary: '',
+          location: ''
         },
         stages: {
           upload: 'success' as const,
@@ -824,7 +808,7 @@ export default function Vendors() {
 
       // Log execution metadata to dedicated ingestion_executions collection
       try {
-        await addDoc(collection(db, 'ingestion_executions'), {
+        await dbProxy.addDoc('ingestion_executions', {
           vendorId: selectedVendor?.id || 'UNKNOWN',
           userId: (user as any)?.uid || (user as any)?.id || user?.email || 'SYSTEM',
           timestamp: new Date().toISOString(),
@@ -1887,32 +1871,7 @@ export default function Vendors() {
                   ) : (
                     <div className="space-y-6 border-l-2 border-indigo-100 pl-6 ml-4">
                       {systemEvents.length === 0 ? (
-                        // Seed simulated chronological lifecycle milestones for demonstration
-                        [
-                          { type: 'VENDOR_CREATED', message: 'Delivery Partner Apex Staffing onboarded under Code HN-VND-000004', timestamp: '12 days ago' },
-                          { type: 'CREDENTIALS_PROVISIONED', message: 'Secure bcrypt credential hashes mapped; Welcome Dispatch triggered.', timestamp: '12 days ago' },
-                          { type: 'RESUME_UPLOADED', message: 'Candidate Sneha Roy registered in Database. Checked duplicate hashes.', timestamp: '10 days ago' },
-                          { type: 'AI_PARSED', message: 'AI parser successfully extracted candidate metadata with 91% alignment.', timestamp: '10 days ago' },
-                          { type: 'IDENTITY_VAULT_CLAIM', message: 'Candidate claim mapped to Apex Staffing; lock period is active.', timestamp: '10 days ago' },
-                          { type: 'SUBMITTED_TO_CLIENT', message: 'Submitted profile to BDM for active Deloitte Java Broadcast.', timestamp: '9 days ago' },
-                          { type: 'L1_INTERVIEW', message: 'Technical screening L1 completed. Status updated: Screening Passed.', timestamp: '3 days ago' },
-                          { type: 'SLA_FEEDBACK', message: 'SLA speed recorded in 1.4 days. Feedback shared with Recruiter.', timestamp: '3 days ago' },
-                          { type: 'OFFER_RELEASED', message: 'Client released placement offer of ₹12 LPA CTC; 15% billing locked.', timestamp: '2 days ago' },
-                          { type: 'CANDIDATE_JOINED', message: 'Onboarded completed. Candidate successfully joined corporate team.', timestamp: '1 day ago' },
-                          { type: 'INVOICE_DISPATCHED', message: 'INV-2026-022 generated and dispatched to corporate accounts.', timestamp: '12 hours ago' },
-                          { type: 'REVENUE_AUDITED', message: 'Placements revenue ledger reconciliation successfully verified by BDM.', timestamp: '4 hours ago' }
-                        ].map((evt, i) => (
-                          <div key={i} className="relative space-y-1">
-                            <div className="absolute -left-[31px] top-1.5 w-3 h-3 rounded-full bg-indigo-600 border-4 border-white shadow-sm" />
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-mono font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border">
-                                {evt.type}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono">{evt.timestamp}</span>
-                            </div>
-                            <p className="text-xs text-slate-650 font-medium leading-relaxed">{evt.message}</p>
-                          </div>
-                        ))
+                        <p className="text-xs text-slate-500 italic py-10 text-center">No audit events found in the ledger for this organization.</p>
                       ) : (
                         systemEvents.map((evt, i) => (
                           <div key={i} className="relative space-y-1">

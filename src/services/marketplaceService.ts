@@ -1,5 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, addDoc, collection } from "firebase/firestore";
-import { db } from "@/services/firebase/config";
+import { dbProxy } from "@/services/firebase/db-proxy";
 import { RequirementRepository } from "../repositories/RequirementRepository";
 
 /**
@@ -7,8 +6,8 @@ import { RequirementRepository } from "../repositories/RequirementRepository";
  */
 export async function calculateAdjustedBudget(companyId: string, budget: number): Promise<number> {
   try {
-    const snap = await getDoc(doc(db, 'client_profiles', companyId));
-    const margin = snap.exists() ? (snap.data()?.margin_preferred || 20) : 20;
+    const data = await dbProxy.getDoc('client_profiles', companyId);
+    const margin = data ? (data.margin_preferred || 20) : 20;
     return budget * (1 - margin / 100);
   } catch (error) {
     console.warn("Could not calculate adjusted budget from client_profiles:", error);
@@ -34,7 +33,7 @@ export async function broadcastJob(jobId: string) {
   await RequirementRepository.update(jobId, { broadcast_to_vendors: true } as any);
 
   // SYSTEM LOG
-  await addDoc(collection(db, 'agent_logs'), {
+  await dbProxy.setDoc('agent_logs', crypto.randomUUID(), {
     type: 'notification',
     level: 'info',
     message: `[OUTREACH AGENT] Job broadcasted to marketplace: "${job.title}". Initiating vendor-partner awareness sequence.`,
@@ -43,7 +42,7 @@ export async function broadcastJob(jobId: string) {
   });
 
   // SIMULATE OUTREACH IN Intelligence Center
-  await addDoc(collection(db, 'agent_logs'), {
+  await dbProxy.setDoc('agent_logs', crypto.randomUUID(), {
     type: 'outreach',
     level: 'success',
     message: `[WHATSAPP AGENT] Sent notification to 12 Top-Tier Vendors regarding new requisition: ${job.title}. AI logic predicts 3-5 immediate submissions.`,
@@ -75,11 +74,11 @@ export async function proposeCollaboration(params: {
     last_activity_at: new Date().toISOString(),
   };
 
-  await setDoc(doc(db, 'collaborations', collabId), collabData);
+  await dbProxy.setDoc('collaborations', collabId, collabData);
 
   // Create conversation for this collaboration
   const convoId = crypto.randomUUID();
-  await setDoc(doc(db, 'conversations', convoId), {
+  await dbProxy.setDoc('conversations', convoId, {
     id: convoId,
     collaboration_id: collabId,
     createdAt: new Date().toISOString(),
@@ -93,7 +92,7 @@ export async function proposeCollaboration(params: {
  */
 export async function sendMessage(conversationId: string, content: string, senderId: string, isAi: boolean = false) {
   const messageId = crypto.randomUUID();
-  await setDoc(doc(db, 'messages', messageId), {
+  await dbProxy.setDoc('messages', messageId, {
     id: messageId,
     conversation_id: conversationId,
     sender_id: senderId,
@@ -104,11 +103,11 @@ export async function sendMessage(conversationId: string, content: string, sende
 
   // Update last activity on collaboration
   try {
-    const convoSnap = await getDoc(doc(db, 'conversations', conversationId));
-    if (convoSnap.exists()) {
-      const collabId = convoSnap.data().collaboration_id;
+    const convoData = await dbProxy.getDoc('conversations', conversationId);
+    if (convoData) {
+      const collabId = convoData.collaboration_id;
       if (collabId) {
-        await updateDoc(doc(db, 'collaborations', collabId), {
+        await dbProxy.updateDoc('collaborations', collabId, {
           last_activity_at: new Date().toISOString()
         });
       }

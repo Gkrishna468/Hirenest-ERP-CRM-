@@ -13,7 +13,6 @@ import {
   onAuthStateChanged 
 } from 'firebase/auth';
 import { auth, db } from '@/services/firebase/config';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { UserRepository } from '@/repositories/UserRepository';
 
 interface AuthContextType {
@@ -53,6 +52,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (firebaseUser) {
         try {
           const isExecRoot = firebaseUser.uid === 'me995j91dmNkwfXXfaCyrDo8oa03' || firebaseUser.email === 'admin@hirenestworkforce.com';
+          
+          // Force refresh claims for admin if needed
+          const idTokenResult = await firebaseUser.getIdTokenResult();
+          console.log('[DIAGNOSTIC] User UID:', firebaseUser.uid);
+          console.log('[DIAGNOSTIC] App Project ID:', (db as any)._app.options.projectId);
+          if (isExecRoot && !idTokenResult.claims.admin) {
+             console.log('Refreshing admin token claims...');
+             await firebaseUser.getIdToken(true);
+          }
+
           const profile = await UserRepository.getById(firebaseUser.uid);
           if (profile) {
             if (isExecRoot && profile.role !== 'admin') {

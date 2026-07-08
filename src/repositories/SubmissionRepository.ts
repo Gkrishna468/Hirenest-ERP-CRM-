@@ -1,5 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc, runTransaction } from 'firebase/firestore';
-import { db } from '@/services/firebase/config';
+import { dbProxy } from '@/services/firebase/db-proxy';
 import type { Submission } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString } from '@/utils/safe';
@@ -7,11 +6,10 @@ import { safeISOString } from '@/utils/safe';
 export const SubmissionRepository = {
   async getById(id: string): Promise<Submission | null> {
     try {
-      const snap = await getDoc(doc(db, 'submissions', id));
-      if (!snap.exists()) return null;
-      const data = snap.data();
+      const data = await dbProxy.getDoc('submissions', id);
+      if (!data) return null;
       return {
-        id: snap.id,
+        id: id,
         jobId: data.jobId || data.job_id || '',
         candidateId: data.candidateId || data.candidate_id || '',
         vendorId: data.vendorId || data.vendor_id || '',
@@ -30,11 +28,10 @@ export const SubmissionRepository = {
 
   async list(): Promise<Submission[]> {
     try {
-      const snap = await getDocs(collection(db, 'submissions'));
-      return snap.docs.map(d => {
-        const data = d.data();
+      const docs = await dbProxy.getDocs('submissions');
+      return docs.map((data: any) => {
         return {
-          id: d.id,
+          id: data.id,
           jobId: data.jobId || data.job_id || '',
           candidateId: data.candidateId || data.candidate_id || '',
           vendorId: data.vendorId || data.vendor_id || '',
@@ -67,7 +64,7 @@ export const SubmissionRepository = {
       createdAt: new Date().toISOString(),
     };
     try {
-      await setDoc(doc(db, 'submissions', id), submission);
+      await dbProxy.setDoc('submissions', id, submission);
       return submission;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `submissions/${id}`);
@@ -92,10 +89,8 @@ export const SubmissionRepository = {
     };
 
     try {
-      await runTransaction(db, async (transaction) => {
-        const docRef = doc(db, 'submissions', id);
-        transaction.set(docRef, submission);
-      });
+      // Proxying transaction to simple setDoc for now
+      await dbProxy.setDoc('submissions', id, submission);
       return submission;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `submissions/${id}`);
@@ -105,7 +100,7 @@ export const SubmissionRepository = {
 
   async update(id: string, updates: Partial<Submission>): Promise<void> {
     try {
-      await updateDoc(doc(db, 'submissions', id), updates);
+      await dbProxy.updateDoc('submissions', id, updates);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `submissions/${id}`);
     }
@@ -113,7 +108,7 @@ export const SubmissionRepository = {
 
   async delete(id: string): Promise<void> {
     try {
-      await deleteDoc(doc(db, 'submissions', id));
+      await dbProxy.deleteDoc('submissions', id);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `submissions/${id}`);
     }

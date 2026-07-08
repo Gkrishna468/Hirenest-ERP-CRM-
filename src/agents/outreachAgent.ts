@@ -1,5 +1,5 @@
-import { db, auth } from '@/services/firebase/config';
-import { getDocs, collection, query, where, addDoc, doc, setDoc } from 'firebase/firestore';
+import { dbProxy } from '@/services/firebase/db-proxy';
+import { auth } from '@/services/firebase/config';
 import { CandidateRepository } from '@/repositories/CandidateRepository';
 
 /**
@@ -24,8 +24,7 @@ export async function runOutreachAgent() {
   // Get existing outreach_logs to avoid duplicates
   let outreachLogs: any[] = [];
   try {
-    const snap = await getDocs(collection(db, 'outreach_logs'));
-    outreachLogs = snap.docs.map(doc => doc.data());
+    outreachLogs = await dbProxy.getDocs('outreach_logs');
   } catch (error) {
     console.warn("Could not fetch outreach logs:", error);
   }
@@ -61,7 +60,7 @@ Founding Director, HireNest
       if (isGmailConnected) {
         console.log(`[OUTREACH] Sending real email to ${candidate.email} via Gmail API`);
         
-        await addDoc(collection(db, 'outreach_logs'), {
+        await dbProxy.addDoc('outreach_logs', {
           candidateId: candidate.id,
           candidate_id: candidate.id,
           email: candidate.email || '',
@@ -72,7 +71,7 @@ Founding Director, HireNest
           createdAt: new Date().toISOString()
         });
       } else {
-        await addDoc(collection(db, 'outreach_logs'), {
+        await dbProxy.addDoc('outreach_logs', {
           candidateId: candidate.id,
           candidate_id: candidate.id,
           email: candidate.email || '',
@@ -83,7 +82,7 @@ Founding Director, HireNest
           createdAt: new Date().toISOString()
         });
         
-        await addDoc(collection(db, 'agent_logs'), {
+        await dbProxy.addDoc('agent_logs', {
           type: 'outreach',
           message: `Gmail token missing. Outreach for ${candidate.name} queued for sync.`,
           level: 'warning',

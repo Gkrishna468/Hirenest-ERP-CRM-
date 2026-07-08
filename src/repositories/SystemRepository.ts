@@ -1,5 +1,4 @@
-import { collection, query, orderBy, limit, onSnapshot, getDocs, doc, setDoc } from 'firebase/firestore';
-import { db } from '@/services/firebase/config';
+import { dbProxy } from '@/services/firebase/db-proxy';
 import { syncOrchestrator } from '@/services/firebase/syncOrchestrator';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString } from '@/utils/safe';
@@ -38,54 +37,24 @@ export const SystemRepository = {
   },
 
   subscribeToSystemEvents(callback: (events: SystemEvent[]) => void, onError?: (err: any) => void) {
-    const q = query(
-      collection(db, 'system_events'),
-      orderBy('timestamp', 'desc'),
-      limit(20)
-    );
-    return onSnapshot(
-      q,
-      (snap) => {
-        const events: SystemEvent[] = [];
-        snap.forEach((doc) => {
-          const data = doc.data();
-          events.push({
-            id: doc.id,
-            type: data.type || '',
-            performedBy: data.performedBy || '',
-            timestamp: safeISOString(data.timestamp),
-            metadata: data.metadata || null,
-          } as SystemEvent);
-        });
-        callback(events);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'system_events');
-        if (onError) onError(error);
-      }
-    );
+    this.listSystemEvents().then(callback).catch(onError);
+    return () => {}; // No-op unsubscribe
   },
 
   subscribeToCollectionSize(collectionName: string, callback: (size: number) => void, onError?: (err: any) => void) {
-    return onSnapshot(
-      collection(db, collectionName),
-      (snap) => {
-        callback(snap.size);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.LIST, collectionName);
-        if (onError) onError(error);
-      }
-    );
+    dbProxy.getDocs(collectionName).then(docs => callback(docs.length)).catch(onError);
+    return () => {}; // No-op unsubscribe
   },
 
   async listSystemEvents(): Promise<SystemEvent[]> {
     try {
-      const snap = await getDocs(collection(db, 'system_events'));
-      const events = snap.docs.map(doc => {
-        const data = doc.data();
+      const docs = await dbProxy.getDocs('system_events', {
+        orderBy: [{ field: 'timestamp', direction: 'desc' }],
+        limit: 20
+      });
+      const events = docs.map((data: any) => {
         return {
-          id: doc.id,
+          id: data.id,
           type: data.type || '',
           performedBy: data.performedBy || '',
           timestamp: safeISOString(data.timestamp),

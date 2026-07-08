@@ -164,7 +164,7 @@ export default async function handler(req: any, res: any) {
         let jobTitle = "General Talent Pool";
         const reqId = requirementId || "UNKNOWN";
         if (reqId !== "UNKNOWN") {
-          const jobDoc = await transaction.get(db.collection("requirements_private").doc(reqId));
+          const jobDoc = await transaction.get(db.collection("requirements").doc(reqId));
           if (jobDoc.exists) {
             jobTitle = (jobDoc.data() as any)?.title || "Sourced Role";
           }
@@ -310,19 +310,10 @@ export default async function handler(req: any, res: any) {
           });
         }
 
-        // Update Pool
-        transaction.set(db.collection("vendor_candidate_pool").doc(candidateId), {
-          ...identityData,
-          name: candidateName,
-          vendorId,
-          candidateId,
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
-
         // Emit Ledger Event
         transaction.set(db.collection("system_events").doc(), {
           eventType: "CANDIDATE_POOL_SYNCED",
-          entityCollection: "vendor_candidate_pool",
+          entityCollection: "candidates",
           entityId: candidateId,
           metadata: { vendorId, candidateName },
           createdAt: new Date().toISOString()
@@ -418,11 +409,6 @@ export default async function handler(req: any, res: any) {
         const queueDocRef = db.collection("ai_reprocessing_queue").doc(queueDoc.id);
         const candRef = db.collection("candidates").doc(candidateId);
         
-        const poolQuery = await db.collection("vendor_candidate_pool")
-          .where("candidateId", "==", candidateId)
-          .limit(1)
-          .get();
-
         const telRef = db.collection("ingestion_telemetry").doc("overall");
 
         if (aiPassed) {
@@ -436,18 +422,6 @@ export default async function handler(req: any, res: any) {
             aiStatus: "parsed",
             updatedAt: new Date().toISOString()
           });
-
-          // Update vendor pool
-          if (!poolQuery.empty) {
-            batch.update(db.collection("vendor_candidate_pool").doc(poolQuery.docs[0].id), {
-              currentTitle: parsedTitle,
-              skills: parsedSkills,
-              notes: parsedSummary,
-              fraudDetected,
-              aiStatus: "parsed",
-              updatedAt: new Date().toISOString()
-            });
-          }
 
           // Mark queue item as completed
           batch.update(queueDocRef, {
@@ -490,9 +464,6 @@ export default async function handler(req: any, res: any) {
 
             // Mark candidate aiStatus as failed
             batch.update(candRef, { aiStatus: "failed" });
-            if (!poolQuery.empty) {
-              batch.update(db.collection("vendor_candidate_pool").doc(poolQuery.docs[0].id), { aiStatus: "failed" });
-            }
           } else {
             // Keep pending, increment attempts
             batch.update(queueDocRef, {
@@ -526,8 +497,8 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ error: "Missing vendorId" });
       }
 
-      // Fetch all "Available" candidates in vendor_candidate_pool for this vendor
-      const poolQuery = await db.collection("vendor_candidate_pool")
+      // Fetch all "Available" candidates in candidates for this vendor
+      const poolQuery = await db.collection("candidates")
         .where("vendorId", "==", vendorId)
         .where("stage", "==", "Available")
         .get();
@@ -537,14 +508,9 @@ export default async function handler(req: any, res: any) {
       }
 
       // Fetch active requirements
-      const reqQuery = await db.collection("requirements_private").get();
+      const reqQuery = await db.collection("requirements").get();
       const requirements: any[] = [];
       reqQuery.forEach(doc => {
-        requirements.push({ id: doc.id, ...doc.data() });
-      });
-
-      const pubQuery = await db.collection("requirements_public").get();
-      pubQuery.forEach(doc => {
         requirements.push({ id: doc.id, ...doc.data() });
       });
 
@@ -673,7 +639,7 @@ export default async function handler(req: any, res: any) {
           timestamp: new Date().toISOString()
         });
 
-        await db.collection("vendor_candidate_pool").doc(id).update({
+        await db.collection("candidates").doc(id).update({
           updatedAt: new Date().toISOString()
         });
       }

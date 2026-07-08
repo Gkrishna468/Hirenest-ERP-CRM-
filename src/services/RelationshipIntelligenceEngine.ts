@@ -161,14 +161,14 @@ export function generateFollowUpSuggestions(clients: any[], requirements: any[])
       (j) => j.clientId === client.id || j.clientName === client.company
     );
 
-    // Determine mock days inactive or calculate from latest job creation date
-    let latestJobDate = new Date();
+    // Calculate from latest job creation date
+    let latestJobDate: Date | null = null;
     if (clientReqs.length > 0) {
-      const dates = clientReqs.map(r => new Date(r.createdAt || r.updatedAt).getTime());
+      const dates = clientReqs.map(r => new Date(r.createdAt || r.updatedAt || Date.now()).getTime());
       latestJobDate = new Date(Math.max(...dates));
-    } else {
-      latestJobDate = new Date(Date.now() - (idx * 5 + 10) * 24 * 60 * 60 * 1000); // simulated older dates
     }
+
+    if (!latestJobDate) return;
 
     const daysInactive = Math.floor((Date.now() - latestJobDate.getTime()) / (24 * 60 * 60 * 1000));
 
@@ -185,28 +185,6 @@ export function generateFollowUpSuggestions(clients: any[], requirements: any[])
     }
   });
 
-  // Default fallbacks in case data is completely fresh
-  if (suggestions.length === 0) {
-    suggestions.push({
-      id: "fup-cl-infosys",
-      entityName: "Infosys Technologies",
-      type: "CLIENT",
-      trigger: "Infosys has not responded to the Senior Frontend Architect resume in 5 days.",
-      action: "Call the delivery lead John tomorrow morning to secure feedback.",
-      urgency: "HIGH",
-      daysInactive: 5
-    });
-    suggestions.push({
-      id: "fup-co-john",
-      entityName: "John Smith",
-      type: "CONTACT",
-      trigger: "John hasn't replied to the contract agreement draft sent 6 days ago.",
-      action: "Draft a follow-up email proposing a quick calendar review.",
-      urgency: "MEDIUM",
-      daysInactive: 6
-    });
-  }
-
   return suggestions;
 }
 
@@ -222,13 +200,13 @@ export function predictMonthlyRevenue(deals: any[], requirements: any[]): Revenu
 
   // Apply probability multiplier
   const estimatedRevenue = Math.round(pipelineValue * 0.35 + (deals.length * averageDealValue * 0.8));
-  const expectedPlacements = Math.round(openReqs.length * 0.2) + Math.max(2, deals.length);
+  const expectedPlacements = Math.round(openReqs.length * 0.2) + Math.max(0, deals.length);
 
   return {
-    expectedRevenue: estimatedRevenue || 5200000, // ₹52 L standard prediction
+    expectedRevenue: estimatedRevenue,
     probability: 87,
-    expectedPlacements: expectedPlacements || 28,
-    confidence: "HIGH",
+    expectedPlacements: expectedPlacements,
+    confidence: estimatedRevenue > 0 ? "HIGH" : "LOW",
     growthRate: 14.2
   };
 }

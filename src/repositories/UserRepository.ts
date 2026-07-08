@@ -1,17 +1,14 @@
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, deleteDoc } from 'firebase/firestore';
-import { db } from '@/services/firebase/config';
+import { dbProxy } from '@/services/firebase/db-proxy';
 import type { User, Role } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 
 export const UserRepository = {
   async getById(id: string): Promise<User | null> {
     try {
-      const docRef = doc(db, 'users', id);
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) return null;
-      const data = snap.data();
+      const data = await dbProxy.getDoc('users', id);
+      if (!data) return null;
       return {
-        id: snap.id,
+        id: id,
         email: data.email || '',
         name: data.name || '',
         role: data.role || 'viewer',
@@ -34,13 +31,13 @@ export const UserRepository = {
 
   async getByEmail(email: string): Promise<User | null> {
     try {
-      const q = query(collection(db, 'users'), where('email', '==', email.toLowerCase().trim()));
-      const snap = await getDocs(q);
-      if (snap.empty) return null;
-      const d = snap.docs[0];
-      const data = d.data();
+      const docs = await dbProxy.getDocs('users', {
+        where: [{ field: 'email', op: '==', value: email.toLowerCase().trim() }]
+      });
+      if (!docs || docs.length === 0) return null;
+      const data = docs[0];
       return {
-        id: d.id,
+        id: data.id,
         email: data.email || '',
         name: data.name || '',
         role: data.role || 'viewer',
@@ -79,7 +76,7 @@ export const UserRepository = {
       temporaryPassword: data.temporaryPassword || '',
     };
     try {
-      await setDoc(doc(db, 'users', id), user);
+      await dbProxy.setDoc('users', id, user);
       return user;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `users/${id}`);
@@ -88,7 +85,6 @@ export const UserRepository = {
   },
 
   async update(id: string, updates: Partial<User>): Promise<void> {
-    const docRef = doc(db, 'users', id);
     const cleanUpdates: any = {};
     Object.keys(updates).forEach((key) => {
       const val = (updates as any)[key];
@@ -101,7 +97,7 @@ export const UserRepository = {
       }
     });
     try {
-      await updateDoc(docRef, cleanUpdates);
+      await dbProxy.updateDoc('users', id, cleanUpdates);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${id}`);
     }
@@ -109,7 +105,7 @@ export const UserRepository = {
 
   async delete(id: string): Promise<void> {
     try {
-      await deleteDoc(doc(db, 'users', id));
+      await dbProxy.deleteDoc('users', id);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `users/${id}`);
     }
@@ -117,11 +113,10 @@ export const UserRepository = {
 
   async list(): Promise<User[]> {
     try {
-      const snap = await getDocs(collection(db, 'users'));
-      return snap.docs.map(d => {
-        const data = d.data();
+      const docs = await dbProxy.getDocs('users');
+      return docs.map((data: any) => {
         return {
-          id: d.id,
+          id: data.id,
           email: data.email || '',
           name: data.name || '',
           role: data.role || 'viewer',

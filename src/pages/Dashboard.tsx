@@ -11,8 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { subscribeToAgentActivities, AgentActivity } from "@/lib/api/agentActivities";
 import { SystemRepository } from "@/repositories/SystemRepository";
 import { cn } from "@/lib/utils";
-import { collection, getDocs, getDoc, doc, query, where } from "firebase/firestore";
-import { db } from "@/services/firebase/config";
+import { dbProxy } from "@/services/firebase/db-proxy";
 import {
   Briefcase,
   Users,
@@ -70,9 +69,9 @@ export default function Dashboard() {
 
   const fetchIngestionData = async () => {
     try {
-      const telDoc = await getDoc(doc(db, "ingestion_telemetry", "overall"));
-      if (telDoc.exists()) {
-        setTelemetry(telDoc.data());
+      const telData = await dbProxy.getDoc("ingestion_telemetry", "overall");
+      if (telData) {
+        setTelemetry(telData);
       } else {
         // If not initialized yet, let's keep defaults
         setTelemetry({
@@ -87,9 +86,9 @@ export default function Dashboard() {
           reprocessFailCount: 0
         });
       }
-      const q = query(collection(db, "ai_reprocessing_queue"), where("status", "==", "pending"));
-      const snap = await getDocs(q);
-      const queueItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const queueItems = await dbProxy.getDocs("ai_reprocessing_queue", {
+        where: [{ field: 'status', op: '==', value: 'pending' }]
+      });
       setQueue(queueItems);
     } catch (err: any) {
       console.log("Failed to fetch ingestion telemetry:", err.message);
@@ -148,15 +147,15 @@ export default function Dashboard() {
     });
 
     const unsubReqs = SystemRepository.subscribeToCollectionSize(
-      "requirements_private",
+      "requirements",
       (size) => setFirestoreCounts((p) => ({ ...p, requirements: size })),
-      (err) => console.log("requirements_private listener skipped:", err.message)
+      (err) => console.log("requirements listener skipped:", err.message)
     );
 
     const unsubCands = SystemRepository.subscribeToCollectionSize(
-      "candidatePool",
+      "candidates",
       (size) => setFirestoreCounts((p) => ({ ...p, candidates: size })),
-      (err) => console.log("candidatePool listener skipped:", err.message)
+      (err) => console.log("candidates listener skipped:", err.message)
     );
 
     const unsubSubs = SystemRepository.subscribeToCollectionSize(
@@ -189,10 +188,9 @@ export default function Dashboard() {
     };
   }, []);
 
-  const openRequirements = firestoreCounts.requirements || jobs.filter(j => j.source !== 'crm' && (j.status?.toLowerCase() === "open" || !j.status)).length;
-  const crmRequirementsCount = jobs.filter(j => j.source === 'crm' && (j.status?.toLowerCase() === "open" || !j.status)).length;
-  const crmClientsCount = clients.filter(c => c.source === 'crm').length;
-  const crmVendorsCount = vendors.filter(v => v.source === 'crm').length;
+  const openRequirements = firestoreCounts.requirements || jobs.filter(j => (j.status?.toLowerCase() === "open" || !j.status)).length;
+  const totalClientsCount = clients.length;
+  const totalVendorsCount = vendors.length;
   
   const totalSubmissions = firestoreCounts.submissions || candidates.filter(c => c.stage === "submission" || c.stage === "screening" || !c.stage).length;
   const placements = firestoreCounts.placements || candidates.filter(c => c.stage === "placed" || c.stage === "joined").length || deals.length;
@@ -330,7 +328,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { label: "Pipeline Value", val: formatCurrency(expectedRevenue), icon: CircleDollarSign, color: "text-indigo-600" },
-              { label: "Active Clients", val: crmClientsCount || clients.length, icon: Building2, color: "text-blue-600" },
+              { label: "Active Clients", val: totalClientsCount, icon: Building2, color: "text-blue-600" },
               { label: "Direct Placements", val: placements, icon: Trophy, color: "text-yellow-600" },
               { label: "Pending Collections", val: formatCurrency(deals.filter(d => !d.paymentReceived).reduce((sum, d) => sum + (Number(d.revenueAmount || d.revenue_amount) || 0), 0)), icon: AlertCircle, color: "text-rose-600" },
             ].map((metric, i) => {

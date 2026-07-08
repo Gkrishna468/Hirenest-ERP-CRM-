@@ -1,5 +1,4 @@
-import { collection, doc, setDoc, getDocs, updateDoc } from 'firebase/firestore';
-import { db } from './config';
+import { dbProxy } from './db-proxy';
 import { handleFirestoreError, OperationType } from './error';
 import { eventService } from './eventService';
 
@@ -16,7 +15,7 @@ export const vendorService = {
     try {
       const id = crypto.randomUUID();
       const vendor: Vendor = { ...data, id };
-      await setDoc(doc(db, 'vendors', id), vendor);
+      await dbProxy.setDoc('vendors', id, vendor);
       
       await eventService.logEvent({
         eventType: 'VENDOR_ONBOARDED',
@@ -32,8 +31,8 @@ export const vendorService = {
 
   getVendors: async () => {
     try {
-      const snapshot = await getDocs(collection(db, 'vendors'));
-      return snapshot.docs.map(doc => doc.data() as Vendor);
+      const docs = await dbProxy.getDocs('vendors');
+      return docs as Vendor[];
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'vendors');
       return [];

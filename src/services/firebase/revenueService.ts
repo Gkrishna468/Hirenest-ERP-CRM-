@@ -1,5 +1,4 @@
-import { collection, doc, setDoc, getDocs, updateDoc } from 'firebase/firestore';
-import { db } from './config';
+import { dbProxy } from './db-proxy';
 import { handleFirestoreError, OperationType } from './error';
 import { eventService } from './eventService';
 
@@ -17,7 +16,7 @@ export const revenueService = {
     try {
       const id = crypto.randomUUID();
       const entry: RevenuePipeline = { ...data, id };
-      await setDoc(doc(db, 'revenue_pipeline', id), entry);
+      await dbProxy.setDoc('revenue_pipeline', id, entry);
       
       await eventService.logEvent({
         eventType: 'REVENUE_PIPELINE_CREATED',
@@ -33,8 +32,8 @@ export const revenueService = {
 
   getRevenuePipeline: async () => {
     try {
-      const snapshot = await getDocs(collection(db, 'revenue_pipeline'));
-      return snapshot.docs.map(doc => doc.data() as RevenuePipeline);
+      const docs = await dbProxy.getDocs('revenue_pipeline');
+      return docs as RevenuePipeline[];
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'revenue_pipeline');
       return [];

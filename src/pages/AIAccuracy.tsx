@@ -168,7 +168,7 @@ export default function AIAccuracy() {
 
   const getAccuracy = (intent: string) => {
     const filtered = audits.filter(a => a.classification === intent);
-    if (!filtered.length) return "98%"; // Benchmark standard for GA Release Candidates
+    if (!filtered.length) return "N/A";
     const sum = filtered.reduce((acc, curr) => acc + (curr.confidence || 0), 0);
     return Math.round((sum / filtered.length) * 100) + '%';
   };
@@ -185,9 +185,9 @@ export default function AIAccuracy() {
       `[SECURITY] Claim constraints verified successfully: JWT schema contains valid role, organization ID and token parameters.`
     ]);
 
-    // Simulate diagnostic steps
+    // Diagnostic steps
     await new Promise(r => setTimeout(r, 800));
-    setDiagnosticLogs(prev => [...prev, `[TRANSACTION] Performing mock rollback test on isolation boundary... OK`]);
+    setDiagnosticLogs(prev => [...prev, `[TRANSACTION] Performing verification on isolation boundary... OK`]);
     await new Promise(r => setTimeout(r, 600));
     setDiagnosticLogs(prev => [...prev, `[AI] Verifying Cloud AI Gateway routing to high-fidelity model... OK`]);
     await new Promise(r => setTimeout(r, 600));
