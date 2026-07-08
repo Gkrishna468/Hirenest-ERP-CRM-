@@ -759,7 +759,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const totalAiCalls = telData?.totalAiCalls || totalCallsFromAudit;
           const ollamaCalls = telData?.ai_provider_calls_ollama || 0;
           const openaiCalls = telData?.ai_provider_calls_openai || 0;
-          const geminiCalls = telData?.ai_provider_calls_gemini || 0;
+          const geminiCalls = telData?.ai_provider_calls_cloud_ai || 0;
           const totalLatency = telData?.totalAiLatency || 0;
           const fallbackCount = telData?.aiFallbackCount || 0;
 
@@ -767,7 +767,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const p90Latency = Math.round(p50Latency * 1.5) || 1120;
           const p99Latency = Math.round(p50Latency * 2.5) || 1850;
 
-          // Cost calculation: Ollama = ₹0, Gemini = $0.0001, OpenAI = $0.0005
+          // Cost calculation: Ollama = ₹0, Cloud AI = $0.0001, OpenAI = $0.0005
           const estCost = (openaiCalls * 0.0005) + (geminiCalls * 0.0001);
 
           const estInputTokens = totalAiCalls * 1250;
@@ -791,7 +791,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             providerStats: {
               ollama: ollamaCalls,
               openai: openaiCalls,
-              gemini: geminiCalls,
+              cloudAi: geminiCalls,
               fallbackCount
             }
           });
@@ -865,7 +865,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const status = {
             gateway: "healthy",
             ollama: process.env.OLLAMA_API_URL ? "online" : "offline",
-            gemini: (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY) ? "configured" : "unconfigured",
+            cloudAi: (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY) ? "configured" : "unconfigured",
             openai: process.env.OPENAI_API_KEY ? "configured" : "unconfigured",
             cache: cacheStats,
             queue: queueStats,
@@ -911,7 +911,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               
               const gw = data.gatewayUsed || "";
               if (gw.includes("Ollama")) ollamaCount++;
-              if (gw.includes("Gemini")) geminiCount++;
+              if (gw.includes("Cloud AI")) geminiCount++;
               if (gw.includes("Fallback")) fallbackCount++;
               
               if (data.executionTimeMs && data.totalFiles > 0) {
@@ -931,7 +931,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             syncFailures: Math.max(0, todayUploads - imported - duplicates - aiFailures), // Simple derived error count
             averageParseTimeSec: parseCount > 0 ? (totalParseTime / parseCount / 1000).toFixed(1) : "0",
             ollamaSuccessRate: totalSuccessModels > 0 ? Math.round((ollamaCount / totalSuccessModels) * 100) : 0,
-            geminiFallbackRate: totalSuccessModels > 0 ? Math.round((geminiCount / totalSuccessModels) * 100) : 0,
+            cloudAiFallbackRate: totalSuccessModels > 0 ? Math.round((geminiCount / totalSuccessModels) * 100) : 0,
             executions: snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
           });
         } catch (error: any) {

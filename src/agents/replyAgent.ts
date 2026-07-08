@@ -4,7 +4,7 @@ import { CandidateRepository } from '@/repositories/CandidateRepository';
 import { executeAITask } from '@/utils/aiGateway';
 
 /**
- * Reply Agent: Detects responses and classifies intent using Gemini via AI Gateway
+ * Reply Agent: Detects responses and classifies intent using Cloud AI via AI Gateway
  */
 export async function runReplyAgent() {
   // Direct Firebase Auth session or bypass

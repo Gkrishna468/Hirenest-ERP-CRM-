@@ -144,7 +144,7 @@ export default function CommunicationCenter() {
           aiSummary: e.aiSummary || "",
           senderType: e.senderType || "Unknown",
           confidence: e.confidence || 0.94,
-          source: e.source || "Gemini Flash"
+          source: e.source || "Cloud AI"
         };
       });
 
@@ -539,8 +539,8 @@ export default function CommunicationCenter() {
                           <Bot className="w-12 h-12 text-indigo-600" />
                         </div>
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-indigo-800">Gemini AI Engine Ingestion</span>
-                          <span className="text-[9px] text-indigo-500 font-bold">({Math.round((selectedComm.confidence || 0.94) * 100)}% Confidence via {selectedComm.source || "Gemini Flash"})</span>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-indigo-800">AI Engine Ingestion</span>
+                          <span className="text-[9px] text-indigo-500 font-bold">({Math.round((selectedComm.confidence || 0.94) * 100)}% Confidence via {selectedComm.source || "Cloud AI"})</span>
                         </div>
                         <p className="text-xs text-indigo-950 font-bold mb-1 leading-relaxed">
                           Classified Topic: <span className="text-indigo-600 uppercase">{selectedComm.entityType || "Requirement"}</span> ({selectedComm.senderType || "Unknown"})

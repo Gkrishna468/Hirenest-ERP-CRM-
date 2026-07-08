@@ -305,7 +305,7 @@ export default function VendorSubmit() {
     setTimeout(async () => {
       try {
         setPipelineStep(4);
-        setPipelineLog(prev => [...prev, '✔ Running Gemini-3.5-flash semantic score match...', '✔ Verifying fraud indicators...']);
+        setPipelineLog(prev => [...prev, '✔ Running AI semantic score match...', '✔ Verifying fraud indicators...']);
 
         // Generate Crypto Hash
         const identityString = `${vendorForm.email}-${vendorForm.phone}-${vendorForm.linkedin}`.toLowerCase();

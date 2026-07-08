@@ -10,12 +10,12 @@ let aiClient: GoogleGenAI | null = null;
 export function getAIClient(): GoogleGenAI | null {
   if (!aiClient) {
     try {
-      const apiKey = ((typeof process !== "undefined" ? process.env.GEMINI_API_KEY : import.meta.env.VITE_GEMINI_API_KEY) || "").replace(/^"|"$/g, "").replace(/^'|'$/g, "");
+      const apiKey = ((typeof process !== "undefined" ? process.env.GEMINI_API_KEY : import.meta.env.VITE_CLOUD_AI_API_KEY) || "").replace(/^"|"$/g, "").replace(/^'|'$/g, "");
       if (apiKey && apiKey !== 'undefined') {
         aiClient = new GoogleGenAI({ apiKey });
       }
     } catch (err) {
-      console.warn("Client-side Gemini API key not initialized or available.");
+      console.warn("Client-side AI API key not initialized or available.");
     }
   }
   return aiClient;

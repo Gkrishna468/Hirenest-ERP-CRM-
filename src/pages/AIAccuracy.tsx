@@ -72,7 +72,7 @@ export default function AIAccuracy() {
   const [gatewayHealth, setGatewayHealth] = useState<{
     gateway: string;
     ollama: string;
-    gemini: string;
+    cloudAi: string;
     openai: string;
     cache: any;
     queue: any;
@@ -189,7 +189,7 @@ export default function AIAccuracy() {
     await new Promise(r => setTimeout(r, 800));
     setDiagnosticLogs(prev => [...prev, `[TRANSACTION] Performing mock rollback test on isolation boundary... OK`]);
     await new Promise(r => setTimeout(r, 600));
-    setDiagnosticLogs(prev => [...prev, `[AI] Verifying Gemini Gateway routing to model 'gemini-3.5-flash'... OK`]);
+    setDiagnosticLogs(prev => [...prev, `[AI] Verifying Cloud AI Gateway routing to high-fidelity model... OK`]);
     await new Promise(r => setTimeout(r, 600));
 
     try {
@@ -489,7 +489,7 @@ export default function AIAccuracy() {
 
               <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-bold">Gemini</span>
+                  <span className="text-sm font-bold">Cloud AI</span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center gap-1">🔴 Credits Exhausted</span>
                 </div>
                 <div className="text-xs text-slate-400 mt-3">Code: <span className="text-slate-200">429</span></div>
@@ -560,8 +560,8 @@ export default function AIAccuracy() {
                   <div className="text-2xl font-black">{ingestionMetrics?.ollamaSuccessRate || 0}%</div>
                 </div>
                 <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Gemini Fallback</div>
-                  <div className="text-2xl font-black">{ingestionMetrics?.geminiFallbackRate || 0}%</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Cloud AI Fallback</div>
+                  <div className="text-2xl font-black">{ingestionMetrics?.cloudAiFallbackRate || 0}%</div>
                 </div>
               </div>
             )}
@@ -613,12 +613,13 @@ export default function AIAccuracy() {
                           : { label: "Skipped / Offline", color: "text-slate-500 bg-slate-50 border-slate-100" };
                       }
                     },
+                    /* Stage 4: Cloud AI Fallback */
                     {
                       num: 4,
-                      name: "Gemini Fallback (High-accuracy cloud)",
-                      desc: "Routes backup inference request to Gemini 2.5 Flash if primary local model is unavailable.",
+                      name: "Cloud AI Fallback (High-accuracy)",
+                      desc: "Routes backup inference request to high-fidelity cloud model if primary local model is unavailable.",
                       getStatus: () => {
-                        const isConfigured = gatewayHealth?.gemini === "configured";
+                        const isConfigured = gatewayHealth?.cloudAi === "configured";
                         return isConfigured
                           ? { label: "Active Fallback", color: "text-emerald-600 bg-emerald-50 border-emerald-100" }
                           : { label: "Unconfigured", color: "text-slate-500 bg-slate-50 border-slate-100" };
@@ -710,7 +711,7 @@ export default function AIAccuracy() {
                   <div className="flex justify-between items-center text-xs pb-2.5 border-b border-slate-100">
                     <span className="font-bold text-slate-600">Backup Provider Fallback</span>
                     <span className="font-mono text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                      gemini-2.5-flash (Cloud)
+                      Cloud AI (High Accuracy)
                     </span>
                   </div>
 
@@ -838,7 +839,7 @@ export default function AIAccuracy() {
                     <p className="text-4xl font-black text-emerald-600">${telemetry.estCost.toFixed(5)}</p>
                   </div>
                   <div className="flex items-center gap-1 mt-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">
-                    <Info className="w-3 h-3 text-slate-400" /> Based on Gemini 3.5 Rates
+                    <Info className="w-3 h-3 text-slate-400" /> Based on Cloud AI Rates
                   </div>
                 </div>
 
@@ -901,7 +902,7 @@ export default function AIAccuracy() {
 
                   <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl">
                     <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1">Active Gateway Model</span>
-                    <span className="text-xs font-black text-indigo-600 font-mono">gemini-3.5-flash (STABLE)</span>
+                    <span className="text-xs font-black text-indigo-600 font-mono">Cloud AI (STABLE)</span>
                   </div>
                 </div>
               </div>

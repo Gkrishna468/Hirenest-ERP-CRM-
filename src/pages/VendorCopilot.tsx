@@ -21,9 +21,9 @@ export default function VendorCopilot({
   onRotateCandidate,
 }: VendorCopilotProps) {
   const [copilotQuery, setCopilotQuery] = useState('');
-  const [copilotChat, setCopilotChat] = useState<Array<{ sender: 'user' | 'gemini'; text: string; timestamp: string }>>([
+  const [copilotChat, setCopilotChat] = useState<Array<{ sender: 'user' | 'ai'; text: string; timestamp: string }>>([
     {
-      sender: 'gemini',
+      sender: 'ai',
       text: `Hello! I am the **HireNest OS Unified Vendor Copilot**. I have full visibility into **${selectedVendor?.company}**'s candidate pool, SLA response logs, outstanding placements, and current requirements.\n\nYou can ask me complex queries or click any of the suggestions below to generate a report instantly!`,
       timestamp: new Date().toLocaleTimeString(),
     },
@@ -132,7 +132,7 @@ Here is the performance ledger for **${selectedVendor.company}**'s assigned recr
       }
 
       setCopilotChat(prev => [...prev, {
-        sender: 'gemini',
+        sender: 'ai',
         text: responseText,
         timestamp: new Date().toLocaleTimeString()
       }]);
@@ -143,14 +143,14 @@ Here is the performance ledger for **${selectedVendor.company}**'s assigned recr
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       
-      {/* LEFT COLUMN: ASK GEMINI COPILOT (7 COLS) */}
+      {/* LEFT COLUMN: ASK AI COPILOT (7 COLS) */}
       <div className="lg:col-span-7 flex flex-col h-[650px] bg-slate-950 text-white rounded-[2rem] border border-slate-800 shadow-xl overflow-hidden">
         {/* Header */}
         <div className="p-5 border-b border-slate-800 bg-slate-900 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-indigo-400 animate-pulse" />
             <div>
-              <h4 className="text-sm font-black tracking-tight">AI Vendor Copilot (gemini-2.5-flash)</h4>
+              <h4 className="text-sm font-black tracking-tight">AI Vendor Copilot (Cloud AI)</h4>
               <p className="text-[10px] text-slate-400 font-mono">Context-aware • Active on {selectedVendor?.company}</p>
             </div>
           </div>
@@ -192,7 +192,7 @@ Here is the performance ledger for **${selectedVendor.company}**'s assigned recr
             <div className="flex justify-start">
               <div className="bg-slate-900 border border-slate-800 text-slate-400 rounded-2xl p-4 flex items-center gap-2 font-mono">
                 <RotateCw className="w-3.5 h-3.5 text-indigo-400 animate-spin" />
-                <span>Gemini is scanning talent metrics...</span>
+                <span>AI is scanning talent metrics...</span>
               </div>
             </div>
           )}
@@ -284,7 +284,7 @@ Here is the performance ledger for **${selectedVendor.company}**'s assigned recr
               <BadgeInfo className="w-4 h-4" />
             </span>
             <p className="text-[10px] text-slate-400 leading-relaxed">
-              When triggered, the background agent sweeps all inactive assets, matches them using Gemini evaluations against open requirements, alerts recruiters, and schedules ready-to-pitch outreach draft cards.
+              When triggered, the background agent sweeps all inactive assets, matches them using AI evaluations against open requirements, alerts recruiters, and schedules ready-to-pitch outreach draft cards.
             </p>
           </div>
         </div>

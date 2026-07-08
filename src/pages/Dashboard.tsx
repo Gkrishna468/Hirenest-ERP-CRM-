@@ -111,7 +111,7 @@ export default function Dashboard() {
           return data;
         }),
         {
-          loading: "Contacting Gemini API, performing structured extraction reprocessing...",
+          loading: "Contacting AI API, performing structured extraction reprocessing...",
           success: (data) => `Reprocessed queue items successfully! ${data.message || ""}`,
           error: "Failed to reprocess queue items."
         }
@@ -552,7 +552,7 @@ export default function Dashboard() {
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1 shadow-sm col-span-2 sm:col-span-1">
             <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">AI Fallback Uses</span>
             <span className="text-xl font-black text-amber-600 font-mono">{telemetry.fallbackUsage || 0}</span>
-            <span className="text-[9px] text-slate-400 mt-1">Gemini API 429 rate fallbacks</span>
+            <span className="text-[9px] text-slate-400 mt-1">Cloud AI 429 rate fallbacks</span>
           </div>
         </div>
 
@@ -565,7 +565,7 @@ export default function Dashboard() {
                 Deferred AI Reprocessing Queue ({queue.length})
               </h3>
               <p className="text-xs text-slate-500">
-                Candidates waiting for high-fidelity Gemini 3.5 structured enrichment when rate limits clear.
+                Candidates waiting for high-fidelity AI structured enrichment when rate limits clear.
               </p>
             </div>
             {queue.length > 0 && (
@@ -590,7 +590,7 @@ export default function Dashboard() {
               <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto" />
               <h4 className="text-xs font-bold text-slate-800">Queue Completely Clear</h4>
               <p className="text-[11px] text-slate-500">
-                All candidates successfully parsed via high-fidelity Gemini enrichment. Ingestion pipeline is healthy.
+                All candidates successfully parsed via high-fidelity AI enrichment. Ingestion pipeline is healthy.
               </p>
             </div>
           ) : (

@@ -40,7 +40,7 @@ export interface ParsedResume {
 }
 
 /**
- * Parses raw resume text into structured JSON using Gemini via AI Gateway
+ * Parses raw resume text into structured JSON via AI Gateway
  */
 export async function parseResumeWithAI(text: string): Promise<ParsedResume> {
   const prompt = `

@@ -207,7 +207,7 @@ export default function Candidate360({ candidateId, onClose }: Candidate360Props
     })
     .sort((a, b) => b.score - a.score);
 
-  // Trigger Gemini AI generation for the profile summary
+  // Trigger Cloud AI generation for the profile summary
   const handleGenerateSummary = async () => {
     setIsGenerating(true);
     try {
@@ -238,10 +238,10 @@ export default function Candidate360({ candidateId, onClose }: Candidate360Props
         aiRecommendationReason: result.reason
       } as any);
 
-      toast.success("AI Candidate Summary Generated via Gemini!");
+      toast.success("AI Candidate Summary Generated!");
     } catch (err: any) {
       console.error(err);
-      toast.error("Gemini Generation Failed: " + err.message);
+      toast.error("AI Generation Failed: " + err.message);
     } finally {
       setIsGenerating(false);
     }
@@ -371,7 +371,7 @@ export default function Candidate360({ candidateId, onClose }: Candidate360Props
               className="skeuo-btn flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 border-indigo-100 text-indigo-700 font-bold px-4 py-2 text-sm"
             >
               <Sparkles className={cn("w-4 h-4", isGenerating && "animate-spin")} />
-              {isGenerating ? "Analyzing Resume..." : "Ask Gemini AI 360"}
+              {isGenerating ? "Analyzing Resume..." : "Ask AI 360"}
             </button>
             <button
               onClick={onClose}
@@ -555,7 +555,7 @@ export default function Candidate360({ candidateId, onClose }: Candidate360Props
                         <Sparkles className="w-5 h-5 text-indigo-600" />
                         <h4 className="text-base font-bold text-slate-900">AI Candidate Summary</h4>
                       </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest font-mono text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">Parsed via Gemini</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest font-mono text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">Parsed via AI</span>
                     </div>
                     <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line font-sans">
                       {aiSummaryText}

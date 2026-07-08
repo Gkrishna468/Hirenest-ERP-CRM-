@@ -93,7 +93,7 @@ export default function PublicApply() {
     setTimeout(async () => {
       try {
         setPipelineStep(4);
-        setPipelineLog(prev => [...prev, '✔ Dispatching AI Match Evaluator...', '✔ Connecting to Gemini-3.5-flash...']);
+        setPipelineLog(prev => [...prev, '✔ Dispatching AI Match Evaluator...', '✔ Connecting to AI Gateway...']);
 
         const response = await fetch('/api/candidates?action=submitVendorCandidate', {
           method: 'POST',
@@ -337,7 +337,7 @@ export default function PublicApply() {
                       {pipelineStep === 2 && (
                         <div className="flex items-center gap-3 text-slate-300 font-mono text-xs">
                           <RefreshCw className="w-4 h-4 text-indigo-500 animate-spin" />
-                          <span>Running Deep Neural Matching with Gemini...</span>
+                          <span>Running Deep Neural Matching with AI...</span>
                         </div>
                       )}
                       {pipelineStep >= 3 && (

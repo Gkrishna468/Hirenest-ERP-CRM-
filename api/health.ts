@@ -58,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'ai':
       return await (async () => {
   return res.json({
-    geminiConfigured: !!(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY),
+    cloudAiConfigured: !!(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY),
     googleConfigured: !!process.env.GOOGLE_API_KEY
   });
 })();

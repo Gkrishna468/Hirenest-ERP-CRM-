@@ -113,10 +113,10 @@ interface ClassificationResponse {
   senderType: "Vendor" | "Client" | "Candidate" | "System/Automated" | "Unknown";
 }
 
-async function classifyEmailWithGemini(subject: string, from: string, bodySnippet: string): Promise<ClassificationResponse> {
+async function classifyEmailWithAI(subject: string, from: string, bodySnippet: string): Promise<ClassificationResponse> {
   const apiKey = (process.env.GEMINI_API_KEY || "").replace(/^"|"$/g, "").replace(/^'|'$/g, "");
   if (!apiKey) {
-    console.log("[Classification] GEMINI_API_KEY is not defined, using regex classification fallback.");
+    console.log("[Classification] AI API_KEY is not defined, using regex classification fallback.");
     return performRegexClassification(subject, from, bodySnippet);
   }
 
@@ -185,7 +185,7 @@ Classify into one of these:
     
     return performRegexClassification(subject, from, bodySnippet);
   } catch (err) {
-    console.error("[Gemini Classification Error]", err);
+    console.error("[AI Classification Error]", err);
     return performRegexClassification(subject, from, bodySnippet);
   }
 }

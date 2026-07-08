@@ -133,7 +133,7 @@ export class AgentRuntime {
       taskName: task.task,
       agentId: task.agentId,
       agentVersion: "1.0.0", // Tracking agent versions
-      provider: "gemini",    // Abstracted provider tracking
+      provider: "cloud-ai",    // Abstracted provider tracking
       status: "running",
       startedAt: new Date().toISOString()
     });

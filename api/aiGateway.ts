@@ -155,7 +155,7 @@ export class ModelRegistry {
         enabled: true,
       },
       executive: {
-        provider: "gemini",
+        provider: "cloud-ai",
         model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
         temperature: 0.2,
         maxTokens: 3000,
@@ -164,7 +164,7 @@ export class ModelRegistry {
         enabled: true,
       },
       fallback: {
-        provider: "gemini",
+        provider: "cloud-ai",
         model: "gemini-2.5-flash",
         temperature: 0.2,
         maxTokens: 2000,
@@ -358,7 +358,7 @@ export class CapabilityRegistry {
       normalized.includes("resume parsing") ||
       normalized.includes("parse-resume")
     ) {
-      return ["ollama", "gemini"];
+      return ["ollama", "cloud-ai"];
     }
     
     if (
@@ -366,27 +366,27 @@ export class CapabilityRegistry {
       normalized.includes("candidate-matcher") ||
       normalized.includes("candidate scoring")
     ) {
-      return ["ollama", "gemini"];
+      return ["ollama", "cloud-ai"];
     }
-
+ 
     if (
       normalized.includes("executive summary") ||
       normalized.includes("executive-report") ||
       normalized.includes("analytics")
     ) {
-      return ["gemini", "ollama"];
+      return ["cloud-ai", "ollama"];
     }
-
+ 
     if (
       normalized.includes("email generation") ||
       normalized.includes("email-draft") ||
       normalized.includes("copilot")
     ) {
-      return ["ollama", "gemini"];
+      return ["ollama", "cloud-ai"];
     }
-
+ 
     // Default fallback chain
-    return ["ollama", "gemini"];
+    return ["ollama", "cloud-ai"];
   }
 }
 
@@ -763,14 +763,21 @@ const fetchWithTimeout = async (url: string, options: RequestInit, timeoutMs = 8
  * Dedicated Provider Adapters
  */
 async function runOllama(options: AISerializedOptions): Promise<string> {
-  const ollamaUrl = (process.env.OLLAMA_API_URL || "https://ai.hirenestworkforce.com").replace(/^"|"$/g, "");
+  const ollamaUrl = (process.env.OLLAMA_API_URL || "http://localhost:11434").replace(/^"|"$/g, "");
   const modelName = (process.env.OLLAMA_MODEL || "qwen3:8b").replace(/^"|"$/g, "");
+  const apiKey = (process.env.OLLAMA_API_KEY || "").replace(/^"|"$/g, "").trim();
+
+  const headers = {
+    "Content-Type": "application/json",
+  };
+  
+  if (apiKey) {
+    headers["Authorization"] = `Bearer ${apiKey}`;
+  }
 
   const response = await fetchWithTimeout(`${ollamaUrl}/api/generate`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify({
       model: modelName,
       prompt: options.prompt,
@@ -828,10 +835,10 @@ async function runOpenAI(options: AISerializedOptions): Promise<string> {
   return json.choices?.[0]?.message?.content || "";
 }
 
-async function runGemini(options: AISerializedOptions): Promise<string> {
+async function runCloudAi(options: AISerializedOptions): Promise<string> {
   const apiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "").replace(/^"|"$/g, "").trim();
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured in the environment.");
+    throw new Error("Cloud AI API Key (GEMINI_API_KEY) is not configured in the environment.");
   }
 
   const modelName = (process.env.GEMINI_MODEL || "gemini-2.5-flash").replace(/^"|"$/g, "");
@@ -966,14 +973,13 @@ export async function executeServerAITask(options: AISerializedOptions): Promise
           successProvider = "openai";
         } else if (provider === "gemini") {
           successModel = (process.env.GEMINI_MODEL || "gemini-2.5-flash").replace(/^"|"$/g, "");
-          resultText = await runGemini({ ...options, prompt: finalPrompt });
-          successProvider = "gemini";
+          resultText = await runCloudAi({ ...options, prompt: finalPrompt });
+          successProvider = "cloud-ai";
         } else {
           throw new Error(`Unknown provider: ${provider}`);
         }
         break; // Successfully completed action!
       } catch (err: any) {
-        console.warn(`[AI Gateway Failover] Provider '${provider}' failed on '${options.action}'. Error: ${err.message || err}`);
         fallbackCount++;
         finalError = err.message || String(err);
       }
@@ -985,7 +991,7 @@ export async function executeServerAITask(options: AISerializedOptions): Promise
 
   // F. Capability Fallback Chain: Local lightweight or Heuristic Engine (Maximum Reliability)
   if (!successProvider) {
-    console.warn(`[AI Gateway] LLM Provider Chain exhausted. Triggering final Heuristic Core fallback...`);
+    // quiet fallback
     try {
       if (process.env.OLLAMA_BACKUP_MODEL) {
         try {
@@ -993,7 +999,7 @@ export async function executeServerAITask(options: AISerializedOptions): Promise
           resultText = await runOllama({ ...options, prompt: finalPrompt });
           successProvider = "ollama-backup";
         } catch (le) {
-          console.warn("[AI Gateway] Lightweight backup model offline.");
+          // quiet
         }
       }
 

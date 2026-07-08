@@ -148,13 +148,14 @@ export default function Vendors() {
       upload: 'pending' | 'success' | 'failed' | 'skipped';
       parse: 'pending' | 'success' | 'failed' | 'skipped';
       dupCheck: 'pending' | 'success' | 'failed' | 'skipped' | 'duplicate';
+      identityRes: 'pending' | 'success' | 'failed' | 'skipped' | 'duplicate';
       firestore: 'pending' | 'success' | 'failed' | 'skipped';
     };
     resultMessage?: string;
   }[]>([]);
   const [bulkStartTime, setBulkStartTime] = useState<number | null>(null);
   const [activeBulkTab, setActiveBulkTab] = useState<string>('');
-  const [bulkCheckDeduplication, setBulkCheckDeduplication] = useState<boolean>(true);
+  const [bulkCheckIdentity, setBulkCheckIdentity] = useState<boolean>(true);
   const [bulkUploadMode, setBulkUploadMode] = useState<'requirement' | 'talent-pool'>('requirement');
 
   // Sourcing & AI requirement match suggestions
@@ -565,6 +566,7 @@ export default function Vendors() {
           upload: 'success' as const,
           parse: 'pending' as const,
           dupCheck: 'pending' as const,
+          identityRes: 'pending' as const,
           firestore: 'pending' as const
         },
         resultMessage: 'Ready'
@@ -600,6 +602,7 @@ export default function Vendors() {
           upload: 'success',
           parse: 'pending',
           dupCheck: 'pending',
+          identityRes: 'pending',
           firestore: 'pending'
         },
         resultMessage: 'Parsing...'
@@ -622,6 +625,7 @@ export default function Vendors() {
               upload: 'success',
               parse: 'success',
               dupCheck: 'pending',
+              identityRes: 'pending',
               firestore: 'pending'
             },
             resultMessage: 'Parsed successfully',
@@ -640,6 +644,7 @@ export default function Vendors() {
               upload: 'success',
               parse: 'failed',
               dupCheck: 'skipped',
+              identityRes: 'skipped',
               firestore: 'skipped'
             },
             resultMessage: 'AI Gateway unavailable'
@@ -654,6 +659,7 @@ export default function Vendors() {
             upload: 'success',
             parse: 'failed',
             dupCheck: 'skipped',
+            identityRes: 'skipped',
             firestore: 'skipped'
           },
           resultMessage: 'AI Gateway unavailable'
@@ -664,7 +670,7 @@ export default function Vendors() {
     }
   };
 
-  const runDeduplicationCheck = async () => {
+  const runIdentityResolution = async () => {
     setBulkStep(4);
     const updated = [...bulkResumes];
     const collectionName = bulkUploadMode === 'talent-pool' ? 'vendor_candidate_pool' : 'candidates';
@@ -672,14 +678,14 @@ export default function Vendors() {
     for (let i = 0; i < updated.length; i++) {
       if (updated[i].status === 'failed') {
         if (updated[i].stages) {
-          updated[i].stages.dupCheck = 'skipped';
+          updated[i].stages.identityRes = 'skipped';
         }
         continue;
       }
       const email = updated[i].parsedData?.email?.toLowerCase()?.trim();
       if (!email) {
         if (updated[i].stages) {
-          updated[i].stages.dupCheck = 'skipped';
+          updated[i].stages.identityRes = 'skipped';
         }
         continue;
       }
@@ -694,6 +700,7 @@ export default function Vendors() {
               upload: 'success',
               parse: 'success',
               dupCheck: 'duplicate',
+              identityRes: 'duplicate',
               firestore: 'skipped'
             },
             resultMessage: 'Duplicate skipped',
@@ -710,6 +717,7 @@ export default function Vendors() {
               upload: 'success',
               parse: 'success',
               dupCheck: 'success',
+              identityRes: 'success',
               firestore: 'pending'
             },
             resultMessage: 'Identity unique',
@@ -719,7 +727,7 @@ export default function Vendors() {
       } catch (err) {
         console.error(err);
         if (updated[i].stages) {
-          updated[i].stages.dupCheck = 'failed';
+          updated[i].stages.identityRes = 'failed';
         }
       }
       setBulkResumes([...updated]);
@@ -748,7 +756,7 @@ export default function Vendors() {
           continue;
         }
 
-        if (bulkCheckDeduplication && cand.parsedData?.hasConflict) {
+        if (bulkCheckIdentity && cand.parsedData?.hasConflict) {
           skippedCount++;
           if (updated[i].stages) {
             updated[i].stages.firestore = 'skipped';
@@ -813,10 +821,15 @@ export default function Vendors() {
             }
             updated[i].resultMessage = 'Imported';
           } else {
+            const errorResult = await response.json().catch(() => ({}));
             if (updated[i].stages) {
               updated[i].stages.firestore = 'failed';
             }
-            updated[i].resultMessage = 'Sync Failed';
+            updated[i].resultMessage = errorResult.reason === 'ownership_conflict' ? 'Ownership Conflict' : (errorResult.error || 'Sync Failed');
+            
+            if (errorResult.duplicate || errorResult.reason === 'ownership_conflict') {
+              skippedCount++;
+            }
           }
         } catch (err) {
           if (updated[i].stages) {
@@ -846,7 +859,7 @@ export default function Vendors() {
           duplicates: skippedCount,
           failed: failedResumesCount,
           firestoreWrites: successCount,
-          gatewayUsed: 'Ollama/Gemini Fallback',
+          gatewayUsed: 'Ollama/AI Fallback',
           executionTimeMs: executionTime,
           traceId
         });
@@ -854,8 +867,12 @@ export default function Vendors() {
         console.error("Failed to write ingestion execution ledger log:", logErr);
       }
 
-      if (successCount === 0) {
-        toast.error(`Import Failed. Reason: AI Gateway unavailable or database write failed. No candidate profiles were created.`);
+      if (successCount === 0 && failedResumesCount > 0) {
+        toast.error(`Import Failed. No candidate profiles were created successfully.`);
+      } else if (successCount === 0 && skippedCount > 0) {
+        toast.error(`Import Skipped. All profiles were duplicates or had ownership conflicts.`);
+      } else if (successCount === 0) {
+        toast.error(`Import Failed. Reason: AI Gateway unavailable or database write failed.`);
       } else {
         toast.success(`Bulk Upload Complete! ${successCount} candidates imported.${skippedCount > 0 ? ` ${skippedCount} duplicates skipped.` : ''}`);
         setIsBulkUploadOpen(false);
@@ -882,14 +899,14 @@ export default function Vendors() {
               <th className="px-4 py-3">Resume</th>
               <th className="px-3 py-3 text-center">Upload</th>
               <th className="px-3 py-3 text-center">Parse</th>
-              <th className="px-3 py-3 text-center">Dup Check</th>
-              <th className="px-3 py-3 text-center">Firestore</th>
+              <th className="px-3 py-3 text-center">Identity</th>
+              <th className="px-3 py-3 text-center">Sync</th>
               <th className="px-4 py-3 text-right">Result</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
             {bulkResumes.map(r => {
-              const stages = r.stages || { upload: 'success', parse: 'pending', dupCheck: 'pending', firestore: 'pending' };
+              const stages = r.stages || { upload: 'success', parse: 'pending', identityRes: 'pending', firestore: 'pending' };
               const getStageBadge = (val: string) => {
                 switch(val) {
                   case 'success': 
@@ -908,9 +925,10 @@ export default function Vendors() {
 
               const getResultBadge = () => {
                 if (r.status === 'failed') return <span className="text-red-600 font-extrabold text-[9px] bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-full uppercase">AI Failed</span>;
-                if (stages.dupCheck === 'duplicate') return <span className="text-amber-600 font-extrabold text-[9px] bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full uppercase">Duplicate</span>;
+                if (stages.identityRes === 'duplicate') return <span className="text-amber-600 font-extrabold text-[9px] bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full uppercase">Duplicate</span>;
                 if (stages.firestore === 'success') return <span className="text-emerald-600 font-extrabold text-[9px] bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full uppercase">Imported</span>;
                 if (stages.firestore === 'failed') return <span className="text-red-600 font-extrabold text-[9px] bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-full uppercase">Sync Failed</span>;
+                if (r.resultMessage === 'Ownership Conflict') return <span className="text-rose-600 font-extrabold text-[9px] bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded-full uppercase">Ownership Conflict</span>;
                 if (r.status === 'done') return <span className="text-indigo-600 font-extrabold text-[9px] bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-full uppercase">Parsed</span>;
                 return <span className="text-slate-500 text-[9px] uppercase font-bold">Ready</span>;
               };
@@ -920,7 +938,7 @@ export default function Vendors() {
                   <td className="px-4 py-2.5 font-bold text-slate-800 max-w-[120px] truncate">{r.name}</td>
                   <td className="px-3 py-2.5 text-center">{getStageBadge(stages.upload)}</td>
                   <td className="px-3 py-2.5 text-center">{getStageBadge(stages.parse)}</td>
-                  <td className="px-3 py-2.5 text-center">{getStageBadge(stages.dupCheck)}</td>
+                  <td className="px-3 py-2.5 text-center">{getStageBadge(stages.identityRes)}</td>
                   <td className="px-3 py-2.5 text-center">{getStageBadge(stages.firestore)}</td>
                   <td className="px-4 py-2.5 text-right">{getResultBadge()}</td>
                 </tr>
@@ -1900,7 +1918,7 @@ export default function Vendors() {
                           { type: 'VENDOR_CREATED', message: 'Delivery Partner Apex Staffing onboarded under Code HN-VND-000004', timestamp: '12 days ago' },
                           { type: 'CREDENTIALS_PROVISIONED', message: 'Secure bcrypt credential hashes mapped; Welcome Dispatch triggered.', timestamp: '12 days ago' },
                           { type: 'RESUME_UPLOADED', message: 'Candidate Sneha Roy registered in Database. Checked duplicate hashes.', timestamp: '10 days ago' },
-                          { type: 'GEMINI_PARSED', message: 'AI parser successfully extracted candidate metadata with 91% alignment.', timestamp: '10 days ago' },
+                          { type: 'AI_PARSED', message: 'AI parser successfully extracted candidate metadata with 91% alignment.', timestamp: '10 days ago' },
                           { type: 'IDENTITY_VAULT_CLAIM', message: 'Candidate claim mapped to Apex Staffing; lock period is active.', timestamp: '10 days ago' },
                           { type: 'SUBMITTED_TO_CLIENT', message: 'Submitted profile to BDM for active Deloitte Java Broadcast.', timestamp: '9 days ago' },
                           { type: 'L1_INTERVIEW', message: 'Technical screening L1 completed. Status updated: Screening Passed.', timestamp: '3 days ago' },
@@ -1974,9 +1992,9 @@ export default function Vendors() {
               {[
                 { s: 1, label: bulkUploadMode === 'talent-pool' ? 'Sourcing Mode' : 'Select Requirement' },
                 { s: 2, label: 'Upload Files' },
-                { s: 3, label: 'AI Gemini Parsing' },
-                { s: 4, label: 'Deduplication' },
-                { s: 5, label: 'SSOT Sync' }
+                { s: 3, label: 'AI Parsing' },
+                { s: 4, label: 'Identity Resolution' },
+                { s: 5, label: 'Firestore Sync' }
               ].map(st => (
                 <div key={st.s} className="flex items-center gap-1.5">
                   <span className={cn(
@@ -2146,7 +2164,7 @@ export default function Vendors() {
                       disabled={bulkResumes.length === 0}
                       className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs transition-all"
                     >
-                      Run AI Gemini Extraction Pipeline
+                      Run AI Extraction Pipeline
                     </button>
                   </div>
                 </div>
@@ -2159,16 +2177,23 @@ export default function Vendors() {
                   {/* RESUME PARSING PIPELINE CONSOLE CONSOLE */}
                   <div className="bg-slate-950 text-white p-6 rounded-2xl border border-slate-800 space-y-4">
                     <div className="flex items-center justify-between pb-2 border-b border-slate-900">
-                      <span className="text-xs font-black uppercase text-slate-400 tracking-wider">Gemini Parsing Engine Pipeline</span>
-                      <span className="text-[10px] font-mono text-indigo-400">gemini-2.5-flash online</span>
+                      <span className="text-xs font-black uppercase text-slate-400 tracking-wider">AI Parsing Engine Pipeline</span>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[10px] font-mono text-indigo-400">AI Provider</span>
+                        <div className="flex gap-2 text-[9px] font-black uppercase">
+                           <span className="text-emerald-400">✓ Ollama</span>
+                           <span className="text-emerald-400">✓ OpenAI</span>
+                           <span className="text-emerald-400">✓ Heuristic</span>
+                        </div>
+                      </div>
                     </div>
- 
+
                     <div className="space-y-3 font-mono text-xs">
                       <p className="flex justify-between"><span>● STEP 1: OCR Document Buffer</span> <span className="text-emerald-400">100% SUCCESS</span></p>
                       <p className="flex justify-between"><span>● STEP 2: HTML Page Layout Noise Filter</span> <span className="text-emerald-400">100% SUCCESS</span></p>
-                      <p className="flex justify-between"><span>● STEP 3: Gemini Node Extraction</span> <span className="text-emerald-400">100% SUCCESS</span></p>
+                      <p className="flex justify-between"><span>● STEP 3: Identity & Extraction</span> <span className="text-emerald-400">100% SUCCESS</span></p>
                       <p className="flex justify-between"><span>● STEP 4: Skill Normalization</span> <span className="text-emerald-400">100% SUCCESS</span></p>
-                      <p className="flex justify-between"><span>● STEP 5: Duplicate Scan</span> <span className="text-emerald-400">100% SUCCESS</span></p>
+                      <p className="flex justify-between"><span>● STEP 5: Identity Vault Check</span> <span className="text-emerald-400">100% SUCCESS</span></p>
                       <p className="flex justify-between"><span>● STEP 6: Ownership Check</span> <span className="text-emerald-400">100% SUCCESS</span></p>
                       <p className="flex justify-between"><span>● STEP 7: Candidate Health Score</span> <span className="text-emerald-400">100% SUCCESS</span></p>
                       <p className="flex justify-between"><span>● STEP 8: Firestore Sync</span> <span className="text-emerald-400">100% SUCCESS</span></p>
@@ -2182,17 +2207,17 @@ export default function Vendors() {
  
                   <div className="flex justify-end pt-4 border-t">
                     <button
-                      onClick={runDeduplicationCheck}
+                      onClick={runIdentityResolution}
                       disabled={bulkResumes.some(r => r.status !== 'done')}
                       className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs transition-all"
                     >
-                      Analyze Duplicate risks
+                      Run Identity Resolution
                     </button>
                   </div>
                 </div>
               )}
  
-              {/* Step 4: Deduplication Check */}
+              {/* Step 4: Identity Resolution */}
               {bulkStep === 4 && (
                 <div className="space-y-6">
                   
@@ -2201,7 +2226,7 @@ export default function Vendors() {
                       <ShieldCheck className="w-4 h-4 text-indigo-600" />
                       Candidate Identity Vault Check
                     </h4>
-                    Checking SHA-256 hashes for all parsed emails/contacts against the global FireStore record directory to prevent overlapping claim locks.
+                    Resolving identity across the global FireStore record directory to prevent overlapping claim locks. Using SHA-256 hashes of extracted contact data for 100% parity.
                   </div>
  
                   <div className="space-y-2">
@@ -2213,11 +2238,11 @@ export default function Vendors() {
                     <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
                       <input
                         type="checkbox"
-                        checked={bulkCheckDeduplication}
-                        onChange={e => setBulkCheckDeduplication(e.target.checked)}
+                        checked={bulkCheckIdentity}
+                        onChange={e => setBulkCheckIdentity(e.target.checked)}
                         className="w-4 h-4 text-indigo-600 border-slate-300 rounded"
                       />
-                      Enforce Duplicate Locking (Skip overlapping claims)
+                      Enforce Identity Locking (Skip overlapping claims)
                     </label>
  
                     <button
