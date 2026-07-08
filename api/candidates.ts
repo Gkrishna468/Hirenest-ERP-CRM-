@@ -100,30 +100,21 @@ export function fallbackExtractData(candidateName: string, identityData: any) {
 }
 
 // Helper for reliable identity resolution
-async function resolveIdentity(db: Firestore, identityData: any, vendorId: string) {
+async function resolveIdentity(db: Firestore, identityData: any) {
   const email = (identityData.email || "").trim().toLowerCase();
   const phone = (identityData.phone || "").replace(/[^0-9]/g, '');
 
   if (!email && !phone) return null;
 
   // Search vault by email or phone
-  let vaultQuery;
-  if (email && phone) {
-    vaultQuery = await db.collection("candidate_identity_vault")
-      .where("identities", "array-contains-any", [email, phone])
-      .limit(1)
-      .get();
-  } else if (email) {
-    vaultQuery = await db.collection("candidate_identity_vault")
-      .where("identities", "array-contains", email)
-      .limit(1)
-      .get();
-  } else {
-    vaultQuery = await db.collection("candidate_identity_vault")
-      .where("identities", "array-contains", phone)
-      .limit(1)
-      .get();
-  }
+  const identities = [];
+  if (email) identities.push(email);
+  if (phone) identities.push(phone);
+
+  const vaultQuery = await db.collection("candidate_identity_vault")
+    .where("identities", "array-contains-any", identities)
+    .limit(1)
+    .get();
 
   if (!vaultQuery.empty) {
     return { id: vaultQuery.docs[0].id, ...vaultQuery.docs[0].data() } as any;
@@ -150,13 +141,10 @@ export default async function handler(req: any, res: any) {
       }
 
       // 1. Resolve Identity (Law 2: SSOT)
-      const existingVaultDoc = await resolveIdentity(db, identityData, vendorId);
+      const existingVaultDoc = await resolveIdentity(db, identityData);
 
       // 2. FIRESTORE TRANSACTION FLOW
       const result = await db.runTransaction(async (transaction) => {
-        // [Same Vendor? -> Update Candidate -> Success]
-        // [No? -> Ownership Conflict]
-        
         if (existingVaultDoc) {
           if (existingVaultDoc.vendorId !== vendorId) {
             return {
@@ -178,13 +166,11 @@ export default async function handler(req: any, res: any) {
         if (reqId !== "UNKNOWN") {
           const jobDoc = await transaction.get(db.collection("requirements_private").doc(reqId));
           if (jobDoc.exists) {
-            jobTitle = jobDoc.data()?.title || "Sourced Role";
+            jobTitle = (jobDoc.data() as any)?.title || "Sourced Role";
           }
         }
 
-        // BDM Routing logic
-        const assignedBdm = "Ravi"; // Simplified for brevity, can be expanded
-
+        const assignedBdm = "Ravi"; 
         const aiMatchScore = identityData.aiMatchScore || 75;
         const skillsList = identityData.skills || [];
 
@@ -196,6 +182,7 @@ export default async function handler(req: any, res: any) {
           const candRef = db.collection("candidates").doc(candidateId);
           transaction.update(candRef, {
             ...identityData,
+            name: candidateName,
             updatedAt: new Date().toISOString(),
             lastSubmissionRequirementId: reqId,
             syncVersion: FieldValue.increment(1)
@@ -239,8 +226,17 @@ export default async function handler(req: any, res: any) {
           aiMatchScore
         });
 
+        // Emit Ledger Event
+        transaction.set(db.collection("system_events").doc(), {
+          eventType: isUpdate ? "CANDIDATE_UPDATED" : "CANDIDATE_SUBMITTED",
+          entityCollection: "candidates",
+          entityId: candidateId,
+          metadata: { vendorId, candidateName, requirementId: reqId },
+          createdAt: new Date().toISOString()
+        });
+
         return { 
-          status: isUpdate ? 200 : 201, 
+          status: 200, 
           data: { 
             success: true, 
             action: isUpdate ? "UPDATED" : "CREATED",
@@ -251,7 +247,6 @@ export default async function handler(req: any, res: any) {
       });
 
       return res.status(result.status).json(result.data);
-
     } catch (e: any) {
       console.error(e);
       return res.status(500).json({ error: e.message });
@@ -267,7 +262,7 @@ export default async function handler(req: any, res: any) {
       }
 
       // 1. Resolve Identity
-      const existingVaultDoc = await resolveIdentity(db, identityData, vendorId);
+      const existingVaultDoc = await resolveIdentity(db, identityData);
 
       const result = await db.runTransaction(async (transaction) => {
         if (existingVaultDoc && existingVaultDoc.vendorId !== vendorId) {
@@ -309,6 +304,7 @@ export default async function handler(req: any, res: any) {
         } else {
           transaction.update(db.collection("candidates").doc(candidateId), {
             ...identityData,
+            name: candidateName,
             updatedAt: new Date().toISOString(),
             syncVersion: FieldValue.increment(1)
           });
@@ -322,6 +318,15 @@ export default async function handler(req: any, res: any) {
           candidateId,
           updatedAt: new Date().toISOString()
         }, { merge: true });
+
+        // Emit Ledger Event
+        transaction.set(db.collection("system_events").doc(), {
+          eventType: "CANDIDATE_POOL_SYNCED",
+          entityCollection: "vendor_candidate_pool",
+          entityId: candidateId,
+          metadata: { vendorId, candidateName },
+          createdAt: new Date().toISOString()
+        });
 
         return { status: 200, data: { success: true, action: isUpdate ? "UPDATED" : "CREATED", candidateId } };
       });
