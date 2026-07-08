@@ -1,3 +1,4 @@
+import { safeJson } from '@/utils/safeJson';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -389,7 +390,7 @@ export default function Vendors() {
 
       if (partnerForm.createLogin && partnerForm.temporaryPassword) {
         try {
-          const authRes = await apiFetch('/api/auth?action=admin-create-vendor', {
+          const authRes = await apiFetch('/api/vendors', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -400,7 +401,7 @@ export default function Vendors() {
             })
           });
           if (!authRes.ok) {
-            const authErr = await authRes.json();
+            const authErr = await safeJson(authRes);
             throw new Error(authErr.error || 'Failed to provision credentials');
           }
           toast.success('Secure Firebase Auth account & Custom Claims successfully provisioned.');
@@ -502,7 +503,7 @@ export default function Vendors() {
         })
       });
 
-      const result = await response.json();
+      const result = await safeJson(response);
       if (!response.ok) {
         throw new Error(result.message || result.error || 'Failed to submit candidate');
       }
@@ -601,7 +602,7 @@ export default function Vendors() {
         });
         
         if (response.ok) {
-          const parsed = await response.json();
+          const parsed = await safeJson(response);
           updated[i] = {
             ...updated[i],
             status: 'done',
@@ -763,7 +764,7 @@ export default function Vendors() {
           });
 
           if (response.ok) {
-            const data = await response.json();
+            const data = await safeJson(response);
             successCount++;
             if (updated[i].stages) {
               updated[i].stages.firestore = 'success';
@@ -772,7 +773,7 @@ export default function Vendors() {
           } else {
             let errorResult: any = {};
             try {
-              errorResult = await response.json();
+              errorResult = await safeJson(response);
             } catch (e) {
               errorResult = { error: await response.text().catch(() => 'Sync Failed') };
             }
@@ -1274,8 +1275,8 @@ export default function Vendors() {
               <div className="bg-slate-900 text-white p-6 rounded-3xl space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-sm font-bold text-white">Operational Portal Credentials Provisioning</h4>
-                    <p className="text-[10px] text-slate-400">Creates secure login credentials and stores SHA-256 / bcrypt hash.</p>
+                    <h4 className="text-sm font-bold text-white">Firebase Authentication Provisioning</h4>
+                    <p className="text-[10px] text-slate-400">Creates a secure Firebase User, assigns custom claims, and initializes the Organization.</p>
                   </div>
                   <input
                     type="checkbox"

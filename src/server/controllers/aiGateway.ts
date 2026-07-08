@@ -1,3 +1,4 @@
+import { safeJson } from '@/utils/safeJson';
 import { initializeApp, getApps, applicationDefault, cert } from "firebase-admin/app";
 import { getFirestore, Firestore, FieldValue } from "firebase-admin/firestore";
 import { GoogleGenAI } from "@google/genai";
@@ -794,7 +795,7 @@ async function runOllama(options: AISerializedOptions): Promise<string> {
     throw new Error(`Ollama HTTP Error status: ${response.status}`);
   }
 
-  const json = await response.json();
+  const json = await safeJson(response);
   return json.response || "";
 }
 
@@ -831,7 +832,7 @@ async function runOpenAI(options: AISerializedOptions): Promise<string> {
     throw new Error(`OpenAI HTTP Error status: ${response.status}. Details: ${errorDetails}`);
   }
 
-  const json = await response.json();
+  const json = await safeJson(response);
   return json.choices?.[0]?.message?.content || "";
 }
 

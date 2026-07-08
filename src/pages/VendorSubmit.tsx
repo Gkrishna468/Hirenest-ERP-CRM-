@@ -1,3 +1,4 @@
+import { safeJson } from '@/utils/safeJson';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { RequirementRepository } from '@/repositories/RequirementRepository';
@@ -328,7 +329,7 @@ export default function VendorSubmit() {
           })
         });
 
-        const result = await response.json();
+        const result = await safeJson(response);
 
         if (response.status === 409) {
           setPipelineStep(-1);
@@ -438,7 +439,7 @@ export default function VendorSubmit() {
           })
         });
 
-        const result = await response.json();
+        const result = await safeJson(response);
 
         if (response.status === 409) {
           const isConflict = result.message?.toLowerCase().includes("another") || result.error?.toLowerCase().includes("conflict");
@@ -627,7 +628,7 @@ export default function VendorSubmit() {
           })
         });
 
-        const result = await response.json();
+        const result = await safeJson(response);
 
         if (response.status === 409) {
           const isConflict = result.message?.toLowerCase().includes("another") || result.error?.toLowerCase().includes("conflict");
@@ -745,7 +746,7 @@ export default function VendorSubmit() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vendorId: authenticatedVendor.id })
       });
-      const result = await response.json();
+      const result = await safeJson(response);
       if (!response.ok) {
         throw new Error(result.error || 'Failed to trigger rotation');
       }
@@ -782,7 +783,7 @@ export default function VendorSubmit() {
           vendorId: authenticatedVendor.id
         })
       });
-      const result = await response.json();
+      const result = await safeJson(response);
       if (!response.ok) {
         throw new Error(result.error || 'Failed to validate profiles');
       }

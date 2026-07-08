@@ -1,3 +1,4 @@
+import { safeJson } from '@/utils/safeJson';
 import React, { useState, useEffect } from "react";
 import {
   MessageSquare,
@@ -59,7 +60,7 @@ export default function CommunicationCenter() {
           action: action,
         }),
       });
-      const data = await response.json();
+      const data = await safeJson(response);
       if (!response.ok) throw new Error(data.error || "Network error");
       if (!data.draft) throw new Error("Empty draft returned");
       setDraftBody(data.draft);
@@ -115,7 +116,7 @@ export default function CommunicationCenter() {
         : "";
       const response = await apiFetch(`/api/gmail?action=list${userQuery}`);
       if (!response.ok) throw new Error("Failed to fetch emails");
-      const data = await response.json();
+      const data = await safeJson(response);
 
       const formattedMails = (data.emails || []).map((e: any) => {
         const estDate = e.receivedAt ? new Date(e.receivedAt) : new Date();
@@ -174,7 +175,7 @@ export default function CommunicationCenter() {
           method: "POST",
         },
       );
-      const data = await response.json();
+      const data = await safeJson(response);
 
       if (!response.ok) {
         if (response.status === 404 && data.error === 'No connection found for this user') {
@@ -263,7 +264,7 @@ export default function CommunicationCenter() {
         }),
       });
 
-      const data = await response.json();
+      const data = await safeJson(response);
       if (!response.ok) throw new Error(data.error || "Failed to send");
       toast.success(isReplyAll ? "Reply-All email sent successfully" : "Email sent successfully");
       setDraftBody("");

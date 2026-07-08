@@ -1,3 +1,4 @@
+import { safeJson } from '@/utils/safeJson';
 import React, { useState, useEffect, useRef } from "react";
 import {
   X,
@@ -189,7 +190,7 @@ export default function Candidate360({ candidateId, onClose }: Candidate360Props
         throw new Error("AI engine failed to respond");
       }
 
-      const result = await response.json();
+      const result = await safeJson(response);
       
       // Save results to candidate document in Firestore
       await updateCandidate(candidate.id, {

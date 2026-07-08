@@ -1,3 +1,4 @@
+import { safeJson } from '@/utils/safeJson';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -105,7 +106,7 @@ export default function Dashboard() {
           headers: { "Content-Type": "application/json" }
         }).then(async (res) => {
           if (!res.ok) throw new Error("Reprocessing queue failed");
-          const data = await res.json();
+          const data = await safeJson(res);
           await fetchIngestionData();
           return data;
         }),

@@ -18,11 +18,22 @@ async function fetchProxy(body: any) {
   });
   
   if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error || 'Database proxy error');
+    const text = await res.text();
+    let err;
+    try {
+      err = text ? JSON.parse(text) : {};
+    } catch (e) {
+      throw new Error(`Database proxy error (${res.status}): ${text || "Unknown server error"}`);
+    }
+    throw new Error(err?.error || `Database proxy error (${res.status})`);
   }
   
-  return res.json();
+  const text = await res.text();
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch (e) {
+    throw new Error(`Invalid JSON response: ${text || "Unknown server error"}`);
+  }
 }
 
 export const dbProxy = {

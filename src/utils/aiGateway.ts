@@ -1,3 +1,4 @@
+import { safeJson } from '@/utils/safeJson';
 import { GoogleGenAI } from "@google/genai";
 import { auth, db } from "@/services/firebase/config";
 import { addDoc, collection } from "firebase/firestore";
@@ -163,7 +164,7 @@ export async function executeAITask(options: AILogOptions): Promise<string> {
     });
 
     if (response.ok) {
-      const data = await response.json();
+      const data = await safeJson(response);
       result = data.text || "";
       success = true;
     } else {
@@ -236,7 +237,7 @@ export async function executeAITaskWithSchema(options: AILogOptions & { response
     });
 
     if (response.ok) {
-      const data = await response.json();
+      const data = await safeJson(response);
       result = data.text || "";
       success = true;
     } else {

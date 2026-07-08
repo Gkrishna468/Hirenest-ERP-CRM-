@@ -1,3 +1,4 @@
+import { safeJson } from '@/utils/safeJson';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -284,7 +285,7 @@ export default function Settings() {
     
     setLoading(true);
     try {
-      const response = await apiFetch('/api/auth?action=admin-reset-password', {
+      const response = await apiFetch('/api/auth/users/reset-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -295,7 +296,7 @@ export default function Settings() {
         })
       });
       
-      const data = await response.json();
+      const data = await safeJson(response);
       if (!response.ok) {
         throw new Error(data.error || 'Failed to reset password');
       }
@@ -322,17 +323,14 @@ export default function Settings() {
     
     setLoading(true);
     try {
-      const response = await apiFetch('/api/auth?action=admin-delete-user', {
-        method: 'POST',
+      const response = await apiFetch(`/api/auth/users/${deletingUser.id}`, {
+        method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          targetUserId: deletingUser.id
-        })
+        }
       });
       
-      const data = await response.json();
+      const data = await safeJson(response);
       if (!response.ok) {
         throw new Error(data.error || 'Failed to delete user');
       }
@@ -425,7 +423,7 @@ export default function Settings() {
         const userId = user?.id || "unknown";
         const email = user?.email || "";
         const response = await apiFetch(`/api/gmail?action=status&userId=${encodeURIComponent(userId)}&email=${encodeURIComponent(email)}`);
-        const data = await response.json();
+        const data = await safeJson(response);
         
         if (data.connected && data.data) {
           setGmailConnected(true);
@@ -444,14 +442,14 @@ export default function Settings() {
   const connectGmail = async () => {
     setLoading(true);
     try {
-      const response = await apiFetch(`/api/auth?action=url&userId=${user?.id}`);
+      const response = await apiFetch(`/api/auth/google/url?userId=${user?.id}`);
       
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
+        const errData = await safeJson(response).catch(() => ({}));
         throw new Error(errData.error || `Failed to fetch URL: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await safeJson(response);
       if (data.url) {
         window.location.href = data.url;
       } else {
@@ -885,7 +883,7 @@ export default function Settings() {
                       </p>
                       <div className="mt-4 flex items-center gap-3">
                         <code className="px-4 py-2 bg-slate-900 text-indigo-400 rounded-xl text-[10px] font-mono break-all border border-slate-800 select-all">
-                          {window.location.origin}/api/auth?action=callback
+                          {window.location.origin}/api/auth/google/callback
                         </code>
                         <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest border-b border-amber-300">Copy this exact URL</span>
                       </div>

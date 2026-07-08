@@ -1,3 +1,4 @@
+import { safeJson } from '@/utils/safeJson';
 import React, { useEffect, useState } from 'react';
 import { 
   Zap,
@@ -99,7 +100,7 @@ export default function AIAccuracy() {
     try {
       const res = await apiFetch('/api/ai?action=ingestion-metrics');
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeJson(res);
         setIngestionMetrics(data);
       }
     } catch (err) {
@@ -113,7 +114,7 @@ export default function AIAccuracy() {
       setHealthLoading(true);
       const res = await apiFetch('/api/ai?action=health');
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeJson(res);
         setGatewayHealth(data);
       }
     } catch (err) {
@@ -126,7 +127,7 @@ export default function AIAccuracy() {
     try {
       const res = await apiFetch('/api/ai?action=audit');
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeJson(res);
         setAudits(data);
       }
     } catch (err) {
@@ -139,7 +140,7 @@ export default function AIAccuracy() {
     try {
       const res = await apiFetch('/api/ai?action=telemetry');
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeJson(res);
         setTelemetry(data);
       }
     } catch (err) {
@@ -152,7 +153,7 @@ export default function AIAccuracy() {
     try {
       const res = await apiFetch('/api/ai?action=events');
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeJson(res);
         setEvents(data);
       }
     } catch (err) {
@@ -200,7 +201,7 @@ export default function AIAccuracy() {
       });
 
       if (response.ok) {
-        const resData = await response.json();
+        const resData = await safeJson(response);
         setDiagnosticLogs(prev => [
           ...prev, 
           `[LEDGER] SUCCESS! Diagnostic block logged into system_events collection (Event ID: ${resData.eventId.substring(0, 8)}...)`,

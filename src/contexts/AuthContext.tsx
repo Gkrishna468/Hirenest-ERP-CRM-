@@ -1,3 +1,4 @@
+import { safeJson } from '@/utils/safeJson';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -147,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         
         if (response.ok) {
-          const { firebaseToken } = await response.json();
+          const { firebaseToken } = await safeJson(response);
           const { signInWithCustomToken } = await import('firebase/auth');
           await signInWithCustomToken(auth, firebaseToken);
         } else {

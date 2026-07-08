@@ -1,3 +1,4 @@
+import { safeJson } from '@/utils/safeJson';
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { RequirementRepository } from '@/repositories/RequirementRepository';
@@ -114,7 +115,7 @@ export default function PublicApply() {
           })
         });
 
-        const result = await response.json();
+        const result = await safeJson(response);
         
         if (!response.ok) {
           throw new Error(result.message || result.error || 'Server rejected application.');

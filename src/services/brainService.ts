@@ -1,3 +1,4 @@
+import { safeJson } from '@/utils/safeJson';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -74,7 +75,7 @@ export async function processInteraction(text: string, context?: any, emailId?: 
       throw new Error(`Failed to reach AI classification service: ${response.status} ${errorText}`);
     }
 
-    const insight = await response.json();
+    const insight = await safeJson(response);
     return insight;
   } catch (error) {
     console.error("Brain execution failed:", error);

@@ -7,8 +7,11 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import { requireAuth } from "./src/server/controllers/authMiddleware";
+import healthRouter from "./src/server/routers/health";
+import vendorsRouter from "./src/server/routers/vendors";
 import healthHandler from "./src/server/controllers/health";
 import webhooksHandler from "./src/server/controllers/webhooks";
+import authRouter from "./src/server/routers/auth";
 import authHandler from "./src/server/controllers/auth";
 import gmailHandler from "./src/server/controllers/gmail";
 import candidatesHandler from "./src/server/controllers/candidates";
@@ -27,19 +30,11 @@ app.use(express.json());
 // Use API Gateway Auth
 app.use("/api", requireAuth);
 
+// New REST endpoints
+app.use("/api/vendors", vendorsRouter);
+
 // 1. Health check
-app.all("/api/health", async (req, res) => { 
-  if (req.query.action || (req.body && req.body.action)) {
-    try {
-      await healthHandler(req as any, res as any);
-    } catch (error) {
-      console.error("[Health Error]", error);
-      res.status(500).json({ error: "Internal Server Error" });
-    }
-  } else {
-    res.json({ status: "ok", service: "hirenest-backend" });
-  }
-});
+app.use("/api/health", healthRouter);
 
 // 2. Webhooks
 app.all("/api/webhooks", async (req, res) => {
@@ -52,14 +47,7 @@ app.all("/api/webhooks", async (req, res) => {
 });
 
 // 3. Auth Gateway
-app.all("/api/auth", async (req, res) => {
-  try {
-    await authHandler(req as any, res as any);
-  } catch (error) {
-    console.error("[Auth Error]", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
+app.use("/api/auth", authRouter);
 
 // 4. Gmail Gateway
 app.all("/api/gmail", async (req, res) => {
