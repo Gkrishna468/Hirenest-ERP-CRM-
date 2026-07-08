@@ -1,3 +1,4 @@
+import { emailDraftParser } from "../ai/parsers/EmailDraft.js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { GoogleGenAI } from "@google/genai";
 import { initializeApp, getApps, applicationDefault, cert } from "firebase-admin/app";
@@ -7,6 +8,8 @@ dotenv.config();
 
 import * as fs from "fs";
 import * as path from "path";
+import { resumeParser } from "../ai/parsers/ResumeParser.js";
+import { candidateSummaryParser } from "../ai/parsers/CandidateSummary.js";
 import { executeServerAITask, AICache, AIRequestQueue } from "./aiGateway.js";
 
 let db: Firestore | null = null;
@@ -523,14 +526,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const optimization = optimizePromptContext(systemPrompt, 'copilot');
 
-    const gatewayResult = await executeServerAITask({
-      action: "copilot",
-      prompt: optimization.finalPrompt,
-      responseFormatJson: false,
-      complexity: "complex"
-    });
-
-    const draft = gatewayResult.text || "";
+    const emailDraft = await emailDraftParser.draft(optimization.finalPrompt, {});
+    const draft = (emailDraft.subject ? "Subject: " + emailDraft.subject + "\n\n" : "") + emailDraft.body;
 
     // Log the generation
     if (db) {
@@ -570,124 +567,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 })();
     case 'candidate-summary':
-      return await (async () => {
-        if (req.method !== "POST") {
-          return res.status(405).json({ error: "Method Not Allowed" });
-        }
-
-        const { name, skills, experience, currentCompany, currentTitle, notes } = req.body;
-
+      return (async () => {
         try {
-          const prompt = `
-          Act as the "Unified Intelligence Brain" for HireNest Enterprise IT Staffing OS.
-          Analyze the candidate details provided and generate a complete Candidate 360 Workspace analysis.
-
-          CANDIDATE DETAILS:
-          Name: ${name || "Unknown Candidate"}
-          Skills: ${JSON.stringify(skills || [])}
-          Experience: ${experience || "0"} Years
-          Current Company: ${currentCompany || "Not Specified"}
-          Current Title/Designation: ${currentTitle || "Not Specified"}
-          Notes: ${notes || "None"}
-
-          TASKS:
-          1. Generate an elegant, professional narrative AI Summary (2-3 sentences) describing the candidate's core strengths, experience level, domain specialization, and suitability.
-          2. List exactly 5 key AI Strengths.
-          3. Determine an Overall Match recommendation rating (e.g. Strongly Recommend, Recommend, or Reserve).
-          4. Write a concise recommendation Reason.
-
-          RETURN ONLY VALID JSON MATCHING THIS EXACT SCHEMA:
-          {
-            "summary": "narrative summary here",
-            "strengths": ["strength 1", "strength 2", "strength 3", "strength 4", "strength 5"],
-            "recommendation": "Strongly Recommend" | "Recommend" | "Reserve",
-            "reason": "concise recommendation reason here"
-          }
-          `;
-
-          const optimization = optimizePromptContext(prompt, "candidate-summary");
-
-          const gatewayResult = await executeServerAITask({
-            action: "candidate-summary",
-            prompt: optimization.finalPrompt,
-            responseFormatJson: true,
-            complexity: "simple"
-          });
-
-          const cleanText = (gatewayResult.text || "")
-            .replace(/\`\`\`json|\`\`\`/g, "")
-            .trim();
-          const data = JSON.parse(cleanText);
-
-          return res.status(200).json({
-            ...data,
-            contextOptimization: {
-              optimized: optimization.optimized,
-              originalSize: optimization.originalSize,
-              optimizedSize: optimization.optimizedSize,
-              provider: optimization.provider,
-            },
-          });
+          const { name, skills, experience, currentCompany, currentTitle, notes } = req.body;
+          const data = await candidateSummaryParser.summarize({ name, skills, experience, currentCompany, currentTitle, notes });
+          
+          return res.status(200).json(data);
         } catch (error: any) {
           console.error("Candidate summary generation failed:", error);
           return res.status(500).json({ error: error.message });
         }
       })();
     case 'parse-resume':
-      return await (async () => {
-        if (req.method !== "POST") {
-          return res.status(405).json({ error: "Method Not Allowed" });
-        }
-
-        const { resumeText } = req.body;
-
+      return (async () => {
         try {
-          const prompt = `
-          Act as an Elite AI Staffing Agent and Resume Parsing Engine.
-          Analyze the resume text provided and extract structured info into valid JSON.
-          Be highly precise with emails, phone numbers, and names.
-          
-          RESUME TEXT:
-          ${resumeText || "No text provided."}
-
-          RETURN ONLY VALID JSON MATCHING THIS EXACT SCHEMA:
-          {
-            "name": "full name (Capitalized)",
-            "email": "extracted email address",
-            "phone": "extracted phone number",
-            "currentTitle": "current job title",
-            "skills": ["extracted skill 1", "extracted skill 2", "extracted skill 3"],
-            "experience": "years of experience as string, e.g. '5 Years'",
-            "currentCompany": "current company name",
-            "noticePeriod": "notice period, e.g. '15 Days' or 'Immediate'",
-            "expectedSalary": "expected salary CTC, e.g. '12 LPA'",
-            "location": "location/city"
+          const { resumeText } = req.body;
+          if (!resumeText) {
+            return res.status(400).json({ error: "No resumeText provided." });
           }
-          `;
-
-          const optimization = optimizePromptContext(prompt, "parse-resume");
-
-          const gatewayResult = await executeServerAITask({
-            action: "parse-resume",
-            prompt: optimization.finalPrompt,
-            responseFormatJson: true,
-            complexity: "simple"
-          });
-
-          const cleanText = (gatewayResult.text || "")
-            .replace(/\`\`\`json|\`\`\`/g, "")
-            .trim();
-          const data = JSON.parse(cleanText);
-
-          return res.status(200).json({
-            ...data,
-            contextOptimization: {
-              optimized: optimization.optimized,
-              originalSize: optimization.originalSize,
-              optimizedSize: optimization.optimizedSize,
-              provider: optimization.provider,
-            },
-          });
+          
+          const data = await resumeParser.parse(resumeText);
+          
+          return res.status(200).json(data);
         } catch (error: any) {
           console.error("Resume parsing failed:", error);
           // Return a structured fallback if parsing fails

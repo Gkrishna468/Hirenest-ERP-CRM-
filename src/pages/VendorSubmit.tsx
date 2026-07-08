@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { RequirementRepository } from '@/repositories/RequirementRepository';
 import { VendorRepository } from '@/repositories/VendorRepository';
-import { dbProxy } from '@/services/firebase/db-proxy';
+import { CandidateRepository } from '@/repositories/CandidateRepository';
 import { 
   Briefcase, 
   MapPin, 
@@ -111,19 +111,17 @@ export default function VendorSubmit() {
     if (!authenticatedVendor) return;
     setLoadingPool(true);
     try {
-      const vData = await dbProxy.getDoc('vendors', authenticatedVendor.id);
+      const vData = await VendorRepository.getById(authenticatedVendor.id);
       if (vData) {
         setComplianceStats({
-          performanceScore: vData.performanceScore || 85,
+          performanceScore: (vData as any).performanceScore || 85,
           responseRate: vData.responseRate || 90,
           lastRotation: vData.lastRotationTime ? new Date(vData.lastRotationTime).toLocaleDateString() : 'Never',
           lastValidation: vData.lastValidationTime ? new Date(vData.lastValidationTime).toLocaleDateString() : 'Never'
         });
       }
 
-      const docs = await dbProxy.getDocs('candidates', {
-        where: [{ field: 'vendorId', op: '==', value: authenticatedVendor.id }]
-      });
+      const docs = (await CandidateRepository.list()).filter(c => c.vendorId === authenticatedVendor.id);
       setPoolCandidates(docs.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || '')));
     } catch (err) {
       console.error('Error fetching pool data:', err);

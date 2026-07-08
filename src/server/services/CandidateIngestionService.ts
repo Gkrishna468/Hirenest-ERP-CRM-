@@ -1,3 +1,4 @@
+import { requirementMatchParser } from "../ai/parsers/RequirementMatch.js";
 import { CandidateRepository, candidateRepository } from "../repositories/CandidateRepository";
 import { getAdminDb } from "../utils/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
@@ -323,13 +324,17 @@ export class CandidateIngestionService {
       for (const reqItem of requirements) {
         const candSkills = candidate.skills || [];
         const reqSkills = reqItem.skills || [];
-        const overlap = candSkills.filter((s: string) => 
-          reqSkills.some((rs: string) => rs.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(rs.toLowerCase()))
-        );
-
-        let score = Math.round((overlap.length / Math.max(reqSkills.length, 1)) * 100);
-        if (score < 40) {
-          if (reqItem.title && candidate.currentTitle && reqItem.title.toLowerCase().includes(candidate.currentTitle.toLowerCase())) {
+        let score = 0;
+        try {
+          const aiMatch = await requirementMatchParser.match(candidate, reqItem);
+          score = aiMatch.score;
+        } catch (error) {
+          console.warn("[CandidateIngestionService] AI match failed, falling back to basic matching", error);
+          const overlap = candSkills.filter((s: string) => 
+            reqSkills.some((rs: string) => rs.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(rs.toLowerCase()))
+          );
+          score = Math.round((overlap.length / Math.max(reqSkills.length, 1)) * 100);
+          if (score < 40 && reqItem.title && candidate.currentTitle && reqItem.title.toLowerCase().includes(candidate.currentTitle.toLowerCase())) {
             score += 45;
           }
         }

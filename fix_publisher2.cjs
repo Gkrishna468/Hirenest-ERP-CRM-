@@ -1,4 +1,5 @@
-import { Transaction } from "firebase-admin/firestore";
+const fs = require('fs');
+const content = `import { Transaction } from "firebase-admin/firestore";
 import { getAdminDb } from "../utils/firebaseAdmin";
 
 export interface DomainEventPayload {
@@ -26,7 +27,7 @@ export class DomainEventPublisher {
       data: event.metadata,
       actor: event.performedBy || 'System',
       role: event.role || 'system',
-      message: event.message || (event.eventType + " on " + event.entityCollection + "/" + event.entityId),
+      message: event.message || \`\${event.eventType} on \${event.entityCollection}/\${event.entityId}\`,
       createdAt: new Date().toISOString(),
       timestamp: new Date().toISOString()
     };
@@ -40,3 +41,5 @@ export class DomainEventPublisher {
 }
 
 export const domainEventPublisher = new DomainEventPublisher();
+`;
+fs.writeFileSync('src/server/events/DomainEventPublisher.ts', content);

@@ -1,5 +1,6 @@
 import { requirementsRouter } from "./src/server/routers/requirements";
 import { clientsRouter } from "./src/server/routers/clients";
+import { submissionsRouter } from "./src/server/routers/submissions";
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
@@ -66,6 +67,7 @@ app.all("/api/gmail", async (req, res) => {
 app.use("/api/candidates", candidatesRouter);
     app.use("/api/requirements", requirementsRouter);
     app.use("/api/clients", clientsRouter);
+    app.use("/api/submissions", submissionsRouter);
 
 // 6. AI Gateway
 app.all("/api/ai", async (req, res) => {

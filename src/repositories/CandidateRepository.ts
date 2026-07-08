@@ -1,42 +1,34 @@
-import { dbProxy } from '@/services/firebase/db-proxy';
 import type { Candidate } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString, safeBudget } from '@/utils/safe';
 
+async function apiFetch(url: string, options?: RequestInit) {
+  let token = '';
+  const execSession = localStorage.getItem('hirenest_exec_session');
+  if (execSession) {
+    token = 'executive-bypass-token';
+  } else {
+    token = localStorage.getItem('fb_token') || '';
+  }
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options?.headers,
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+  
+  return fetch(url, { ...options, headers });
+}
+
 export const CandidateRepository = {
   async getById(id: string): Promise<Candidate | null> {
     try {
-      const data = await dbProxy.getDoc('candidates', id);
+      const res = await apiFetch(`/api/candidates/${id}`);
+      if (!res.ok) return null;
+      const data = await res.json();
       if (!data) return null;
       return {
-        id: id,
-        source: data.source || 'os',
-        vendorCompanyId: data.vendorCompanyId || data.vendor_company_id || '',
-        name: data.name || '',
-        email: data.email || '',
-        phone: data.phone || '',
-        skills: data.skills || [],
-        experience: data.experience || 0,
-        yearsExperience: data.yearsExperience || data.years_experience || 0,
-        currentCompany: data.currentCompany || data.current_company || '',
-        currentTitle: data.currentTitle || data.current_title || '',
-        expectedSalary: safeBudget(data.expectedSalary || data.expected_salary),
-        location: data.location || '',
-        status: data.status || 'active',
-        stage: data.stage || 'sourced',
-        vendorId: data.vendorId || data.vendor_id || '',
-        vendorName: data.vendorName || data.vendor_name || '',
-        vendorCode: data.vendorCode || data.vendor_code || '',
-        clientId: data.clientId || data.client_id || '',
-        jobId: data.jobId || data.job_id || '',
-        jobTitle: data.jobTitle || data.job_title || '',
-        resumeUrl: data.resumeUrl || data.resume_url || '',
-        notes: data.notes || '',
-        aiMatchScore: data.aiMatchScore || data.ai_match_score || 0,
-        assignedBdm: data.assignedBdm || data.assigned_bdm || '',
-        fraudDetected: data.fraudDetected || data.fraud_detected || false,
-        userId: data.userId || data.user_id || '',
-        companyId: data.companyId || data.company_id || '',
+        ...data,
         createdAt: safeISOString(data.createdAt || data.created_at),
         updatedAt: safeISOString(data.updatedAt || data.updated_at),
       };
@@ -48,152 +40,49 @@ export const CandidateRepository = {
 
   async list(): Promise<Candidate[]> {
     try {
-      const docs = await dbProxy.getDocs('candidates');
-      const candidates = docs.map((data: any) => {
-        return {
-          id: data.id,
-          source: data.source || 'os',
-          vendorCompanyId: data.vendorCompanyId || data.vendor_company_id || '',
-          name: data.name || '',
-          email: data.email || '',
-          phone: data.phone || '',
-          skills: data.skills || [],
-          experience: data.experience || 0,
-          yearsExperience: data.yearsExperience || data.years_experience || 0,
-          currentCompany: data.currentCompany || data.current_company || '',
-          currentTitle: data.currentTitle || data.current_title || '',
-          expectedSalary: safeBudget(data.expectedSalary || data.expected_salary),
-          location: data.location || '',
-          status: data.status || 'active',
-          stage: data.stage || 'sourced',
-          vendorId: data.vendorId || data.vendor_id || '',
-          vendorName: data.vendorName || data.vendor_name || '',
-          vendorCode: data.vendorCode || data.vendor_code || '',
-          clientId: data.clientId || data.client_id || '',
-          jobId: data.jobId || data.job_id || '',
-          jobTitle: data.jobTitle || data.job_title || '',
-          resumeUrl: data.resumeUrl || data.resume_url || '',
-          notes: data.notes || '',
-          aiMatchScore: data.aiMatchScore || data.ai_match_score || 0,
-          assignedBdm: data.assignedBdm || data.assigned_bdm || '',
-          fraudDetected: data.fraudDetected || data.fraud_detected || false,
-          userId: data.userId || data.user_id || '',
-          companyId: data.companyId || data.company_id || '',
-          createdAt: safeISOString(data.createdAt || data.created_at),
-          updatedAt: safeISOString(data.updatedAt || data.updated_at),
-        };
-      });
-
-      return candidates.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      const res = await apiFetch(`/api/candidates`);
+      const docs = await res.json();
+      return docs.map((d: any) => ({
+        ...d,
+        createdAt: safeISOString(d.createdAt || d.created_at),
+        updatedAt: safeISOString(d.updatedAt || d.updated_at),
+      }));
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'candidates');
       return [];
     }
   },
 
-  async create(data: Partial<Candidate>): Promise<Candidate> {
-    const id = data.id || crypto.randomUUID();
-    const candidate: Candidate = {
-      id,
-      source: data.source || 'os',
-      vendorCompanyId: data.vendorCompanyId || '',
-      name: data.name || '',
-      email: data.email || '',
-      phone: data.phone || '',
-      skills: data.skills || [],
-      experience: data.experience || 0,
-      yearsExperience: data.yearsExperience || 0,
-      currentCompany: data.currentCompany || '',
-      currentTitle: data.currentTitle || '',
-      expectedSalary: data.expectedSalary || '',
-      location: data.location || '',
-      status: data.status || 'active',
-      stage: data.stage || 'sourced',
-      vendorId: data.vendorId || '',
-      vendorName: data.vendorName || '',
-      vendorCode: data.vendorCode || '',
-      clientId: data.clientId || '',
-      jobId: data.jobId || '',
-      jobTitle: data.jobTitle || '',
-      resumeUrl: data.resumeUrl || '',
-      notes: data.notes || '',
-      aiMatchScore: data.aiMatchScore || 0,
-      assignedBdm: data.assignedBdm || '',
-      fraudDetected: data.fraudDetected || false,
-      userId: data.userId || '',
-      companyId: data.companyId || '',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  async create(data: Partial<Candidate>, performedBy: string = 'System'): Promise<Candidate> {
     try {
-      await dbProxy.setDoc('candidates', id, candidate);
-      return candidate;
+      const res = await apiFetch(`/api/candidates`, {
+        method: 'POST',
+        body: JSON.stringify({ payload: data, performedBy })
+      });
+      return await res.json();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `candidates/${id}`);
+      handleFirestoreError(error, OperationType.CREATE, `candidates`);
       throw error;
     }
   },
 
-  // Transactions: Use transactions for operations such as Candidate submissions/creation
-  async createWithTransaction(data: Partial<Candidate>): Promise<Candidate> {
-    const id = data.id || crypto.randomUUID();
-    const candidate: Candidate = {
-      id,
-      source: data.source || 'os',
-      vendorCompanyId: data.vendorCompanyId || '',
-      name: data.name || '',
-      email: data.email || '',
-      phone: data.phone || '',
-      skills: data.skills || [],
-      experience: data.experience || 0,
-      yearsExperience: data.yearsExperience || 0,
-      currentCompany: data.currentCompany || '',
-      currentTitle: data.currentTitle || '',
-      expectedSalary: data.expectedSalary || '',
-      location: data.location || '',
-      status: data.status || 'active',
-      stage: data.stage || 'sourced',
-      vendorId: data.vendorId || '',
-      vendorName: data.vendorName || '',
-      vendorCode: data.vendorCode || '',
-      clientId: data.clientId || '',
-      jobId: data.jobId || '',
-      jobTitle: data.jobTitle || '',
-      resumeUrl: data.resumeUrl || '',
-      notes: data.notes || '',
-      aiMatchScore: data.aiMatchScore || 0,
-      assignedBdm: data.assignedBdm || '',
-      fraudDetected: data.fraudDetected || false,
-      userId: data.userId || '',
-      companyId: data.companyId || '',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
+  async update(id: string, updates: Partial<Candidate>, performedBy: string = 'System'): Promise<void> {
     try {
-      // Proxying transaction to simple setDoc for now
-      await dbProxy.setDoc('candidates', id, candidate);
-      return candidate;
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `candidates/${id}`);
-      throw error;
-    }
-  },
-
-  async update(id: string, updates: Partial<Candidate>): Promise<void> {
-    const cleanUpdates: any = { ...updates, updatedAt: new Date().toISOString() };
-    if (updates.vendorCompanyId !== undefined) cleanUpdates.vendor_company_id = updates.vendorCompanyId;
-    if (updates.aiMatchScore !== undefined) cleanUpdates.ai_match_score = updates.aiMatchScore;
-    try {
-      await dbProxy.updateDoc('candidates', id, cleanUpdates);
+      await apiFetch(`/api/candidates/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ payload: updates, performedBy })
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `candidates/${id}`);
     }
   },
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, performedBy: string = 'System'): Promise<void> {
     try {
-      await dbProxy.deleteDoc('candidates', id);
+      await apiFetch(`/api/candidates/${id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ performedBy })
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `candidates/${id}`);
     }

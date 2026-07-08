@@ -61,6 +61,8 @@ import { safeArray, safeString } from '@/utils/safe';
 import { cn } from '@/lib/utils';
 import { SourceBadge } from "@/components/SourceBadge";
 
+import { VendorRepository } from '@/repositories/VendorRepository';
+import { CandidateRepository } from '@/repositories/CandidateRepository';
 import { dbProxy } from '@/services/firebase/db-proxy';
 import { eventService } from '@/services/firebase/eventService';
 
@@ -226,9 +228,9 @@ export default function Vendors() {
     try {
       for (const id of candidateIds) {
         // Update candidate stage via proxy
-        await dbProxy.updateDoc('candidates', id, { 
+        await CandidateRepository.update(id, { 
           stage: actionType.toLowerCase().includes('reject') ? 'rejected' : 'interview',
-          feedbackNotes: feedbackText,
+          notes: feedbackText,
           updatedAt: new Date().toISOString()
         });
 
@@ -272,7 +274,7 @@ export default function Vendors() {
         updatedAt: new Date().toISOString()
       };
       
-      await dbProxy.addDoc('candidates', payload);
+      await CandidateRepository.create(payload);
 
       // Add to Ledger Log
       await eventService.logEvent({
@@ -374,7 +376,7 @@ export default function Vendors() {
       });
 
       // Create Vendor Document
-      await dbProxy.setDoc('vendors', vendorId, payload);
+      await VendorRepository.create({ id: vendorId, ...payload });
 
       // Add audit event to immutable Company Ledger
       await eventService.logEvent({
@@ -390,7 +392,7 @@ export default function Vendors() {
 
       if (partnerForm.createLogin && partnerForm.temporaryPassword) {
         try {
-          const authRes = await apiFetch('/api/vendors', {
+          const authRes = await apiFetch('/api/vendors/provision', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
