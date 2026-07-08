@@ -1,3 +1,5 @@
+import { requirementsRouter } from "./src/server/routers/requirements";
+import { clientsRouter } from "./src/server/routers/clients";
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
@@ -14,6 +16,7 @@ import webhooksHandler from "./src/server/controllers/webhooks";
 import authRouter from "./src/server/routers/auth";
 import authHandler from "./src/server/controllers/auth";
 import gmailHandler from "./src/server/controllers/gmail";
+import candidatesRouter from "./src/server/routers/candidates";
 import candidatesHandler from "./src/server/controllers/candidates";
 import aiHandler from "./src/server/controllers/ai";
 import agentsHandler from "./src/server/controllers/agents";
@@ -60,14 +63,9 @@ app.all("/api/gmail", async (req, res) => {
 });
 
 // 5. Candidates Gateway
-app.all("/api/candidates", async (req, res) => {
-  try {
-    await candidatesHandler(req as any, res as any);
-  } catch (error) {
-    console.error("[Candidates Error]", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
+app.use("/api/candidates", candidatesRouter);
+    app.use("/api/requirements", requirementsRouter);
+    app.use("/api/clients", clientsRouter);
 
 // 6. AI Gateway
 app.all("/api/ai", async (req, res) => {

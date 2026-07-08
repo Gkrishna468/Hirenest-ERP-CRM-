@@ -1,6 +1,6 @@
-export async function safeJson(response: Response) {
+export async function safeJson(response: Response): Promise<any> {
   const text = await response.text();
-  let data = {};
+  let data: any = {};
   try {
       data = text ? JSON.parse(text) : {};
   } catch {

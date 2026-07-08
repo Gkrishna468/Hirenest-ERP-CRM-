@@ -303,7 +303,7 @@ export default function VendorSubmit() {
         // Generate Crypto Hash
         const identityString = `${vendorForm.email}-${vendorForm.phone}-${vendorForm.linkedin}`.toLowerCase();
         
-        const response = await fetch('/api/candidates?action=submitVendorCandidate', {
+        const response = await fetch('/api/candidates/requirement', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -413,7 +413,7 @@ export default function VendorSubmit() {
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       try {
-        const response = await fetch('/api/candidates?action=submitVendorCandidate', {
+        const response = await fetch('/api/candidates/requirement', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -603,7 +603,7 @@ export default function VendorSubmit() {
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       try {
-        const response = await fetch('/api/candidates?action=submitVendorCandidatePool', {
+        const response = await fetch('/api/candidates/pool', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -741,7 +741,7 @@ export default function VendorSubmit() {
     setTriggeringRotation(true);
     setRotationMatches([]);
     try {
-      const response = await fetch('/api/candidates?action=triggerAiRotation', {
+      const response = await fetch('/api/candidates/rotation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vendorId: authenticatedVendor.id })
@@ -775,7 +775,7 @@ export default function VendorSubmit() {
     }
     setValidatingCompliance(true);
     try {
-      const response = await fetch('/api/candidates?action=validateCandidates', {
+      const response = await fetch('/api/candidates/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

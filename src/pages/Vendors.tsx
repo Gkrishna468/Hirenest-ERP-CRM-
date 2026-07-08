@@ -485,7 +485,7 @@ export default function Vendors() {
     const identityString = `${candidateForm.email}-${candidateForm.phone}`.toLowerCase().replace(/[^a-z0-9]/g, '');
     
     try {
-      const response = await apiFetch('/api/candidates?action=submitVendorCandidate', {
+      const response = await apiFetch('/api/candidates/requirement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -691,8 +691,8 @@ export default function Vendors() {
       let skippedCount = 0;
 
       const endpoint = bulkUploadMode === 'talent-pool'
-        ? '/api/candidates?action=submitVendorCandidatePool'
-        : '/api/candidates?action=submitVendorCandidate';
+        ? '/api/candidates/pool'
+        : '/api/candidates/requirement';
 
       const updated = [...bulkResumes];
 

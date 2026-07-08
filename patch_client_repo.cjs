@@ -1,4 +1,6 @@
-import type { Client } from '@/types';
+const fs = require('fs');
+
+const code = `import type { Client } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString, safeBudget } from '@/utils/safe';
 
@@ -14,7 +16,7 @@ async function apiFetch(url: string, options?: RequestInit) {
   const headers = {
     'Content-Type': 'application/json',
     ...options?.headers,
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    ...(token ? { 'Authorization': \`Bearer \${token}\` } : {})
   };
   
   return fetch(url, { ...options, headers });
@@ -23,7 +25,7 @@ async function apiFetch(url: string, options?: RequestInit) {
 export const ClientRepository = {
   async getById(id: string): Promise<Client | null> {
     try {
-      const res = await apiFetch(`/api/clients/${id}`);
+      const res = await apiFetch(\`/api/clients/\${id}\`);
       if (!res.ok) return null;
       const data = await res.json();
       if (!data) return null;
@@ -46,7 +48,7 @@ export const ClientRepository = {
         updatedAt: safeISOString(data.updatedAt || data.updated_at),
       };
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `clients/${id}`);
+      handleFirestoreError(error, OperationType.GET, \`clients/\${id}\`);
       return null;
     }
   },
@@ -70,30 +72,33 @@ export const ClientRepository = {
       });
       return await res.json();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `clients`);
+      handleFirestoreError(error, OperationType.CREATE, \`clients\`);
       throw error;
     }
   },
 
   async update(id: string, updates: Partial<Client>, performedBy: string = 'System'): Promise<void> {
     try {
-      await apiFetch(`/api/clients/${id}`, {
+      await apiFetch(\`/api/clients/\${id}\`, {
         method: 'PUT',
         body: JSON.stringify({ payload: updates, performedBy })
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `clients/${id}`);
+      handleFirestoreError(error, OperationType.UPDATE, \`clients/\${id}\`);
     }
   },
 
   async delete(id: string, performedBy: string = 'System'): Promise<void> {
     try {
-      await apiFetch(`/api/clients/${id}`, {
+      await apiFetch(\`/api/clients/\${id}\`, {
         method: 'DELETE',
         body: JSON.stringify({ performedBy })
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `clients/${id}`);
+      handleFirestoreError(error, OperationType.DELETE, \`clients/\${id}\`);
     }
   }
 };
+`;
+
+fs.writeFileSync('src/repositories/ClientRepository.ts', code);

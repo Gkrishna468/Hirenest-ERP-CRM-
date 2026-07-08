@@ -96,7 +96,7 @@ export default function PublicApply() {
         setPipelineStep(4);
         setPipelineLog(prev => [...prev, '✔ Dispatching AI Match Evaluator...', '✔ Connecting to AI Gateway...']);
 
-        const response = await fetch('/api/candidates?action=submitVendorCandidate', {
+        const response = await fetch('/api/candidates/requirement', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -1,4 +1,6 @@
-import { candidateIngestionService } from "../services/CandidateIngestionService";
+const fs = require('fs');
+
+const code = `import { candidateIngestionService } from "../services/CandidateIngestionService";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -55,3 +57,6 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ success: false, error: { message: e.message } });
   }
 }
+`;
+
+fs.writeFileSync('src/server/controllers/candidates.ts', code);

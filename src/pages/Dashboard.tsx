@@ -101,7 +101,7 @@ export default function Dashboard() {
     setReprocessing(true);
     try {
       await toast.promise(
-        fetch("/api/candidates?action=reprocessAiQueue", {
+        fetch("/api/candidates/reprocess", {
           method: "POST",
           headers: { "Content-Type": "application/json" }
         }).then(async (res) => {

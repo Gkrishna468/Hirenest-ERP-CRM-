@@ -1,4 +1,6 @@
-import type { Job } from '@/types';
+const fs = require('fs');
+
+const code = `import type { Job } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString, safeBudget } from '@/utils/safe';
 
@@ -14,7 +16,7 @@ async function apiFetch(url: string, options?: RequestInit) {
   const headers = {
     'Content-Type': 'application/json',
     ...options?.headers,
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    ...(token ? { 'Authorization': \`Bearer \${token}\` } : {})
   };
   
   return fetch(url, { ...options, headers });
@@ -23,7 +25,7 @@ async function apiFetch(url: string, options?: RequestInit) {
 export const RequirementRepository = {
   async getById(id: string): Promise<Job | null> {
     try {
-      const res = await apiFetch(`/api/requirements/${id}`);
+      const res = await apiFetch(\`/api/requirements/\${id}\`);
       if (!res.ok) return null;
       const data = await res.json();
       if (!data) return null;
@@ -73,7 +75,7 @@ export const RequirementRepository = {
         pendingUpdates: data.pendingUpdates || null,
       } as any;
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `requirements/${id}`);
+      handleFirestoreError(error, OperationType.GET, \`requirements/\${id}\`);
       return null;
     }
   },
@@ -145,7 +147,7 @@ export const RequirementRepository = {
       });
       return await res.json();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `requirements`);
+      handleFirestoreError(error, OperationType.CREATE, \`requirements\`);
       throw error;
     }
   },
@@ -156,25 +158,28 @@ export const RequirementRepository = {
 
   async update(id: string, updates: Partial<Job>, performedBy: string = 'System'): Promise<void> {
     try {
-      await apiFetch(`/api/requirements/${id}`, {
+      await apiFetch(\`/api/requirements/\${id}\`, {
         method: 'PUT',
         body: JSON.stringify({ payload: updates, performedBy })
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `requirements/${id}`);
+      handleFirestoreError(error, OperationType.UPDATE, \`requirements/\${id}\`);
       throw error;
     }
   },
 
   async delete(id: string, performedBy: string = 'System'): Promise<void> {
     try {
-      await apiFetch(`/api/requirements/${id}`, {
+      await apiFetch(\`/api/requirements/\${id}\`, {
         method: 'DELETE',
         body: JSON.stringify({ performedBy })
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `requirements/${id}`);
+      handleFirestoreError(error, OperationType.DELETE, \`requirements/\${id}\`);
       throw error;
     }
   }
 };
+`;
+
+fs.writeFileSync('src/repositories/RequirementRepository.ts', code);
