@@ -156,6 +156,14 @@ export default async function handler(req: any, res: any) {
 
       const hashes = generateIdentityHashes(candidateName, identityData);
 
+      console.log("[Deduplication Check - Single Submission]", {
+        candidateHash,
+        resumeHash: hashes.resumeHash,
+        email: identityData?.email,
+        phone: identityData?.phone,
+        candidateName
+      });
+
       // Check candidateOwnership
       const ownershipRef = db.collection("candidateOwnership");
       let existingDoc: FirebaseFirestore.DocumentSnapshot | null = null;
@@ -485,6 +493,15 @@ export default async function handler(req: any, res: any) {
 
       // Calculate Identity Engine Hashes
       const hashes = generateIdentityHashes(candidateName, identityData);
+      const resumeHash = hashes.resumeHash;
+      
+      console.log("[Deduplication Check - Bulk/Pool Ingestion]", {
+        candidateHash,
+        resumeHash: hashes.resumeHash,
+        email: identityData?.email,
+        phone: identityData?.phone,
+        candidateName
+      });
       
       // 1. Check candidate_identity_vault for global double-submission lock (duplicate check)
       const vaultRef = db.collection("candidate_identity_vault");
@@ -902,7 +919,7 @@ export default async function handler(req: any, res: any) {
       const versionRef = db.collection("candidate_versions").doc();
       batch.set(versionRef, {
         candidateId,
-        resumeHash,
+        resumeHash: hashes.resumeHash,
         resumeUrl: identityData.resume_url || "",
         parsedSkills,
         updatedAt: new Date().toISOString(),
