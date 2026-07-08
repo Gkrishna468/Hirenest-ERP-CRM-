@@ -6,28 +6,23 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
-/**
- * Server-side OAuth logic and Webhook handling for Gmail integration
- */
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+// Use JSON parser for webhook bodies
+app.use(express.json());
 
-  // Use JSON parser for webhook bodies
-  app.use(express.json());
-
+// Main init function
+async function init() {
   // Use API Gateway Auth
-  const { requireAuth } = await import("./api/authMiddleware");
+  const { requireAuth } = await import("./src/server/controllers/authMiddleware.ts");
   app.use("/api", requireAuth);
-
-  // API ROUTES
 
   // 1. Health check
   app.all("/api/health", async (req, res) => { 
     if (req.query.action || (req.body && req.body.action)) {
       try {
-        const { default: handler } = await import("./api/health");
+        const { default: handler } = await import("./src/server/controllers/health.ts");
         await handler(req as any, res as any);
       } catch (error) {
         console.error("[Health Error]", error);
@@ -41,7 +36,7 @@ async function startServer() {
   // 2. Webhooks
   app.all("/api/webhooks", async (req, res) => {
     try {
-      const { default: handler } = await import("./api/webhooks");
+      const { default: handler } = await import("./src/server/controllers/webhooks.ts");
       await handler(req as any, res as any);
     } catch (error) {
       console.error("[Webhooks Error]", error);
@@ -52,7 +47,7 @@ async function startServer() {
   // 3. Auth Gateway
   app.all("/api/auth", async (req, res) => {
     try {
-      const { default: handler } = await import("./api/auth");
+      const { default: handler } = await import("./src/server/controllers/auth.ts");
       await handler(req as any, res as any);
     } catch (error) {
       console.error("[Auth Error]", error);
@@ -63,7 +58,7 @@ async function startServer() {
   // 4. Gmail Gateway
   app.all("/api/gmail", async (req, res) => {
     try {
-      const { default: handler } = await import("./api/gmail");
+      const { default: handler } = await import("./src/server/controllers/gmail.ts");
       await handler(req as any, res as any);
     } catch (error) {
       console.error("[Gmail Error]", error);
@@ -74,7 +69,7 @@ async function startServer() {
   // 5. Candidates Gateway
   app.all("/api/candidates", async (req, res) => {
     try {
-      const { default: handler } = await import("./api/candidates");
+      const { default: handler } = await import("./src/server/controllers/candidates.ts");
       await handler(req as any, res as any);
     } catch (error) {
       console.error("[Candidates Error]", error);
@@ -85,7 +80,7 @@ async function startServer() {
   // 6. AI Gateway
   app.all("/api/ai", async (req, res) => {
     try {
-      const { default: handler } = await import("./api/ai");
+      const { default: handler } = await import("./src/server/controllers/ai.ts");
       await handler(req as any, res as any);
     } catch (error) {
       console.error("[AI Error]", error);
@@ -96,7 +91,7 @@ async function startServer() {
   // 7. Agents Gateway
   app.all("/api/agents", async (req, res) => {
     try {
-      const { default: handler } = await import("./api/agents");
+      const { default: handler } = await import("./src/server/controllers/agents.ts");
       await handler(req as any, res as any);
     } catch (error) {
       console.error("[Agents Error]", error);
@@ -107,7 +102,7 @@ async function startServer() {
   // 8. Firebase Token Gateway
   app.all("/api/firebase-token", async (req, res) => {
     try {
-      const { default: handler } = await import("./api/firebase-token");
+      const { default: handler } = await import("./src/server/controllers/firebase-token.ts");
       await handler(req as any, res as any);
     } catch (error) {
       console.error("[Firebase Token Error]", error);
@@ -118,7 +113,7 @@ async function startServer() {
   // 9. DB Proxy Gateway
   app.all("/api/db", async (req, res) => {
     try {
-      const { default: handler } = await import("./api/db");
+      const { default: handler } = await import("./src/server/controllers/db.ts");
       await handler(req as any, res as any);
     } catch (error) {
       console.error("[DB Proxy Error]", error);
@@ -129,7 +124,7 @@ async function startServer() {
   // 10. Health Gateway
   app.all("/api/health/checks", async (req, res) => {
     try {
-      const { default: handler } = await import("./api/health");
+      const { default: handler } = await import("./src/server/controllers/health.ts");
       await handler(req as any, res as any);
     } catch (error) {
       console.error("[Health Error]", error);
@@ -139,7 +134,7 @@ async function startServer() {
 
   // Setup the internal Agent Runtime (Listens to system_events)
   try {
-    const { setupAgentRuntime } = await import("./api/setupRuntime");
+    const { setupAgentRuntime } = await import("./src/server/controllers/setupRuntime.ts");
     setupAgentRuntime();
   } catch (error) {
     console.error("[AgentRuntime] Failed to import/execute setupAgentRuntime", error);
@@ -160,10 +155,16 @@ async function startServer() {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
 }
 
-startServer();
+// Call init, and only start listening if we are not imported as a module (e.g. Vercel)
+init().then(() => {
+  // If running directly in Node, start the listener. If running via Vercel, app.listen shouldn't be invoked directly, but since process.env.VERCEL is true, we could skip it.
+  if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
+});
+
+export default app;

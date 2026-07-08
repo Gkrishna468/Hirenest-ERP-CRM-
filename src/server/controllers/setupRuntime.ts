@@ -3,7 +3,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as path from "path";
-import { AgentRuntime } from "../src/runtime/AgentRuntime";
+import { AgentRuntime } from "../../runtime/AgentRuntime";
 
 dotenv.config();
 
