@@ -3,7 +3,14 @@ import { DomainEventPublisher } from "../events/DomainEventPublisher";
 
 export class UserService {
   async getById(id: string) {
-    return await userRepository.findById(id);
+    console.log(`[UserService] Fetching user by id: ${id}`);
+    const user = await userRepository.findById(id);
+    if (!user) {
+      console.log(`[UserService] User ${id} not found in repository`);
+    } else {
+      console.log(`[UserService] User ${id} found:`, { email: user.email, role: user.role });
+    }
+    return user;
   }
   
   async getByEmail(email: string) {

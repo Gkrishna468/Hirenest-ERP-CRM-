@@ -26,7 +26,7 @@ export class WorkspaceResolver {
     let workspace: "CRM" | "Vendor" | "Client" | "Recruiter" | "Executive" = "Recruiter";
 
     // Executive root bypass
-    const isExecRoot = userId === "executive-root" || userId === "me995j91dmNkwfXXfaCyrDo8oa03" || email === "admin@hirenestworkforce.com";
+    const isExecRoot = userId === "executive-root" || userId === "me99591dmNkwfXXfaCyrDo80a03" || email === "admin@hirenestworkforce.com";
 
     if (isExecRoot) {
       return {
@@ -45,10 +45,12 @@ export class WorkspaceResolver {
 
     try {
       // 1. Fetch User document from Firestore
+      console.log(`[WorkspaceResolver] Fetching user doc: users/${userId}`);
       const userDoc = await db.collection("users").doc(userId).get();
       if (userDoc.exists) {
         userExists = true;
         const userData = userDoc.data() || {};
+        console.log(`[WorkspaceResolver] User doc found:`, userData);
         role = userData.role || role;
         organizationId = userData.organizationId || userData.companyId || organizationId;
         vendorId = userData.vendorId;
@@ -61,11 +63,13 @@ export class WorkspaceResolver {
           permissions = userData.permissions;
         }
       } else {
+        console.log(`[WorkspaceResolver] User doc not found, trying email fallback: ${email}`);
         // Try searching by email as fallback
         const emailQuery = await db.collection("users").where("email", "==", email).limit(1).get();
         if (!emailQuery.empty) {
           userExists = true;
           const userData = emailQuery.docs[0].data() || {};
+          console.log(`[WorkspaceResolver] User found by email fallback:`, userData);
           role = userData.role || role;
           organizationId = userData.organizationId || userData.companyId || organizationId;
           vendorId = userData.vendorId;
@@ -77,6 +81,8 @@ export class WorkspaceResolver {
           if (userData.permissions && Array.isArray(userData.permissions)) {
             permissions = userData.permissions;
           }
+        } else {
+            console.log(`[WorkspaceResolver] User not found by email fallback either.`);
         }
       }
 

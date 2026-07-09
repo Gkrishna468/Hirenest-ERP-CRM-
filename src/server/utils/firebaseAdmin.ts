@@ -31,11 +31,16 @@ export function getAdminApp() {
           projectId: projectId,
         });
       }
+      console.log(`[FirebaseAdmin] Initialized Firebase Admin for project: ${projectId || 'default'}`, {
+        databaseId: "(default)",
+        initializedApps: getApps().length
+      });
     } catch (error) {
       console.error("Firebase admin init error", error);
     }
   } else {
     adminApp = getApps()[0];
+    console.log(`[FirebaseAdmin] Firebase Admin already initialized. Apps: ${getApps().length}`);
   }
   return adminApp;
 }
@@ -51,3 +56,5 @@ export function getAdminAuthClient() {
   const app = getAdminApp();
   return getAuth(app);
 }
+
+export { getApps };

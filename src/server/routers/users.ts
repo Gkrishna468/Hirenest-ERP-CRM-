@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { userService } from "../services/UserService";
 import { populateBaseFields, populateUpdateFields } from "../utils/entityUtils";
+import { getAdminApp, getAdminDb, getApps } from "../utils/firebaseAdmin";
 
 const router = Router();
 
@@ -13,13 +14,44 @@ router.get("/", async (req: any, res: any) => {
   }
 });
 
-router.get("/:id", async (req: any, res: any) => {
+// Debug endpoint to diagnose environment issues
+router.get("/debug/runtime", async (req: any, res: any) => {
   try {
-    const data = await userService.getById(req.params.id);
-    if (!data) return res.status(404).json({ error: "Not found" });
-    res.status(200).json(data);
+    const adminApp = getAdminApp();
+    const db = getAdminDb();
+    
+    const debugInfo = {
+      projectId: adminApp?.options?.projectId || "unknown",
+      firebaseInitialized: !!adminApp,
+      initializedApps: getApps().length,
+      environment: process.env.NODE_ENV || "development",
+      timestamp: new Date().toISOString(),
+    };
+    
+    res.status(200).json(debugInfo);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/:id", async (req: any, res: any) => {
+  try {
+    console.log(`[UsersRouter] GET /api/users/${req.params.id}`);
+    const data = await userService.getById(req.params.id);
+    
+    if (!data) {
+      console.log(`[UsersRouter] User ${req.params.id} not found`);
+      return res.status(404).json({ error: "USER_NOT_FOUND" });
+    }
+    
+    res.status(200).json(data);
+  } catch (error: any) {
+    console.error(`[UsersRouter] Error fetching user ${req.params.id}:`, error);
+    // Return structured error
+    res.status(500).json({ 
+      error: "INTERNAL_SERVER_ERROR",
+      message: error.message 
+    });
   }
 });
 

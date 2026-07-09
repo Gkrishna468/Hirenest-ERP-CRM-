@@ -40,12 +40,17 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 
   try {
+    console.log("[AuthMiddleware] Verifying token...");
     const decodedToken = await getAdminAuthClient().verifyIdToken(token);
     const userId = decodedToken.uid;
     const email = decodedToken.email || "";
     const roleFromToken = (decodedToken.role || "viewer") as string;
 
+    console.log(`[AuthMiddleware] Token verified. UID: ${userId}, Email: ${email}`);
+
+    console.log(`[AuthMiddleware] Resolving workspace context for: ${userId}`);
     const workspaceContext = await WorkspaceResolver.resolve(userId, email, roleFromToken);
+    console.log(`[AuthMiddleware] Workspace resolved for: ${userId}`, workspaceContext);
 
     (req as any).user = {
       id: userId,
@@ -57,7 +62,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     (req as any).workspaceContext = workspaceContext;
     next();
   } catch (error: any) {
-    console.error("Firebase ID Token verification failed:", error);
+    console.error("[AuthMiddleware] Firebase ID Token verification or Workspace Resolution failed:", {
+      error: error.message,
+      stack: error.stack,
+      token: token ? 'provided' : 'missing'
+    });
     if (error.message === "USER_INACTIVE") {
       return res.status(403).json({ error: "Forbidden: Account is inactive" });
     }

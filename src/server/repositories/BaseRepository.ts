@@ -4,7 +4,7 @@ import { DomainEventPublisher } from "../events/DomainEventPublisher";
 import { UnitOfWork } from "../utils/UnitOfWork";
 import * as crypto from "crypto";
 
-export abstract class BaseRepository<T extends { id: string; organizationId: string; deleted?: boolean; version?: number }> {
+export abstract class BaseRepository<T extends { id: string; organizationId?: string; deleted?: boolean; version?: number }> {
   protected abstract collectionName: string;
   protected abstract entityType: string;
 
