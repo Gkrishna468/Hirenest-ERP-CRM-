@@ -4,6 +4,7 @@ import * as dotenv from "dotenv";
 import { createHash } from "crypto";
 
 import { getAdminApp, getAdminDb, getAdminAuthClient } from "../utils/firebaseAdmin";
+import { FieldValue } from "firebase-admin/firestore";
 
 
 export interface AISerializedOptions {

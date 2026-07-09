@@ -9,7 +9,7 @@ export default async function handler(req: Request, res: Response) {
   }
 
   try {
-    if (!adminApp) {
+    if (!getAdminApp()) {
       return res.status(500).json({ error: "Firebase Admin not initialized" });
     }
 

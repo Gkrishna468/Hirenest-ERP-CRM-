@@ -115,7 +115,7 @@ export default function VendorSubmit() {
       if (vData) {
         setComplianceStats({
           performanceScore: (vData as any).performanceScore || 85,
-          responseRate: vData.responseRate || 90,
+          responseRate: typeof vData.responseRate === 'string' ? (parseInt(vData.responseRate) || 90) : (vData.responseRate || 90),
           lastRotation: vData.lastRotationTime ? new Date(vData.lastRotationTime).toLocaleDateString() : 'Never',
           lastValidation: vData.lastValidationTime ? new Date(vData.lastValidationTime).toLocaleDateString() : 'Never'
         });

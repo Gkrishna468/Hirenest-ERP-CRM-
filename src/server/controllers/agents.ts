@@ -33,7 +33,7 @@ export default async function handler(req: any, res: any) {
       const vendors = vendorsQuery.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
       // 3. For each vendor, create vendor_broadcasts entry
-      const batch = db.batch();
+      const batch = getAdminDb().batch();
       let sentCount = 0;
 
       for (const vendor of vendors) {

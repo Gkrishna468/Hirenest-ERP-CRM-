@@ -72,18 +72,23 @@ export class AgentRuntime {
 
   private async processEvent(event: SystemEvent) {
     if (!event.id) return;
-    console.log(`[AgentRuntime] Processing event: ${event.event} (${event.id})`);
+    const eventName = event.event || (event as any).type || "";
+    console.log(`[AgentRuntime] Processing event: ${eventName} (${event.id})`);
 
     try {
+      const payload = event.payload || (event as any).metadata || {};
+      const entityId = (event as any).entityId || payload.id || "";
+      const taskPayload = { id: entityId, ...payload };
+
       // Map events to agent tasks
-      if (event.event === "requirement.created") {
-        await this.queueTask("extract_requirement", "requirement_agent", event.payload);
-        await this.queueTask("match_candidates", "matching_agent", event.payload);
+      if (eventName === "requirement.created" || eventName === "REQUIREMENT_CREATED") {
+        await this.queueTask("extract_requirement", "requirement_agent", taskPayload);
+        await this.queueTask("match_candidates", "matching_agent", taskPayload);
       }
       
-      if (event.event === "candidate.created") {
-        await this.queueTask("extract_candidate", "candidate_agent", event.payload);
-        await this.queueTask("match_requirements", "matching_agent", event.payload);
+      if (eventName === "candidate.created" || eventName === "CANDIDATE_CREATED") {
+        await this.queueTask("extract_candidate", "candidate_agent", taskPayload);
+        await this.queueTask("match_requirements", "matching_agent", taskPayload);
       }
 
       // Mark event as processed

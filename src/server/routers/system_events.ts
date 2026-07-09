@@ -6,7 +6,16 @@ const router = Router();
 router.get('/', async (req: any, res: any) => {
   try {
     const db = getAdminDb();
-    const query = await db.collection("system_events").orderBy('timestamp', 'desc').limit(20).get();
+    let queryRef: any = db.collection("system_events");
+    
+    if (req.query.entityType) {
+      queryRef = queryRef.where('entityType', '==', req.query.entityType);
+    }
+    if (req.query.entityId) {
+      queryRef = queryRef.where('entityId', '==', req.query.entityId);
+    }
+    
+    const query = await queryRef.orderBy('timestamp', 'desc').limit(100).get();
     const items: any[] = [];
     query.forEach(doc => {
       items.push({ id: doc.id, ...doc.data() });

@@ -114,7 +114,7 @@ export default function CommunicationCenter() {
       const userQuery = user?.id
         ? `&userId=${encodeURIComponent(user.id)}`
         : "";
-      const response = await apiFetch(`/api/gmail/list${userQuery.replace("&", "?", 1)}`);
+      const response = await apiFetch(`/api/gmail/list${userQuery.replace("&", "?")}`);
       if (!response.ok) throw new Error("Failed to fetch emails");
       const data = await safeJson(response);
 

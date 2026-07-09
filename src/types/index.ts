@@ -38,6 +38,7 @@ export interface User {
   loginCount?: number;
   mustChangePassword?: boolean;
   temporaryPassword?: string;
+  rating?: number;
 }
 
 export interface Client {
@@ -77,6 +78,9 @@ export interface Vendor {
   responses?: number;
   profilesShared?: number;
   responseRate?: string;
+  performanceScore?: number;
+  lastRotationTime?: string;
+  lastValidationTime?: string;
   userId?: string;
   companyId?: string;
   organizationId?: string;
@@ -184,6 +188,7 @@ export interface Candidate {
   currentCompany?: string;
   currentTitle?: string;
   expectedSalary?: string;
+  expectedCtc?: string | number;
   location?: string;
   status?: string;
   stage: string;

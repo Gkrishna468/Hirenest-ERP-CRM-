@@ -201,7 +201,7 @@ function StatCard({ icon, title, value }: { icon: React.ReactNode, title: string
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-indigo-200 transition-colors cursor-default">
       <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-        {React.cloneElement(icon as React.ReactElement, { className: "w-6 h-6" })}
+        {React.cloneElement(icon as any, { className: "w-6 h-6" })}
       </div>
       <div>
         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">{title}</p>

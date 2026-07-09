@@ -274,7 +274,7 @@ export default function Vendors() {
         updatedAt: new Date().toISOString()
       };
       
-      await CandidateRepository.create(payload);
+      await CandidateRepository.create(payload as any);
 
       // Add to Ledger Log
       await eventService.logEvent({
@@ -376,7 +376,7 @@ export default function Vendors() {
       }) });
 
       // Create Vendor Document
-      await VendorRepository.create({  ...payload });
+      await VendorRepository.create({ ...payload } as any);
 
       // Add audit event to immutable Company Ledger
       await eventService.logEvent({
