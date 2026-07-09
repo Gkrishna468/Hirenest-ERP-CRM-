@@ -40,25 +40,48 @@ export class WorkspaceResolver {
       };
     }
 
+    let userExists = false;
+    let userStatus = "active";
+
     try {
       // 1. Fetch User document from Firestore
       const userDoc = await db.collection("users").doc(userId).get();
       if (userDoc.exists) {
+        userExists = true;
         const userData = userDoc.data() || {};
         role = userData.role || role;
         organizationId = userData.organizationId || userData.companyId || organizationId;
         vendorId = userData.vendorId;
         clientId = userData.clientId;
+        userStatus = userData.status || "active";
+        if (userData.workspace) {
+          workspace = userData.workspace;
+        }
+        if (userData.permissions && Array.isArray(userData.permissions)) {
+          permissions = userData.permissions;
+        }
       } else {
         // Try searching by email as fallback
         const emailQuery = await db.collection("users").where("email", "==", email).limit(1).get();
         if (!emailQuery.empty) {
+          userExists = true;
           const userData = emailQuery.docs[0].data() || {};
           role = userData.role || role;
           organizationId = userData.organizationId || userData.companyId || organizationId;
           vendorId = userData.vendorId;
           clientId = userData.clientId;
+          userStatus = userData.status || "active";
+          if (userData.workspace) {
+            workspace = userData.workspace;
+          }
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            permissions = userData.permissions;
+          }
         }
+      }
+
+      if (userExists && userStatus === "inactive") {
+        throw new Error("USER_INACTIVE");
       }
 
       // Ensure proper casing for roles to match Workspace definitions

@@ -41,6 +41,8 @@ import { RequirementRepository } from '@/repositories/RequirementRepository';
 import { CandidateRepository } from '@/repositories/CandidateRepository';
 import { AgentRepository } from '@/repositories/AgentRepository';
 import { SystemRepository } from '@/repositories/SystemRepository';
+import { ClientRepository } from '@/repositories/ClientRepository';
+import { VendorRepository } from '@/repositories/VendorRepository';
 import { auth, db } from '@/services/firebase/config';
 import { doc, getDoc, setDoc, collection } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
@@ -79,14 +81,70 @@ export default function Settings() {
 
   // For User Creation form
   const [showAddUser, setShowAddUser] = useState(false);
+  const [vendorsList, setVendorsList] = useState<any[]>([]);
+  const [clientsList, setClientsList] = useState<any[]>([]);
   const [newUserForm, setNewUserForm] = useState({
     name: '',
     email: '',
     phone: '',
-    role: 'client_manager' as Role,
+    role: 'recruiter' as Role,
     status: 'active' as 'active' | 'inactive',
     password: 'Welcome@HN2026', // Default temporary password
+    organizationId: 'bootstrap-org',
+    workspace: 'Recruiter' as 'CRM' | 'Vendor' | 'Client' | 'Recruiter' | 'Executive',
+    permissions: 'recruiter:read, recruiter:write, candidates:read, candidates:write, requirements:read, requirements:write, submissions:read, submissions:write',
+    vendorId: '',
+    clientId: '',
   });
+
+  // Automatically load vendors and clients list on tab change
+  useEffect(() => {
+    async function fetchEntities() {
+      try {
+        const [v, c] = await Promise.all([
+          VendorRepository.list(),
+          ClientRepository.list()
+        ]);
+        setVendorsList(v);
+        setClientsList(c);
+      } catch (err) {
+        console.warn("Failed to load vendors/clients lists:", err);
+      }
+    }
+    fetchEntities();
+  }, [activeTab]);
+
+  const handleRoleChangeInForm = (selectedRole: Role) => {
+    let workspace: 'CRM' | 'Vendor' | 'Client' | 'Recruiter' | 'Executive' = 'CRM';
+    let permissions = '';
+
+    if (selectedRole === 'admin' || selectedRole === 'founder') {
+      workspace = 'Executive';
+      permissions = '*';
+    } else if (selectedRole === 'client_manager' || (selectedRole as string) === 'bdm') {
+      workspace = 'CRM';
+      permissions = 'recruiter:read, recruiter:write, candidates:read, candidates:write, requirements:read, requirements:write, submissions:read, submissions:write';
+    } else if (selectedRole === 'recruiter') {
+      workspace = 'Recruiter';
+      permissions = 'recruiter:read, recruiter:write, candidates:read, candidates:write, requirements:read, requirements:write, submissions:read, submissions:write';
+    } else if (selectedRole === 'vendor' || selectedRole === 'vendor_manager') {
+      workspace = 'Vendor';
+      permissions = 'vendor:read, vendor:write, candidates:write, candidates:read';
+    } else if (selectedRole === 'client') {
+      workspace = 'Client';
+      permissions = 'client:read, client:write, requirements:write, requirements:read';
+    } else {
+      workspace = 'CRM';
+      permissions = 'read';
+    }
+
+    setNewUserForm(prev => ({
+      ...prev,
+      role: selectedRole,
+      workspace,
+      permissions
+    }));
+  };
 
   // Password provisioning and admin reset states
   const [createdUserCredentials, setCreatedUserCredentials] = useState<{ name: string; email: string; temporaryPassword: string } | null>(null);
@@ -208,6 +266,13 @@ export default function Settings() {
         loginCount: 0,
         mustChangePassword: true,
         temporaryPassword: pwd,
+        organizationId: newUserForm.organizationId || 'bootstrap-org',
+        workspace: newUserForm.workspace,
+        permissions: newUserForm.permissions.split(',').map(p => p.trim()).filter(Boolean),
+        vendorId: newUserForm.vendorId || undefined,
+        clientId: newUserForm.clientId || undefined,
+        active: true,
+        lastLogin: new Date().toISOString()
       });
 
       // Log Event!
@@ -216,6 +281,8 @@ export default function Settings() {
         email: emailLower,
         name: newUserForm.name,
         role: newUserForm.role,
+        workspace: newUserForm.workspace,
+        organizationId: newUserForm.organizationId,
       });
 
       // Clean up secondary app
@@ -233,9 +300,14 @@ export default function Settings() {
         name: '',
         email: '',
         phone: '',
-        role: 'client_manager',
+        role: 'recruiter',
         status: 'active',
         password: 'Welcome@HN2026',
+        organizationId: 'bootstrap-org',
+        workspace: 'Recruiter',
+        permissions: 'recruiter:read, recruiter:write, candidates:read, candidates:write, requirements:read, requirements:write, submissions:read, submissions:write',
+        vendorId: '',
+        clientId: '',
       });
       setShowAddUser(false);
       loadUsers();
@@ -1244,18 +1316,95 @@ System Administrator`}
                             />
                           </div>
 
-                          <div className="space-y-1">
+                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Access Privilege Role</label>
                             <select
                               value={newUserForm.role}
-                              onChange={e => setNewUserForm({ ...newUserForm, role: e.target.value as Role })}
+                              onChange={e => handleRoleChangeInForm(e.target.value as Role)}
                               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:border-indigo-500 outline-none text-xs transition-all shadow-sm font-semibold text-slate-700"
                             >
-                              <option value="client_manager">BDM (Client Manager)</option>
-                              <option value="recruiter">Recruiter</option>
-                              <option value="admin">System Administrator</option>
-                              <option value="viewer">Viewer / Guest</option>
+                              <option value="admin">System Administrator (admin)</option>
+                              <option value="founder">Founder (founder)</option>
+                              <option value="client_manager">BDM Client Manager (client_manager)</option>
+                              <option value="recruiter">Recruiter (recruiter)</option>
+                              <option value="vendor">Vendor Bench Member (vendor)</option>
+                              <option value="client">Client Workspace Partner (client)</option>
+                              <option value="viewer">Viewer / Guest (viewer)</option>
                             </select>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Organization partition ID</label>
+                            <input
+                              type="text"
+                              required
+                              value={newUserForm.organizationId}
+                              onChange={e => setNewUserForm({ ...newUserForm, organizationId: e.target.value })}
+                              placeholder="e.g. bootstrap-org"
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:border-indigo-500 outline-none text-xs transition-all shadow-sm font-mono"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Active Workspace</label>
+                            <select
+                              value={newUserForm.workspace}
+                              onChange={e => setNewUserForm({ ...newUserForm, workspace: e.target.value as any })}
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:border-indigo-500 outline-none text-xs transition-all shadow-sm font-semibold text-slate-700"
+                            >
+                              <option value="Executive">Executive Office</option>
+                              <option value="CRM">CRM Operations</option>
+                              <option value="Recruiter">Recruiter Desk</option>
+                              <option value="Vendor">Vendor Portal</option>
+                              <option value="Client">Client Portal</option>
+                            </select>
+                          </div>
+
+                          {/* Conditional linkage fields */}
+                          {newUserForm.role === 'vendor' && (
+                            <div className="space-y-1 animate-in fade-in duration-200">
+                              <label className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Linked Vendor Account</label>
+                              <select
+                                required
+                                value={newUserForm.vendorId}
+                                onChange={e => setNewUserForm({ ...newUserForm, vendorId: e.target.value })}
+                                className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl focus:border-indigo-500 outline-none text-xs transition-all shadow-sm font-semibold text-slate-700"
+                              >
+                                <option value="">-- Select Vendor --</option>
+                                {vendorsList.map(v => (
+                                  <option key={v.id} value={v.id}>{v.name} ({v.vendorCode || v.id.slice(0,6)})</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+
+                          {newUserForm.role === 'client' && (
+                            <div className="space-y-1 animate-in fade-in duration-200">
+                              <label className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Linked Client Account</label>
+                              <select
+                                required
+                                value={newUserForm.clientId}
+                                onChange={e => setNewUserForm({ ...newUserForm, clientId: e.target.value })}
+                                className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl focus:border-indigo-500 outline-none text-xs transition-all shadow-sm font-semibold text-slate-700"
+                              >
+                                <option value="">-- Select Client --</option>
+                                {clientsList.map(c => (
+                                  <option key={c.id} value={c.id}>{c.company || c.name || c.id.slice(0,6)}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+
+                          <div className="space-y-1 col-span-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Custom Permissions (comma-separated)</label>
+                            <input
+                              type="text"
+                              required
+                              value={newUserForm.permissions}
+                              onChange={e => setNewUserForm({ ...newUserForm, permissions: e.target.value })}
+                              placeholder="e.g. read, write, edit"
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:border-indigo-500 outline-none text-xs transition-all shadow-sm font-mono text-slate-600"
+                            />
                           </div>
 
                           <div className="space-y-1 col-span-2">

@@ -24,6 +24,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string, role: Role) => Promise<void>;
   signOut: () => Promise<void>;
   apiFetch: (url: string, options?: RequestInit) => Promise<Response>;
+  signInWithGoogle: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,7 +48,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     };
     
-    return fetch(url, { ...options, headers });
+    const baseUrl = window.location.origin;
+    const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
+    return fetch(fullUrl, { ...options, headers });
   };
 
   useEffect(() => {
@@ -235,6 +238,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     toast.success('Account registered successfully');
   };
 
+  const signInWithGoogle = async () => {
+    setLoading(true);
+    try {
+      const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
+      await signInWithPopup(auth, provider);
+      toast.success('Signed in with Google successfully');
+    } catch (err: any) {
+      console.error('Google sign in error:', err);
+      toast.error(err.message || 'Google Sign-In failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const signOut = async () => {
     localStorage.removeItem('hirenest_exec_session');
     localStorage.removeItem('fb_token');
@@ -244,7 +265,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, workspaceContext, loading, signIn, signUp, signOut, apiFetch }}>
+    <AuthContext.Provider value={{ user, workspaceContext, loading, signIn, signUp, signOut, apiFetch, signInWithGoogle }}>
       {children}
     </AuthContext.Provider>
   );

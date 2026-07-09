@@ -39,6 +39,12 @@ export interface User {
   mustChangePassword?: boolean;
   temporaryPassword?: string;
   rating?: number;
+  workspace?: "CRM" | "Vendor" | "Client" | "Recruiter" | "Executive";
+  permissions?: string[];
+  vendorId?: string;
+  clientId?: string;
+  active?: boolean;
+  lastLogin?: string;
 }
 
 export interface WorkspaceContext {

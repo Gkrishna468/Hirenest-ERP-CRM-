@@ -58,6 +58,9 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     next();
   } catch (error: any) {
     console.error("Firebase ID Token verification failed:", error);
+    if (error.message === "USER_INACTIVE") {
+      return res.status(403).json({ error: "Forbidden: Account is inactive" });
+    }
     return res.status(401).json({ error: `Unauthorized: Invalid token: ${error.message}` });
   }
 }
