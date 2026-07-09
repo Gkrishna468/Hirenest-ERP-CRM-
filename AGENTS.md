@@ -499,3 +499,93 @@ The platform is considered **Release Candidate Ready** and qualifies for **Gener
 
 This single end-to-end journey serves as the ultimate quality gate. Once it runs flawlessly under concurrent loads and satisfies all 12 Gates, HireNest has achieved its final architectural goal: CRM as the System of Engagement and HireNestOS as the System of Intelligence, unified by a single Firestore Single Source of Truth.
 
+---
+
+# HireNest RC-2 (Release Candidate 2) Vision & Enterprise Architecture
+
+## 1. High-Level Blueprint
+
+```text
+                    HIRENEST ENTERPRISE PLATFORM
+
+                        Firestore (default)
+                  Enterprise Single Source of Truth
+                               │
+      ─────────────────────────┼─────────────────────────
+                               │
+                  Immutable Company Ledger
+                   (system_events + workflows)
+                               │
+       ┌───────────────────────┴───────────────────────┐
+       │                                               │
+       ▼                                               ▼
+
+ HireNest CRM                                 HireNest OS
+ System of Execution                     System of Intelligence
+
+ Humans perform work                 AI observes, predicts,
+                                     automates and coordinates
+```
+
+## 2. Layer 1 — Firestore (Enterprise Data Layer)
+
+There is **one document for every business object**. No synchronization, no duplicate collections, no copying, no mirror collections. Every workspace, service, and interface reads from the same documents.
+
+Canonical collections include:
+- `organizations`, `users`
+- `clients`, `vendors`, `contacts`
+- `requirements`, `candidates`, `submissions`
+- `interviews`, `offers`, `placements`
+- `invoices`, `payments`
+- `activities`, `communications`
+- `system_events`
+- `workflow_events`, `notifications`, `tasks`
+
+## 3. Layer 2 — HireNest CRM (System of Execution)
+
+CRM is where human operators perform work (Admins, BDMs, Recruiters, Finance, Operations). Every interaction creates or updates transaction records in Firestore, which publishes ledger-events.
+CRM never contains intelligence, nor does it perform background automation directly. It processes transactions.
+
+*Example:*
+```text
+Create Requirement  ──►  requirements  ──►  system_events  ──►  AI Notified
+```
+
+## 4. Layer 3 — HireNest OS (System of Intelligence)
+
+OS does not own separate business databases. It watches the Firestore Event Stream to run the AI Runtime, compile insights, recommend actions, and execute auto-orchestrated pipelines.
+
+```text
+Firestore  ──►  Event Stream  ──►  AI Runtime  ──►  Insights & Automation  ──►  Recommendations
+```
+
+## 5. Communication Layer (Data-Structured Hub)
+
+Every external channel converts directly into structured data attached to the canonical Firestore timelines:
+- **Email/MailOS**: Gmail API parses emails into thread timelines, driving automatic follow-up reminders and SLA analytics.
+- **WhatsApp**: Triggers requirement broadcast replies directly into candidate submissions.
+- **LinkedIn**: Converts outreach responses into CRM leads.
+- **Calendar**: Logs interview feedback loops.
+- **Phone**: Attaches call summaries to Candidate and Client timelines.
+
+## 6. AI Runtime & Workflow Engine
+
+All system pipelines are event-driven rather than polling-driven:
+- `REQUIREMENT_CREATED`: Starts matching engine, updates vendor ranking, and triggers a marketplace broadcast.
+- `CANDIDATE_ADDED`: Drives resume parsing, skill extraction, and auto-matching score generation.
+- `CLIENT_FEEDBACK_PENDING`: Runs escalation loops (3 days ──► reminder; 7 days ──► escalation; 10 days ──► founder alert).
+
+Every key business entity owns a dedicated, searchable timeline lifecycle (e.g., *Candidate Timeline*, *Requirement Timeline*, *Vendor Timeline*).
+
+## 7. Autonomous Offices & AI COO
+
+Instead of loose agent scripts, intelligence is organized into specialized departments:
+- **Recruitment Office**: Requirements, AI matching, recruiter performance.
+- **Vendor Office**: Vendor SLA, bench quality, network performance.
+- **Client Office**: Client health, feedback loops, escalations.
+- **Finance Office**: Invoicing, collections, revenue tracking.
+- **Founder Office**: Full enterprise control.
+
+At the apex is the **AI COO**, synthesizing performance data to provide clear daily priorities (e.g., flagging revenue blocks, pointing out high-probability matches, and identifying performance risks).
+
+

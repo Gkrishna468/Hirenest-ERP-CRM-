@@ -60,19 +60,45 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refreshAll = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setClients([]);
+      setVendors([]);
+      setJobs([]);
+      setCandidates([]);
+      setDeals([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       // Fetch User Profile first for context
-      const profile = await UserRepository.getById(user.id);
+      const profile = await UserRepository.getById(user.id).catch(err => {
+        console.warn("Failed to fetch user profile, using fallback:", err);
+        return null;
+      });
       setUserProfile(profile);
 
       const [cData, vData, jData, candData, dealData] = await Promise.all([
-        ClientRepository.list(),
-        VendorRepository.list(),
-        RequirementRepository.list(),
-        CandidateRepository.list(),
-        PricingRepository.listDeals(),
+        ClientRepository.list().catch(err => {
+          console.error("Failed to list clients:", err);
+          return [] as Client[];
+        }),
+        VendorRepository.list().catch(err => {
+          console.error("Failed to list vendors:", err);
+          return [] as Vendor[];
+        }),
+        RequirementRepository.list().catch(err => {
+          console.error("Failed to list requirements:", err);
+          return [] as Job[];
+        }),
+        CandidateRepository.list().catch(err => {
+          console.error("Failed to list candidates:", err);
+          return [] as Candidate[];
+        }),
+        PricingRepository.listDeals().catch(err => {
+          console.error("Failed to list deals:", err);
+          return [] as any[];
+        }),
       ]);
 
       setClients(cData);
