@@ -6,7 +6,7 @@ const router = Router();
 
 router.get("/", async (req: any, res: any) => {
   try {
-    const list = await dealService.list();
+    const list = await dealService.list(req.user);
     res.status(200).json(list);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -15,7 +15,7 @@ router.get("/", async (req: any, res: any) => {
 
 router.get("/:id", async (req: any, res: any) => {
   try {
-    const data = await dealService.getById(req.params.id);
+    const data = await dealService.getById(req.params.id, req.user);
     if (!data) return res.status(404).json({ error: "Not found" });
     res.status(200).json(data);
   } catch (error: any) {
@@ -27,7 +27,7 @@ router.post("/", async (req: any, res: any) => {
   try {
     const baseData = populateBaseFields(req.body.payload || req.body, req);
     const performedBy = baseData.createdBy;
-    const data = await dealService.create(baseData, performedBy);
+    const data = await dealService.create(baseData, performedBy, req.user);
     res.status(201).json(data);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

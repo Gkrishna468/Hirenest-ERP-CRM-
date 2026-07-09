@@ -7,7 +7,7 @@ const router = submissionsRouter;
 
 router.get("/", async (req: any, res: any) => {
   try {
-    const list = await submissionService.list();
+    const list = await submissionService.list(req.user);
     res.status(200).json(list);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -16,7 +16,7 @@ router.get("/", async (req: any, res: any) => {
 
 router.get("/:id", async (req: any, res: any) => {
   try {
-    const data = await submissionService.getById(req.params.id);
+    const data = await submissionService.getById(req.params.id, req.user);
     if (!data) return res.status(404).json({ error: "Not found" });
     res.status(200).json(data);
   } catch (error: any) {
@@ -26,7 +26,7 @@ router.get("/:id", async (req: any, res: any) => {
 
 router.post("/", async (req: any, res: any) => {
   try {
-    const data = await submissionService.create(req.body.payload || req.body, req.body.performedBy);
+    const data = await submissionService.create(req.body.payload || req.body, req.body.performedBy, req.user);
     res.status(201).json(data);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

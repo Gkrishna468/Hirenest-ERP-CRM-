@@ -3,6 +3,13 @@ import authHandler from '../controllers/auth';
 
 const router = Router();
 
+router.get('/workspace-context', (req, res) => {
+  if (!(req as any).workspaceContext) {
+    return res.status(401).json({ error: "No active workspace context" });
+  }
+  res.status(200).json((req as any).workspaceContext);
+});
+
 router.get('/google/url', async (req, res) => {
   req.query.action = 'url';
   try {

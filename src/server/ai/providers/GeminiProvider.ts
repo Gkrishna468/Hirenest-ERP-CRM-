@@ -38,7 +38,7 @@ ${text.substring(0, 15000)}
 `;
 
     const response = await this.ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
       contents: prompt,
     });
     
@@ -77,7 +77,7 @@ RETURN ONLY VALID JSON MATCHING THIS EXACT SCHEMA:
 `;
 
     const response = await this.ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
       contents: prompt,
     });
     
@@ -113,7 +113,7 @@ RETURN ONLY VALID JSON MATCHING THIS EXACT SCHEMA:
 `;
 
     const response = await this.ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
       contents: prompt,
     });
     
@@ -141,7 +141,7 @@ ${JSON.stringify(context || {})}
 `;
 
     const response = await this.ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
       contents: systemPrompt,
     });
     

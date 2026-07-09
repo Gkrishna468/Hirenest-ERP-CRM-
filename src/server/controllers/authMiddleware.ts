@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 
 import { getAdminApp, getAdminDb, getAdminAuthClient } from "../utils/firebaseAdmin";
+import { WorkspaceResolver } from "../utils/WorkspaceResolver";
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const p = req.path;
@@ -18,8 +19,20 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   const token = authHeader.split(' ')[1];
   
   if (token === 'executive-bypass-token') {
-    (req as any).user = { id: 'executive-root', email: 'gopal@hirenestworkforce.com', role: 'admin' };
-    return next();
+    try {
+      const workspaceContext = await WorkspaceResolver.resolve('executive-root', 'gopal@hirenestworkforce.com', 'admin');
+      (req as any).user = {
+        id: 'executive-root',
+        uid: 'executive-root',
+        email: 'gopal@hirenestworkforce.com',
+        role: 'admin',
+        ...workspaceContext
+      };
+      (req as any).workspaceContext = workspaceContext;
+      return next();
+    } catch (err: any) {
+      return res.status(500).json({ error: `Internal Error during workspace resolution: ${err.message}` });
+    }
   }
 
   if (!getAdminApp()) {
@@ -28,11 +41,20 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
   try {
     const decodedToken = await getAdminAuthClient().verifyIdToken(token);
+    const userId = decodedToken.uid;
+    const email = decodedToken.email || "";
+    const roleFromToken = (decodedToken.role || "viewer") as string;
+
+    const workspaceContext = await WorkspaceResolver.resolve(userId, email, roleFromToken);
+
     (req as any).user = {
-      id: decodedToken.uid,
-      email: decodedToken.email,
-      role: decodedToken.role || "viewer"
+      id: userId,
+      uid: userId,
+      email,
+      role: workspaceContext.role,
+      ...workspaceContext
     };
+    (req as any).workspaceContext = workspaceContext;
     next();
   } catch (error: any) {
     console.error("Firebase ID Token verification failed:", error);

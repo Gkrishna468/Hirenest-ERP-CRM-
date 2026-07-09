@@ -5,7 +5,7 @@ export const requirementsRouter = Router();
 
 requirementsRouter.get("/", async (req, res) => {
   try {
-    const list = await requirementService.list();
+    const list = await requirementService.list((req as any).user);
     res.status(200).json(list);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -14,7 +14,7 @@ requirementsRouter.get("/", async (req, res) => {
 
 requirementsRouter.get("/:id", async (req, res) => {
   try {
-    const data = await requirementService.getById(req.params.id);
+    const data = await requirementService.getById(req.params.id, (req as any).user);
     if (!data) return res.status(404).json({ error: "Not found" });
     res.status(200).json(data);
   } catch (error: any) {
@@ -24,7 +24,7 @@ requirementsRouter.get("/:id", async (req, res) => {
 
 requirementsRouter.post("/", async (req, res) => {
   try {
-    const data = await requirementService.create(req.body.payload || req.body, req.body.performedBy);
+    const data = await requirementService.create(req.body.payload || req.body, req.body.performedBy, (req as any).user);
     res.status(201).json(data);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

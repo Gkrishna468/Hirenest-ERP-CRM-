@@ -41,6 +41,18 @@ export interface User {
   rating?: number;
 }
 
+export interface WorkspaceContext {
+  organizationId: string;
+  organizationName: string;
+  userId: string;
+  uid: string;
+  role: "founder" | "admin" | "bdm" | "recruiter" | "vendor" | "client" | string;
+  vendorId?: string;
+  clientId?: string;
+  workspace: "CRM" | "Vendor" | "Client" | "Recruiter" | "Executive";
+  permissions: string[];
+}
+
 export interface Client {
   id: string;
   source?: "crm" | "os" | "mailos" | "vendor" | "manual";

@@ -2,6 +2,33 @@ import { Transaction } from "firebase-admin/firestore";
 import { getAdminDb } from "../utils/firebaseAdmin";
 import * as crypto from "crypto";
 
+export interface DomainEvent {
+  id: string;
+  type: string;
+  aggregateType: string;
+  aggregateId: string;
+  organizationId: string;
+
+  actorId: string;
+  actorRole: string;
+
+  sourceApp: "CRM" | "OS" | "AI";
+  sourceWorkspace: "Admin" | "Recruiter" | "Vendor" | "Client" | "System" | string;
+
+  payload: Record<string, any>;
+
+  correlationId: string;
+  causationId?: string;
+
+  timestamp: string;
+
+  // Rich context-driven tracing fields
+  userId?: string;
+  vendorId?: string;
+  clientId?: string;
+  workspace?: string;
+}
+
 export class DomainEventPublisher {
   static async publish(
     eventType: string, 
@@ -30,4 +57,43 @@ export class DomainEventPublisher {
       await ref.set(event);
     }
   }
+
+  static async publishDomainEvent(
+    event: Omit<DomainEvent, "id" | "timestamp" | "correlationId"> & { id?: string; timestamp?: string; correlationId?: string; userId?: string; vendorId?: string; clientId?: string; workspace?: string },
+    transaction?: Transaction
+  ) {
+    const db = getAdminDb();
+    const eventId = event.id || crypto.randomUUID();
+    const timestamp = event.timestamp || new Date().toISOString();
+    
+    const fullEvent: DomainEvent = {
+      id: eventId,
+      type: event.type,
+      aggregateType: event.aggregateType,
+      aggregateId: event.aggregateId,
+      organizationId: event.organizationId || "bootstrap-org",
+      actorId: event.actorId || "system",
+      actorRole: event.actorRole || "System",
+      sourceApp: event.sourceApp || "CRM",
+      sourceWorkspace: event.sourceWorkspace || "System",
+      payload: event.payload || {},
+      correlationId: event.correlationId || crypto.randomUUID(),
+      causationId: event.causationId || "",
+      timestamp,
+      userId: event.userId || "",
+      vendorId: event.vendorId || "",
+      clientId: event.clientId || "",
+      workspace: event.workspace || ""
+    };
+
+    const ref = db.collection("system_events").doc(eventId);
+    if (transaction) {
+      transaction.set(ref, fullEvent);
+    } else {
+      await ref.set(fullEvent);
+    }
+
+    return fullEvent;
+  }
 }
+

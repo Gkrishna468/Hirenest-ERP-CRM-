@@ -115,7 +115,7 @@ export class ModelRegistry {
       },
       executive: {
         provider: "cloud-ai",
-        model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+        model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
         temperature: 0.2,
         maxTokens: 3000,
         timeout: 15000,
@@ -124,7 +124,7 @@ export class ModelRegistry {
       },
       fallback: {
         provider: "cloud-ai",
-        model: "gemini-2.5-flash",
+        model: "gemini-3.5-flash",
         temperature: 0.2,
         maxTokens: 2000,
         timeout: 15000,
@@ -484,6 +484,10 @@ export class HeuristicEngine {
       return this.candidateExtractionHeuristic(prompt);
     }
 
+    if (normalizedAction.includes("classify") || normalizedAction.includes("classification")) {
+      return this.classifyHeuristic(prompt);
+    }
+
     return this.genericFallbackHeuristic(prompt);
   }
 
@@ -694,6 +698,62 @@ export class HeuristicEngine {
     return JSON.stringify(result, null, 2);
   }
 
+  private static classifyHeuristic(prompt: string): string {
+    const text = prompt.toLowerCase();
+    let intent = "Other";
+    if (text.includes("jd") || text.includes("job description") || text.includes("requirement") || text.includes("looking for") || text.includes("need") || text.includes("position")) {
+      intent = "Requirement";
+    } else if (text.includes("profile") || text.includes("cv") || text.includes("resume") || text.includes("submission") || text.includes("bench") || text.includes("candidate")) {
+      intent = "Vendor Submission";
+    } else if (text.includes("schedule") || text.includes("interview") || text.includes("discussion") || text.includes("meeting") || text.includes("technical round")) {
+      intent = "Interview";
+    }
+
+    const result = {
+      profile: {
+        intent: intent,
+        confidence: 0.8,
+        roles: ["Software Engineer"],
+        urgency: "medium",
+        budget: "mid",
+        sentiment: "neutral"
+      },
+      pitch: "Thank you for reaching out. We have registered your details and will process this through the unified pipeline.",
+      followUp: {
+        suggested: true,
+        reason: "Log and track the request details.",
+        timeline: "24 hours"
+      },
+      extractedRequirement: {
+        client: "Unknown Client",
+        title: "Software Engineer",
+        location: "Remote",
+        experience: "3+ years",
+        skills: ["React", "TypeScript"],
+        employmentType: "FTE",
+        budget: "Market",
+        workMode: "Remote",
+        status: "Open"
+      },
+      extractedSubmission: {
+        candidateName: "Unknown Candidate",
+        vendorName: "Unknown Vendor",
+        experience: "3 years",
+        skills: ["Software Development"],
+        noticePeriod: "Immediate"
+      },
+      extractedInterview: {
+        client: "Unknown Client",
+        candidates: ["Unknown Candidate"],
+        interviewType: ["Technical"],
+        date: "TBD",
+        status: "scheduled"
+      }
+    };
+
+    return JSON.stringify(result);
+  }
+
   private static genericFallbackHeuristic(prompt: string): string {
     return `[Heuristic Engine Fallback Response]\n\nBased on your request, the local fallback engine has generated this context-aware response:\n\nThank you for reaching out. We have registered your prompt and are processing the execution pipelines securely.\n\nPrompt details:\n- Length: ${prompt.length} chars\n- Timestamp: ${new Date().toISOString()}`;
   }
@@ -800,7 +860,7 @@ async function runCloudAi(options: AISerializedOptions): Promise<string> {
     throw new Error("Cloud AI API Key (GEMINI_API_KEY) is not configured in the environment.");
   }
 
-  const modelName = (process.env.GEMINI_MODEL || "gemini-2.5-flash").replace(/^"|"$/g, "");
+  const modelName = (process.env.GEMINI_MODEL || "gemini-3.5-flash").replace(/^"|"$/g, "");
   const aiClient = new GoogleGenAI({ apiKey });
 
   const response = await aiClient.models.generateContent({
@@ -930,8 +990,8 @@ export async function executeServerAITask(options: AISerializedOptions): Promise
           successModel = (process.env.OPENAI_MODEL || "gpt-4o-mini").replace(/^"|"$/g, "");
           resultText = await runOpenAI({ ...options, prompt: finalPrompt });
           successProvider = "openai";
-        } else if (provider === "gemini") {
-          successModel = (process.env.GEMINI_MODEL || "gemini-2.5-flash").replace(/^"|"$/g, "");
+        } else if (provider === "gemini" || provider === "cloud-ai") {
+          successModel = (process.env.GEMINI_MODEL || "gemini-3.5-flash").replace(/^"|"$/g, "");
           resultText = await runCloudAi({ ...options, prompt: finalPrompt });
           successProvider = "cloud-ai";
         } else {

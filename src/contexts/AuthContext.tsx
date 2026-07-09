@@ -5,7 +5,7 @@ import { safeJson } from '@/utils/safeJson';
  */
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import type { User, Role } from '@/types';
+import type { User, Role, WorkspaceContext } from '@/types';
 import { toast } from 'sonner';
 import { 
   signInWithEmailAndPassword, 
@@ -18,6 +18,7 @@ import { UserRepository } from '@/repositories/UserRepository';
 
 interface AuthContextType {
   user: User | null;
+  workspaceContext: WorkspaceContext | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string, role: Role) => Promise<void>;
@@ -29,6 +30,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [workspaceContext, setWorkspaceContext] = useState<WorkspaceContext | null>(null);
   const [loading, setLoading] = useState(true);
 
   const apiFetch = async (url: string, options?: RequestInit) => {
@@ -122,6 +124,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      apiFetch('/api/auth/workspace-context')
+        .then(async (res) => {
+          if (res.ok) {
+            const ctx = await res.json();
+            setWorkspaceContext(ctx);
+          } else {
+            setWorkspaceContext(null);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to fetch workspace context:", err);
+          setWorkspaceContext(null);
+        });
+    } else {
+      setWorkspaceContext(null);
+    }
+  }, [user]);
 
   const signIn = async (email: string, password: string) => {
     // Executive Bypass for GOPAL and Demo Admin
@@ -222,7 +244,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, apiFetch }}>
+    <AuthContext.Provider value={{ user, workspaceContext, loading, signIn, signUp, signOut, apiFetch }}>
       {children}
     </AuthContext.Provider>
   );
