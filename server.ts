@@ -35,6 +35,17 @@ const PORT = 3000;
 // Use JSON parser for webhook bodies
 app.use(express.json());
 
+// Global CORS Middleware (Handles Preflight OPTIONS requests for Sandboxed/Null origins)
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 // Use API Gateway Auth
 app.use("/api", requireAuth);
 

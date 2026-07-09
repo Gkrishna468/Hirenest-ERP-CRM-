@@ -65,7 +65,11 @@ export default function Dashboard() {
     setScanning(true);
     try {
       const res = await apiFetch("/api/system/integrity_scan");
-      const data = await res.json();
+      if (!res.ok) {
+        const errorData = await safeJson(res).catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `HTTP ${res.status}: ${res.statusText}`);
+      }
+      const data = await safeJson(res);
       setIntegrityData(data);
       toast.success("Enterprise Data Integrity Scan complete!");
     } catch (err: any) {
@@ -79,12 +83,16 @@ export default function Dashboard() {
     setTestRunning(true);
     setTestResult(null);
     try {
-      const res = await fetch("/api/system/run_validation_test", {
+      const res = await apiFetch("/api/system/run_validation_test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ testId })
       });
-      const data = await res.json();
+      if (!res.ok) {
+        const errorData = await safeJson(res).catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `HTTP ${res.status}: ${res.statusText}`);
+      }
+      const data = await safeJson(res);
       if (data.success) {
         setTestResult(data);
         toast.success(`Validation suite ${testId} executed successfully!`);
