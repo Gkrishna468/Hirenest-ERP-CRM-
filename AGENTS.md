@@ -588,4 +588,72 @@ Instead of loose agent scripts, intelligence is organized into specialized depar
 
 At the apex is the **AI COO**, synthesizing performance data to provide clear daily priorities (e.g., flagging revenue blocks, pointing out high-probability matches, and identifying performance risks).
 
+## 8. Law: Read Model Separation
+
+Instead of every dashboard and view querying Firestore differently, define one read model (ViewModel / Service Layer) per business entity:
+
+- **Vendor Read Model (`VendorService` / `VendorRepository`):**
+  - Fetches: `vendors`, `submissions`, `placements`, and `system_events`.
+  - Produces: `Vendor360` ViewModel.
+  - Consumed by: CRM, OS, Vendor Portal, and Founder Dashboard.
+- **Requirement Read Model (`RequirementService` / `RequirementRepository`):**
+  - Fetches: `requirements`, `submissions`, and `matches`.
+  - Produces: `Requirement360` ViewModel.
+  - Consumed by: CRM, OS, Client Portal, and AI Engine.
+
+This ensures every interface sees the exact same business object with identical calculations, avoiding visual or functional discrepancies across CRM and OS.
+
+---
+
+# HireNest GA (General Availability) Validation Suite
+
+To prove the architectural integrity of the platform, the following end-to-end workflow suite must pass cleanly before considering the platform production-ready:
+
+### Test 1: Vendor Onboarding & Multi-Workspace Sync
+- **Action:** Create a Vendor in CRM.
+- **Verification:** Ensure the vendor document immediately propagates and is visible in:
+  - CRM Vendor Lists
+  - Vendor360 ViewModel
+  - Vendor Workspace (OS Portal)
+  - Founder / Executive Dashboard
+
+### Test 2: Client Onboarding & Portfolio Sync
+- **Action:** Create a Client in CRM.
+- **Verification:** Ensure the client document is immediately visible in:
+  - CRM Client Lists
+  - Client360 ViewModel
+  - Client Portal
+  - Executive Dashboard
+
+### Test 3: Demand Intake & Marketplace Broadcast
+- **Action:** Client creates a hiring Requirement from the Portal.
+- **Verification:** Ensure the requirement is fully processed in:
+  - CRM Requirements View
+  - OS Jobs View
+  - Vendor Marketplace Broadcast Queue
+  - AI Matching & Evaluation Engine
+  - Founder Dashboard
+
+### Test 4: Supply Sourcing & Talent Matching
+- **Action:** Vendor uploads a Candidate Bench spreadsheet/file.
+- **Verification:** Ensure the candidate is registered and evaluated:
+  - Candidate visible in Vendor Workspace
+  - Candidate synced instantly to CRM Candidates
+  - Candidate360 view updated
+  - AI Match Engine processes skills, scoring the candidate against active Requirements automatically
+
+### Test 5: Talent Submission & Timeline Audit
+- **Action:** Recruiter reviews matched candidate and submits them to the Client.
+- **Verification:** Ensure the following atomic actions execute:
+  - `submissions` transaction created in SSOT
+  - Vendor metrics and Client queues updated
+  - Candidate Timeline updated
+  - Immutable ledger event (`CANDIDATE_SUBMITTED`) written to `system_events`
+
+### Test 6: Full staff-to-hire Lifecycle
+- **Action:** Complete the progressive staffing lifecycle:
+  `Requirement` ➔ `Broadcast` ➔ `Vendor Response` ➔ `Candidate Matching` ➔ `Submission` ➔ `Interview` ➔ `Offer` ➔ `Placement` ➔ `Invoice` ➔ `Payment`.
+- **Verification:** Ensure every transition updates dashboards, renders inside timelines across respective CRM and OS portals, and generates immutable, auditable events inside the company ledger.
+
+
 
