@@ -1,4 +1,3 @@
-import { dbProxy } from './db-proxy';
 import { auth } from './config';
 import { handleFirestoreError, OperationType } from './error';
 import { eventService } from './eventService';

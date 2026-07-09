@@ -1,4 +1,3 @@
-import { dbProxy } from '@/services/firebase/db-proxy';
 import { auth } from '@/services/firebase/config';
 import { CandidateRepository } from '@/repositories/CandidateRepository';
 

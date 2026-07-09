@@ -1,4 +1,3 @@
-import { dbProxy } from '@/services/firebase/db-proxy';
 import type { VendorBroadcast } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString } from '@/utils/safe';

@@ -1,4 +1,3 @@
-import { dbProxy } from '@/services/firebase/db-proxy';
 
 /**
  * Learning Agent: Analyzes outcomes to improve decision thresholds

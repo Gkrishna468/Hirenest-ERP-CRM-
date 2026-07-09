@@ -1,4 +1,26 @@
-import { dbProxy } from '@/services/firebase/db-proxy';
+import { auth } from '@/services/firebase/config';
+async function apiFetch(url: string, options?: RequestInit) {
+  let token = '';
+  const execSession = localStorage.getItem('hirenest_exec_session');
+  if (execSession) {
+    token = 'executive-bypass-token';
+  } else if (auth.currentUser) {
+    token = await auth.currentUser.getIdToken();
+  } else {
+    token = localStorage.getItem('fb_token') || '';
+  }
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options?.headers,
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+  const res = await fetch(url, { ...options, headers });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || err.message || "API request failed");
+  }
+  return res;
+}
 import type { Deal } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString } from '@/utils/safe';
@@ -6,7 +28,9 @@ import { safeISOString } from '@/utils/safe';
 export const PricingRepository = {
   async getDealById(id: string): Promise<Deal | null> {
     try {
-      const data = await dbProxy.getDoc('deals', id);
+      const res = await apiFetch(`/api/deals/${id}`);
+      if (!res.ok) return null;
+      const data = await res.json();
       if (!data) return null;
       return {
         id: id,
@@ -29,17 +53,17 @@ export const PricingRepository = {
         joinedDate: data.joinedDate || data.joined_date || '',
         userId: data.userId || data.user_id || '',
         createdAt: safeISOString(data.createdAt || data.created_at),
-        revenue_amount: data.revenueAmount || data.revenue_amount || 0, // compatibility
+        revenue_amount: data.revenueAmount || data.revenue_amount || 0,
       };
     } catch (error) {
       handleFirestoreError(error, OperationType.GET, `deals/${id}`);
       return null;
     }
   },
-
   async listDeals(): Promise<Deal[]> {
     try {
-      const docs = await dbProxy.getDocs('deals');
+      const res = await apiFetch('/api/deals');
+      const docs = await res.json();
       return docs.map((data: any) => {
         return {
           id: data.id,
@@ -62,15 +86,14 @@ export const PricingRepository = {
           joinedDate: data.joinedDate || data.joined_date || '',
           userId: data.userId || data.user_id || '',
           createdAt: safeISOString(data.createdAt || data.created_at),
-          revenue_amount: data.revenueAmount || data.revenue_amount || 0, // compatibility
+          revenue_amount: data.revenueAmount || data.revenue_amount || 0,
         };
-      }).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      }).sort((a: Deal, b: Deal) => b.createdAt.localeCompare(a.createdAt));
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'deals');
       return [];
     }
   },
-
   async createDeal(data: Partial<Deal>): Promise<Deal> {
     const id = data.id || crypto.randomUUID();
     const deal: Deal = {
@@ -94,28 +117,34 @@ export const PricingRepository = {
       joinedDate: data.joinedDate || '',
       userId: data.userId || '',
       createdAt: new Date().toISOString(),
-      revenue_amount: data.revenueAmount || data.revenue_amount || 0, // compatibility
+      revenue_amount: data.revenueAmount || data.revenue_amount || 0,
     };
     try {
-      await dbProxy.setDoc('deals', id, deal);
+      await apiFetch('/api/deals', {
+        method: 'POST',
+        body: JSON.stringify({ payload: deal })
+      });
       return deal;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `deals/${id}`);
       throw error;
     }
   },
-
   async updateDeal(id: string, updates: Partial<Deal>): Promise<void> {
     try {
-      await dbProxy.updateDoc('deals', id, updates);
+      await apiFetch(`/api/deals/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ payload: updates })
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `deals/${id}`);
     }
   },
-
   async deleteDeal(id: string): Promise<void> {
     try {
-      await dbProxy.deleteDoc('deals', id);
+      await apiFetch(`/api/deals/${id}`, {
+        method: 'DELETE'
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `deals/${id}`);
     }

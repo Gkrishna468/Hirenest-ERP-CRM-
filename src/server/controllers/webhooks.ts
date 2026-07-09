@@ -1,49 +1,9 @@
 import { google } from 'googleapis';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as crypto from 'crypto';
-import { initializeApp, getApps, applicationDefault, cert } from "firebase-admin/app";
-import { getFirestore, Firestore } from "firebase-admin/firestore";
 import * as dotenv from "dotenv";
-dotenv.config();
 
-import * as fs from "fs";
-import * as path from "path";
-
-let db: Firestore | null = null;
-let adminApp: any = null;
-
-if (!getApps()?.length) {
-  try {
-    const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    const projectId = process.env.FIREBASE_PROJECT_ID || firebaseConfig.projectId;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-    if (projectId && clientEmail && privateKey) {
-      adminApp = initializeApp({
-        credential: cert({ projectId, clientEmail, privateKey }),
-      });
-    } else {
-      adminApp = initializeApp({
-        credential: applicationDefault(),
-        projectId: projectId,
-      });
-    }
-    db = getFirestore(adminApp);
-  } catch (error) {
-    console.error("Firebase initialization error", error);
-  }
-} else {
-  adminApp = getApps()[0];
-  try {
-    const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    db = getFirestore(adminApp);
-  } catch(err) {
-    db = getFirestore(adminApp);
-  }
-}
+import { getAdminApp, getAdminDb, getAdminAuthClient } from "../utils/firebaseAdmin";
 
 const ALGORITHM = 'aes-256-cbc';
 const rawKey = process.env.ENCRYPTION_KEY || "default-insecure-key-32-chars!!!";
@@ -81,13 +41,13 @@ export const decrypt = (text: string): string => {
 };
 
 async function processGmailMessage(emailAddress: string, historyId: string) {
-  if (!db) {
+  if (!getAdminDb()) {
     console.warn("processGmailMessage: Firestore not initialized");
     return;
   }
 
   // 1. Fetch connection details from Firestore
-  const connectionSnapshot = await db.collection('gmail_connections').where('email', '==', emailAddress).limit(1).get();
+  const connectionSnapshot = await getAdminDb().collection('gmail_connections').where('email', '==', emailAddress).limit(1).get();
   
   if (connectionSnapshot.empty) {
     console.error(`[GmailService] No connection found for ${emailAddress}`);

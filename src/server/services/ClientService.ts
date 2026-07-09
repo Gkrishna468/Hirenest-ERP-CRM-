@@ -4,11 +4,11 @@ import * as crypto from "crypto";
 
 export class ClientService {
   async getById(id: string) {
-    return await clientRepository.getById(id);
+    return await clientRepository.findById(id);
   }
 
   async list() {
-    const firebaseClients = await clientRepository.list();
+    const firebaseClients = await clientRepository.findAll();
     const users = await clientRepository.listUsers();
     
     const orgNames = new Map<string, string>();
@@ -83,55 +83,17 @@ export class ClientService {
       updatedAt: new Date().toISOString(),
     };
 
-    const db = getAdminDb();
-    await db.runTransaction(async (transaction) => {
-      await clientRepository.create(id, client, transaction);
-      
-      const eventRef = db.collection("system_events").doc();
-      transaction.set(eventRef, {
-        eventType: "CLIENT_CREATED",
-        entityCollection: "clients",
-        entityId: id,
-        metadata: { name: client.name, company: client.company, performedBy },
-        createdAt: new Date().toISOString()
-      });
-    });
-
-    return client;
+    return await clientRepository.create(client, performedBy);
   }
 
   async update(id: string, updates: any, performedBy: string = 'System') {
     const cleanUpdates: any = { ...updates, updatedAt: new Date().toISOString() };
     
-    const db = getAdminDb();
-    await db.runTransaction(async (transaction) => {
-      await clientRepository.update(id, cleanUpdates, transaction);
-      
-      const eventRef = db.collection("system_events").doc();
-      transaction.set(eventRef, {
-        eventType: "CLIENT_UPDATED",
-        entityCollection: "clients",
-        entityId: id,
-        metadata: { updates: Object.keys(updates), performedBy },
-        createdAt: new Date().toISOString()
-      });
-    });
+    await clientRepository.update(id, cleanUpdates, performedBy);
   }
 
   async delete(id: string, performedBy: string = 'System') {
-    const db = getAdminDb();
-    await db.runTransaction(async (transaction) => {
-      await clientRepository.delete(id, transaction);
-      
-      const eventRef = db.collection("system_events").doc();
-      transaction.set(eventRef, {
-        eventType: "CLIENT_DELETED",
-        entityCollection: "clients",
-        entityId: id,
-        metadata: { performedBy },
-        createdAt: new Date().toISOString()
-      });
-    });
+    await clientRepository.archive(id, performedBy);
   }
 }
 

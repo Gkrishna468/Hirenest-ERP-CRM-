@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { dbProxy } from '@/services/firebase/db-proxy';
+
 import { eventService } from '@/services/firebase/eventService';
 import { 
   Plus, 
@@ -256,7 +256,7 @@ export default function Clients() {
         replyText = `### Opportunity Risk Diagnosis:\n\n* **SLA Friction**: There is an active feedback delay for the *Frontend Architect* requisition. 2 candidate profiles have been in screening for > 72 hours.\n* **Decision Bottleneck**: Org mapping highlights HR Head Ritu Sharma is highly focused on salary alignment metrics, while Delivery Manager John Doe prioritizes architectural depth. Recommended action is arranging a combined technical alignment sync.\n* **Sourcing Capacity**: Sourcing velocity is strong with top-tier vendors responsive, but high competitors exist (2 direct staffing rivals present on site).`;
       } else if (query.includes("draft") || query.includes("email") || query.includes("outreach")) {
         const contactPerson = selectedClient.contactPerson || "John Doe";
-        replyText = `### AI Sourcing Outreach Draft:\n\n**Subject**: Sourcing Sync & Technical Profiles - ${selectedClient.company}\n\n**Body**:\nHi ${contactPerson},\n\nI hope you are doing well.\n\nFollowing up on our recent conversation, I wanted to let you know that our recruitment network has parsed and semantic-matched two exceptional profiles perfectly aligned with your active requisitions. \n\nWe have completed the internal Trust scoring checks on our end to guarantee ownership compliance. Would you have 5 minutes tomorrow afternoon for a quick review sync?\n\nBest regards,\nGopal\nHireNest OS BDM Team`;
+        replyText = `### AI Sourcing Outreach Draft:\n\n**Subject**: Sourcing Sync & Technical Profiles - ${selectedClient.company}\n\n**Body**:\nHi ${contactPerson},\n\nI hope you are doing well.\n\nFollowing up on our recent conversation, I wanted to let you know that our recruitment network has parsed and semantic-matched two exceptional profiles perfectly aligned with your active requisitions. \n\nWe have completed the internal Trust scoring checks on our end to guarantee ownership compliance. Would you have 5 minutes tomorrow afternoon for a quick review sync?\n\nBest regards,\nGopal\nHirenest CRM BDM Team`;
       } else if (query.includes("health") || query.includes("score") || query.includes("diagnostic")) {
         const health = calculateRelationshipScore(selectedClient, jobs, candidates);
         replyText = `### Core Health Diagnostic Ledger:\n\n* **Overall Relationship Score**: **${health.overallScore}/100**\n* **Engagement Index**: ${health.engagement}%\n* **Response Velocity SLA**: ${health.responseRate}%\n* **Communication Depth**: ${health.communicationDepth}%\n* **Risk Classification**: **${health.riskLevel} RISK**\n\n*Diagnostic Insight*: This corporate client consistently approves interview scheduling and provides high-quality requirements, indicating a strategic account. Maintain current BDM coverage.`;
@@ -875,7 +875,7 @@ export default function Clients() {
                         Client Self-Service Portal Sandbox
                       </h3>
                       <p className="text-xs text-indigo-100 mt-1 leading-relaxed">
-                        This sandbox mimics what the corporate client sees when accessing their dedicated HireNestOS portal track.
+                        This sandbox mimics what the corporate client sees when accessing their dedicated Hirenest CRM portal track.
                       </p>
                     </div>
 

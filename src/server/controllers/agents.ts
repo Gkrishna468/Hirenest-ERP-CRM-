@@ -1,46 +1,7 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
-import { getApps, initializeApp, applicationDefault, cert } from "firebase-admin/app";
-import { getFirestore, Firestore } from "firebase-admin/firestore";
 import * as dotenv from "dotenv";
-import * as fs from "fs";
-import * as path from "path";
-dotenv.config();
 
-let db: Firestore | null = null;
-let adminApp: any = null;
-
-if (!getApps()?.length) {
-  try {
-    const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    const projectId = process.env.FIREBASE_PROJECT_ID || firebaseConfig.projectId;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-    if (projectId && clientEmail && privateKey) {
-      adminApp = initializeApp({
-        credential: cert({ projectId, clientEmail, privateKey }),
-      });
-    } else {
-      adminApp = initializeApp({
-        credential: applicationDefault(),
-        projectId: projectId,
-      });
-    }
-    db = getFirestore(adminApp);
-  } catch (error) {
-    console.error("Firebase initialization error", error);
-  }
-} else {
-  adminApp = getApps()[0];
-  try {
-    const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    db = getFirestore(adminApp);
-  } catch(err) {
-    db = getFirestore(adminApp);
-  }
-}
+import { getAdminApp, getAdminDb, getAdminAuthClient } from "../utils/firebaseAdmin";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -51,7 +12,7 @@ export default async function handler(req: any, res: any) {
 
   if (action === "vendor_broadcast") {
     try {
-      if (!db) throw new Error("Database not initialized");
+      if (!getAdminDb()) throw new Error("Database not initialized");
 
       const { requirementId } = req.body;
 
@@ -60,7 +21,7 @@ export default async function handler(req: any, res: any) {
       }
 
       // 1. Get requirement
-      const reqRef = await db.collection("requirements").doc(requirementId).get();
+      const reqRef = await getAdminDb().collection("requirements").doc(requirementId).get();
       if (!reqRef.exists) {
         return res.status(404).json({ error: "Requirement not found" });
       }
@@ -68,7 +29,7 @@ export default async function handler(req: any, res: any) {
       const requirementTitle = reqRef.data()?.title || "Requirement";
 
       // 2. Fetch active vendors
-      const vendorsQuery = await db.collection("clients").where("isVendor", "==", true).get();
+      const vendorsQuery = await getAdminDb().collection("clients").where("isVendor", "==", true).get();
       const vendors = vendorsQuery.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
       // 3. For each vendor, create vendor_broadcasts entry
@@ -76,7 +37,7 @@ export default async function handler(req: any, res: any) {
       let sentCount = 0;
 
       for (const vendor of vendors) {
-        const broadcastRef = db.collection("vendor_broadcasts").doc();
+        const broadcastRef = getAdminDb().collection("vendor_broadcasts").doc();
         batch.set(broadcastRef, {
           broadcastId: `BRD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
           requirementId,
@@ -93,7 +54,7 @@ export default async function handler(req: any, res: any) {
       }
 
       // 4. Create Activity Ledger Entry
-      const activityRef = db.collection("activity_ledger").doc();
+      const activityRef = getAdminDb().collection("activity_ledger").doc();
       batch.set(activityRef, {
         entityType: "requirement_broadcast",
         entityId: requirementId,
@@ -107,7 +68,7 @@ export default async function handler(req: any, res: any) {
       });
 
       // 5. Update agent_activities
-      const agentRef = db.collection("agent_activities").doc();
+      const agentRef = getAdminDb().collection("agent_activities").doc();
       batch.set(agentRef, {
         agent: "Vendor Broadcast Agent",
         status: `Broadcast to ${sentCount} vendors via WhatsApp.`,
@@ -120,7 +81,7 @@ export default async function handler(req: any, res: any) {
       });
       
       // Update requirement metrics
-      const requirementUpdateRef = db.collection("requirements").doc(requirementId);
+      const requirementUpdateRef = getAdminDb().collection("requirements").doc(requirementId);
       batch.update(requirementUpdateRef, {
          broadcastsSent: (reqRef.data()?.broadcastsSent || 0) + sentCount
       });

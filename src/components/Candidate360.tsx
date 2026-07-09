@@ -173,7 +173,7 @@ export default function Candidate360({ candidateId, onClose }: Candidate360Props
   const handleGenerateSummary = async () => {
     setIsGenerating(true);
     try {
-      const response = await fetch("/api/ai?action=candidate-summary", {
+      const response = await fetch("/api/ai/candidate-summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

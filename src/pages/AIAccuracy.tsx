@@ -98,7 +98,7 @@ export default function AIAccuracy() {
   const fetchData = async () => {
     // Fetch Ingestion Metrics
     try {
-      const res = await apiFetch('/api/ai?action=ingestion-metrics');
+      const res = await apiFetch('/api/ai/ingestion-metrics');
       if (res.ok) {
         const data = await safeJson(res);
         setIngestionMetrics(data);
@@ -112,7 +112,7 @@ export default function AIAccuracy() {
     // Fetch Gateway Health
     try {
       setHealthLoading(true);
-      const res = await apiFetch('/api/ai?action=health');
+      const res = await apiFetch('/api/ai/health');
       if (res.ok) {
         const data = await safeJson(res);
         setGatewayHealth(data);
@@ -125,7 +125,7 @@ export default function AIAccuracy() {
 
     // Fetch audits
     try {
-      const res = await apiFetch('/api/ai?action=audit');
+      const res = await apiFetch('/api/ai/audit');
       if (res.ok) {
         const data = await safeJson(res);
         setAudits(data);
@@ -138,7 +138,7 @@ export default function AIAccuracy() {
 
     // Fetch telemetry
     try {
-      const res = await apiFetch('/api/ai?action=telemetry');
+      const res = await apiFetch('/api/ai/telemetry');
       if (res.ok) {
         const data = await safeJson(res);
         setTelemetry(data);
@@ -151,7 +151,7 @@ export default function AIAccuracy() {
 
     // Fetch system events
     try {
-      const res = await apiFetch('/api/ai?action=events');
+      const res = await apiFetch('/api/ai/events');
       if (res.ok) {
         const data = await safeJson(res);
         setEvents(data);
@@ -194,7 +194,7 @@ export default function AIAccuracy() {
     await new Promise(r => setTimeout(r, 600));
 
     try {
-      const response = await apiFetch('/api/ai?action=run-diagnostic', {
+      const response = await apiFetch('/api/ai/run-diagnostic', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gate: gateKey })
@@ -297,7 +297,7 @@ export default function AIAccuracy() {
                 <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Operational Health Check</span>
                 <h2 className="text-3xl font-black tracking-tight">GA Verification Status</h2>
                 <p className="text-slate-300 font-medium text-sm leading-relaxed max-w-2xl">
-                  Before declaring **HireNest OS GA v1.0**, every operational subsystem must validate its compliance. 
+                  Before declaring **Hirenest CRM GA v1.0**, every operational subsystem must validate its compliance. 
                   Below are the 5 core release gates. Trigger automated diagnostics on each subsystem to ensure data integrity, 
                   least-privilege custom claims, and secure ledger immutability are fully operational.
                 </p>

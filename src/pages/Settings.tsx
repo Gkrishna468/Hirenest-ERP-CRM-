@@ -422,7 +422,7 @@ export default function Settings() {
       try {
         const userId = user?.id || "unknown";
         const email = user?.email || "";
-        const response = await apiFetch(`/api/gmail?action=status&userId=${encodeURIComponent(userId)}&email=${encodeURIComponent(email)}`);
+        const response = await apiFetch(`/api/gmail/status?userId=${encodeURIComponent(userId)}&email=${encodeURIComponent(email)}`);
         const data = await safeJson(response);
         
         if (data.connected && data.data) {
@@ -515,7 +515,7 @@ export default function Settings() {
                   </div>
                   <div>
                     <h2 className="font-extrabold text-lg text-slate-900 tracking-tight">Workflow & Engine Configuration</h2>
-                    <p className="text-slate-500 text-xs mt-0.5">Deploy, tune, and configure the core deterministic engines of HireNest OS.</p>
+                    <p className="text-slate-500 text-xs mt-0.5">Deploy, tune, and configure the core deterministic engines of Hirenest CRM.</p>
                   </div>
                 </div>
                 <button

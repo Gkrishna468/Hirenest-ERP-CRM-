@@ -1,42 +1,33 @@
 import { Transaction } from "firebase-admin/firestore";
 import { getAdminDb } from "../utils/firebaseAdmin";
-
-export interface DomainEventPayload {
-  eventType: string;
-  entityCollection: string;
-  entityId: string;
-  metadata: Record<string, any>;
-  performedBy?: string;
-  role?: string;
-  message?: string;
-}
+import * as crypto from "crypto";
 
 export class DomainEventPublisher {
-  publish(event: DomainEventPayload, transaction?: Transaction): void {
+  static async publish(
+    eventType: string, 
+    entityType: string, 
+    entityId: string, 
+    performedBy: string, 
+    metadata?: any,
+    transaction?: Transaction
+  ) {
     const db = getAdminDb();
-    const eventRef = db.collection("system_events").doc();
-    
-    const payload = {
-      type: event.eventType,
-      eventType: event.eventType,
-      entityCollection: event.entityCollection,
-      entityType: event.entityCollection,
-      entityId: event.entityId,
-      metadata: event.metadata,
-      data: event.metadata,
-      actor: event.performedBy || 'System',
-      role: event.role || 'system',
-      message: event.message || (event.eventType + " on " + event.entityCollection + "/" + event.entityId),
-      createdAt: new Date().toISOString(),
-      timestamp: new Date().toISOString()
+    const eventId = crypto.randomUUID();
+    const event = {
+      id: eventId,
+      type: eventType,
+      entityType,
+      entityId,
+      performedBy: performedBy || 'system',
+      timestamp: new Date().toISOString(),
+      metadata: metadata || null,
     };
-
+    
+    const ref = db.collection("system_events").doc(eventId);
     if (transaction) {
-      transaction.set(eventRef, payload);
+      transaction.set(ref, event);
     } else {
-      eventRef.set(payload).catch(err => console.error("Event publish failed", err));
+      await ref.set(event);
     }
   }
 }
-
-export const domainEventPublisher = new DomainEventPublisher();

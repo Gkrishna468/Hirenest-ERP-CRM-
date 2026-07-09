@@ -1,4 +1,3 @@
-import { dbProxy } from "@/services/firebase/db-proxy";
 import { RequirementRepository } from "../repositories/RequirementRepository";
 
 /**

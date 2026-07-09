@@ -28,7 +28,7 @@ export function getAdminApp() {
       } else {
         adminApp = initializeApp({
           credential: applicationDefault(),
-          projectId: projectId || "hirenest-os",
+          projectId: projectId,
         });
       }
     } catch (error) {

@@ -1,65 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { google } from "googleapis";
 import * as crypto from "crypto";
-import { initializeApp, getApps, applicationDefault, cert } from "firebase-admin/app";
-import { getFirestore, Firestore } from "firebase-admin/firestore";
 import * as dotenv from "dotenv";
-dotenv.config();
 
-import * as fs from "fs";
-import * as path from "path";
+import { getAdminApp, getAdminDb, getAdminAuthClient } from "../utils/firebaseAdmin";
 
-let db: Firestore | null = null;
-let adminApp: any = null;
-
-if (!getApps()?.length) {
-  try {
-    const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-    let firestoreDbId = undefined;
-    let projectId = process.env.FIREBASE_PROJECT_ID;
-    
-    try {
-      const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-      if (firebaseConfig.firestoreDatabaseId) firestoreDbId = firebaseConfig.firestoreDatabaseId;
-      if (!projectId) projectId = firebaseConfig.projectId;
-    } catch (e) {
-      console.log("[Gmail API Init Warning] Could not read firebase-applet-config.json");
-    }
-
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-    if (projectId && clientEmail && privateKey) {
-      adminApp = initializeApp({
-        credential: cert({ projectId, clientEmail, privateKey }),
-      });
-    } else {
-      adminApp = initializeApp({
-        credential: applicationDefault(),
-        projectId: projectId || "hirenest-os",
-      });
-    }
-    db = getFirestore(adminApp, firestoreDbId);
-  } catch (error) {
-    console.error("Firebase initialization error", error);
-    try {
-      if (adminApp) {
-        db = getFirestore(adminApp);
-      }
-    } catch (fallbackError) {
-      console.error("Firebase ultimate fallback error", fallbackError);
-    }
-  }
-} else {
-  adminApp = getApps()[0];
-  try {
-    const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    db = getFirestore(adminApp);
-  } catch(err) {
-    db = getFirestore(adminApp);
-  }
-}
 const ALGORITHM = "aes-256-cbc";
 const rawKey = process.env.ENCRYPTION_KEY || "default-insecure-key-32-chars!!!";
 const ENCRYPTION_KEY = rawKey.padEnd(32, '!').substring(0, 32);
@@ -229,7 +174,7 @@ function performRegexClassification(subject: string, from: string, bodySnippet: 
 }
 
 async function getGmailConnection(userId?: string, emailAddress?: string) {
-  if (!db) {
+  if (!getAdminDb()) {
     console.error("[getGmailConnection] Db is null");
     return null;
   }
@@ -244,7 +189,7 @@ async function getGmailConnection(userId?: string, emailAddress?: string) {
 
   // 1. Try finding by cleanUserId (with status == 'active')
   if (cleanUserId) {
-    connectionSnapshot = await db.collection('gmail_connections')
+    connectionSnapshot = await getAdminDb().collection('gmail_connections')
       .where('userId', '==', cleanUserId)
       .where('status', '==', 'active')
       .limit(1).get();
@@ -256,7 +201,7 @@ async function getGmailConnection(userId?: string, emailAddress?: string) {
 
   // 2. Try finding by cleanEmail (with status == 'active')
   if (cleanEmail) {
-    connectionSnapshot = await db.collection('gmail_connections')
+    connectionSnapshot = await getAdminDb().collection('gmail_connections')
       .where('email', '==', cleanEmail)
       .where('status', '==', 'active')
       .limit(1).get();
@@ -268,7 +213,7 @@ async function getGmailConnection(userId?: string, emailAddress?: string) {
 
   // 3. Try finding by cleanUserId (any status)
   if (cleanUserId) {
-    connectionSnapshot = await db.collection('gmail_connections')
+    connectionSnapshot = await getAdminDb().collection('gmail_connections')
       .where('userId', '==', cleanUserId)
       .limit(1).get();
     if (!connectionSnapshot.empty) {
@@ -279,7 +224,7 @@ async function getGmailConnection(userId?: string, emailAddress?: string) {
 
   // 4. Try finding by cleanEmail (any status)
   if (cleanEmail) {
-    connectionSnapshot = await db.collection('gmail_connections')
+    connectionSnapshot = await getAdminDb().collection('gmail_connections')
       .where('email', '==', cleanEmail)
       .limit(1).get();
     if (!connectionSnapshot.empty) {
@@ -289,7 +234,7 @@ async function getGmailConnection(userId?: string, emailAddress?: string) {
   }
 
   // 5. Ultimate fallback: retrieve the absolute last active registration
-  connectionSnapshot = await db.collection('gmail_connections')
+  connectionSnapshot = await getAdminDb().collection('gmail_connections')
     .where('status', '==', 'active')
     .limit(1).get();
   if (!connectionSnapshot.empty) {
@@ -298,7 +243,7 @@ async function getGmailConnection(userId?: string, emailAddress?: string) {
   }
 
   // 6. Absolute final fallback: list any connection in the database
-  connectionSnapshot = await db.collection('gmail_connections')
+  connectionSnapshot = await getAdminDb().collection('gmail_connections')
     .limit(1).get();
   if (!connectionSnapshot.empty) {
     console.log("[getGmailConnection] Universal fallback step 6 matched first available connection:", connectionSnapshot.docs[0].data().email);
@@ -307,7 +252,7 @@ async function getGmailConnection(userId?: string, emailAddress?: string) {
 
   // Log all existing connections to help debug if everything fails
   try {
-    const allCons = await db.collection('gmail_connections').limit(5).get();
+    const allCons = await getAdminDb().collection('gmail_connections').limit(5).get();
     console.log("[getGmailConnection Debug] Total database connections found:", allCons.size);
     allCons.forEach(doc => {
       console.log(`Document ID: ${doc.id} =>`, {
@@ -332,9 +277,9 @@ async function handleSync(req: VercelRequest, res: VercelResponse) {
 
   console.log("USER ID", userId);
 
-  if (db) {
+  if (getAdminDb()) {
     try {
-      const snapshot = await db.collection("gmail_connections")
+      const snapshot = await getAdminDb().collection("gmail_connections")
         .where("userId", "==", userId)
         .get();
 
@@ -353,7 +298,7 @@ async function handleSync(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing userId parameter' });
   }
 
-  if (!db) {
+  if (!getAdminDb()) {
     console.error("Firestore DB reference is null");
     return res.status(500).json({ error: 'Firestore not initialized' });
   }
@@ -409,7 +354,7 @@ async function handleSync(req: VercelRequest, res: VercelResponse) {
       if (!msg.id) continue;
       
       // Check if we already have it
-      const existing = await db.collection('emails').doc(msg.id).get();
+      const existing = await getAdminDb().collection('emails').doc(msg.id).get();
       if (existing.exists) continue;
 
       console.log(`[Sync Debug] Processing new message id: ${msg.id}`);
@@ -446,7 +391,7 @@ async function handleSync(req: VercelRequest, res: VercelResponse) {
          senderType: "Unknown"
       };
 
-      await db.collection('emails').doc(msg.id).set({
+      await getAdminDb().collection('emails').doc(msg.id).set({
         gmailMessageId: msg.id,
         userEmail: resolvedEmail,
         from,
@@ -489,7 +434,7 @@ async function handleList(req: VercelRequest, res: VercelResponse) {
 
   console.log('USER ID PARAM:', userId);
 
-  if (!db) {
+  if (!getAdminDb()) {
     return res.status(500).json({ error: 'Firestore not initialized' });
   }
 
@@ -502,10 +447,10 @@ async function handleList(req: VercelRequest, res: VercelResponse) {
       console.log('Resolved Email to List:', resolvedEmail);
     }
 
-    let queryArgs: any = db.collection('emails').limit(100);
+    let queryArgs: any = getAdminDb().collection('emails').limit(100);
     
     if (resolvedEmail) {
-       queryArgs = db.collection('emails').where('userEmail', '==', resolvedEmail).limit(100);
+       queryArgs = getAdminDb().collection('emails').where('userEmail', '==', resolvedEmail).limit(100);
     }
     
     const snapshot = await queryArgs.get();
@@ -536,7 +481,7 @@ async function handleSend(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing userId parameter' });
   }
 
-  if (!db) {
+  if (!getAdminDb()) {
     return res.status(500).json({ error: 'Firestore not initialized' });
   }
 

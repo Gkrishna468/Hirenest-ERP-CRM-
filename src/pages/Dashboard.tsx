@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { subscribeToAgentActivities, AgentActivity } from "@/lib/api/agentActivities";
 import { SystemRepository } from "@/repositories/SystemRepository";
 import { cn } from "@/lib/utils";
-import { dbProxy } from "@/services/firebase/db-proxy";
+
 import {
   Briefcase,
   Users,
@@ -49,7 +49,7 @@ import {
 
 export default function Dashboard() {
   const { jobs, candidates, deals, vendors, clients } = useData();
-  const { user } = useAuth();
+  const { user, apiFetch } = useAuth();
   
   // Dashboard Role Mode: "founder" or "bdm"
   const [dashboardMode, setDashboardMode] = useState<"founder" | "bdm">("founder");
@@ -70,7 +70,7 @@ export default function Dashboard() {
 
   const fetchIngestionData = async () => {
     try {
-      const telData = await dbProxy.getDoc("ingestion_telemetry", "overall");
+      const telData = await (await apiFetch("/api/system/ingestion_telemetry")).json();
       if (telData) {
         setTelemetry(telData);
       } else {
@@ -87,9 +87,7 @@ export default function Dashboard() {
           reprocessFailCount: 0
         });
       }
-      const queueItems = await dbProxy.getDocs("ai_reprocessing_queue", {
-        where: [{ field: 'status', op: '==', value: 'pending' }]
-      });
+      const queueItems = await (await apiFetch("/api/system/ai_reprocessing_queue")).json();
       setQueue(queueItems);
     } catch (err: any) {
       console.log("Failed to fetch ingestion telemetry:", err.message);

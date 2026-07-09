@@ -1,4 +1,3 @@
-import { dbProxy } from './db-proxy';
 import { auth } from './config';
 import { eventService } from './eventService';
 

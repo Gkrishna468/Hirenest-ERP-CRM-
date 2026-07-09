@@ -60,7 +60,7 @@ export async function processInteraction(text: string, context?: any, emailId?: 
       token = await auth.currentUser.getIdToken();
     }
 
-    const response = await fetch('/api/ai?action=classify', {
+    const response = await fetch('/api/ai/classify', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

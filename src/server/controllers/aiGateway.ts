@@ -1,53 +1,10 @@
 import { safeJson } from '@/utils/safeJson';
-import { initializeApp, getApps, applicationDefault, cert } from "firebase-admin/app";
-import { getFirestore, Firestore, FieldValue } from "firebase-admin/firestore";
 import { GoogleGenAI } from "@google/genai";
-import * as fs from "fs";
-import * as path from "path";
 import * as dotenv from "dotenv";
 import { createHash } from "crypto";
 
-dotenv.config();
+import { getAdminApp, getAdminDb, getAdminAuthClient } from "../utils/firebaseAdmin";
 
-let db: Firestore | null = null;
-let adminApp: any = null;
-
-export function getFirestoreDB(): Firestore | null {
-  if (db) return db;
-  if (!getApps()?.length) {
-    try {
-      const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-      const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-      const projectId = process.env.FIREBASE_PROJECT_ID || firebaseConfig.projectId;
-      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-      if (projectId && clientEmail && privateKey) {
-        adminApp = initializeApp({
-          credential: cert({ projectId, clientEmail, privateKey }),
-        });
-      } else {
-        adminApp = initializeApp({
-          credential: applicationDefault(),
-          projectId: projectId,
-        });
-      }
-      db = getFirestore(adminApp);
-    } catch (error) {
-      console.error("Firebase initialization error in aiGateway", error);
-    }
-  } else {
-    adminApp = getApps()[0];
-    try {
-      const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-      const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-      db = getFirestore(adminApp);
-    } catch(err) {
-      db = getFirestore(adminApp);
-    }
-  }
-  return db;
-}
 
 export interface AISerializedOptions {
   action: string;
@@ -89,7 +46,7 @@ export class ModelRegistry {
 
   static async getModel(role: string): Promise<AIModel> {
     const now = Date.now();
-    const dbInstance = getFirestoreDB();
+    const dbInstance = getAdminDb();
 
     if (Object.keys(this.cachedModels).length > 0 && (now - this.lastFetched < this.CACHE_TTL)) {
       return this.cachedModels[role] || this.getDefaultModel(role);
@@ -202,7 +159,7 @@ export class PromptRegistry {
 
   static async getPrompt(id: string): Promise<AIPromptTemplate> {
     const now = Date.now();
-    const dbInstance = getFirestoreDB();
+    const dbInstance = getAdminDb();
 
     if (this.cachedPrompts[id] && (now - this.lastFetched < this.CACHE_TTL)) {
       return this.cachedPrompts[id];
@@ -417,7 +374,7 @@ export class AICache {
     }
 
     // Check Firestore
-    const dbInstance = getFirestoreDB();
+    const dbInstance = getAdminDb();
     if (dbInstance) {
       try {
         const doc = await dbInstance.collection("system_ai_cache").doc(key).get();
@@ -446,7 +403,7 @@ export class AICache {
     this.localMemoryCache[key] = { value, expiry };
 
     // Save to Firestore
-    const dbInstance = getFirestoreDB();
+    const dbInstance = getAdminDb();
     if (dbInstance) {
       try {
         await dbInstance.collection("system_ai_cache").doc(key).set({
@@ -666,7 +623,7 @@ export class HeuristicEngine {
     let emailBody = "Hi Candidate,\n\nWe would love to connect to discuss potential alignments with our open technical roles.\n\nBest Regards,\nHireNest Staffing Team";
 
     if (prompt.includes("schedule") || prompt.includes("interview")) {
-      emailSubject = "Invitation to Interview - HireNest OS";
+      emailSubject = "Invitation to Interview - Hirenest CRM";
       emailBody = "Hi Candidate,\n\nBased on your exceptional technical alignment score, we would love to schedule an initial technical screen round with our elite review panel. Please share your availability for the coming 3-5 business days.\n\nBest Regards,\nHireNest Sourcing Team";
     } else if (prompt.includes("feedback") || prompt.includes("sla")) {
       emailSubject = "SLA Alert & Update - Sourcing Feedback Team";
@@ -863,7 +820,7 @@ async function runCloudAi(options: AISerializedOptions): Promise<string> {
  */
 export async function executeServerAITask(options: AISerializedOptions): Promise<AIGatewayResult> {
   const startTime = Date.now();
-  const dbInstance = getFirestoreDB();
+  const dbInstance = getAdminDb();
 
   // A. Determine Capability & Retrieve Prioritized Provider Chain
   const providerChain = CapabilityRegistry.getProvidersForCapability(options.action);

@@ -29,8 +29,10 @@ import Revenue from "./pages/Revenue";
 import CommunicationCenter from "./pages/CommunicationCenter";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
+import ClientPortal from "./pages/ClientPortal";
 import PublicApply from "./pages/PublicApply";
 import VendorSubmit from "./pages/VendorSubmit";
+import VendorPortal from "./pages/VendorPortal";
 import MigrationDashboard from "./pages/MigrationDashboard";
 import AIAccuracy from "./pages/AIAccuracy";
 import Agents from "./pages/Agents";
@@ -58,6 +60,21 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
       <MobileNavBar />
     </div>
   );
+}
+
+
+function VendorRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="flex items-center justify-center h-screen bg-slate-100 text-slate-500 font-medium">Loading Delivery OS...</div>;
+  if (!user) return <Navigate to="/login" />;
+  return <>{children}</>;
+}
+
+function ClientRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="flex items-center justify-center h-screen bg-slate-100 text-slate-500 font-medium">Loading Client Portal...</div>;
+  if (!user) return <Navigate to="/login" />;
+  return <>{children}</>;
 }
 
 export default function App() {
@@ -219,6 +236,23 @@ export default function App() {
                   <PrivateRoute>
                     <Settings />
                   </PrivateRoute>
+                }
+              />
+              
+              <Route
+                path="/client"
+                element={
+                  <ClientRoute>
+                    <ClientPortal />
+                  </ClientRoute>
+                }
+              />
+                            <Route
+                path="/vendor"
+                element={
+                  <VendorRoute>
+                    <VendorPortal />
+                  </VendorRoute>
                 }
               />
               <Route path="*" element={<Navigate to="/" />} />

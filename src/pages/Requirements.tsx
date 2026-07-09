@@ -229,7 +229,7 @@ ${applyUrl}
 🤝 Vendors:
 ${vendorUrl}
   
-Powered by HireNestOS AI`;
+Powered by Hirenest CRM AI`;
   };
 
   // Pricing Engine Interactive States calculations for EDIT Mode
@@ -2529,7 +2529,7 @@ ${window.location.origin}/#/apply/${broadcastTargetJob.id}?src=wa
 📤 *Vendors Submit Candidate:*
 ${window.location.origin}/#/vendor-submit/${broadcastTargetJob.id}
 
-🤖 *Powered by HireNestOS AI*`);
+🤖 *Powered by Hirenest CRM AI*`);
                         window.open(`https://wa.me/?text=${text}`, "_blank");
                         toast.success("WhatsApp template prepared & dispatched!");
                       }}
@@ -2572,7 +2572,7 @@ ${window.location.origin}/#/apply/${broadcastTargetJob.id}?src=li
 📤 *Vendors Submit Candidate:*
 ${window.location.origin}/#/vendor-submit/${broadcastTargetJob.id}
 
-🤖 *Powered by HireNestOS AI*`;
+🤖 *Powered by Hirenest CRM AI*`;
                         navigator.clipboard.writeText(text);
                         const url = encodeURIComponent(`${window.location.origin}/#/apply/${broadcastTargetJob.id}?src=li`);
                         window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, "_blank");
@@ -2786,7 +2786,7 @@ ${window.location.origin}/#/apply/${selectedJob.id}?src=li
 📤 *Vendors Submit Candidate:*
 ${window.location.origin}/#/vendor-submit/${selectedJob.id}
 
-🤖 *Powered by HireNestOS AI*`;
+🤖 *Powered by Hirenest CRM AI*`;
                         navigator.clipboard.writeText(text);
                         toast.success('Generated LinkedIn formatted post copied to clipboard!');
                       }}
@@ -2818,7 +2818,7 @@ ${window.location.origin}/#/apply/${selectedJob.id}?src=wa
 📤 *Vendors Submit Candidate:*
 ${window.location.origin}/#/vendor-submit/${selectedJob.id}
 
-🤖 *Powered by HireNestOS AI*`;
+🤖 *Powered by Hirenest CRM AI*`;
                         navigator.clipboard.writeText(text);
                         toast.success('Formatted vendor broadcast text copied!');
                       }}

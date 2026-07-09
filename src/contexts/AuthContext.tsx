@@ -56,6 +56,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           // Force refresh claims for admin if needed
           const idTokenResult = await firebaseUser.getIdTokenResult();
+          const token = await firebaseUser.getIdToken();
+          localStorage.setItem('fb_token', token);
           console.log('[DIAGNOSTIC] User UID:', firebaseUser.uid);
           console.log('[DIAGNOSTIC] App Project ID:', (db as any)._app.options.projectId);
           if (isExecRoot && !idTokenResult.claims.admin) {
@@ -112,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Force re-login if Firebase session is missing to ensure Firestore works
         localStorage.removeItem('hirenest_exec_session');
+    localStorage.removeItem('fb_token');
         setUser(null);
       }
       setLoading(false);
@@ -212,6 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     localStorage.removeItem('hirenest_exec_session');
+    localStorage.removeItem('fb_token');
     await firebaseSignOut(auth);
     setUser(null);
     toast.success('Signed out successfully');

@@ -1,4 +1,3 @@
-import { dbProxy } from "@/services/firebase/db-proxy";
 import { recordDeal } from "./financialService";
 import { calculateAdjustedBudget } from "./marketplaceService";
 import { safeString, safeSkills, safeNumber, safeArray } from "@/utils/safe";

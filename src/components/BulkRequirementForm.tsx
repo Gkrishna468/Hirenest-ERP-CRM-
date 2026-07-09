@@ -98,7 +98,7 @@ export const BulkRequirementForm: React.FC<BulkRequirementFormProps> = ({
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement("a");
                 link.href = url;
-                link.download = `HireNestOS_Sourcing_Report_${new Date().toISOString().slice(0, 10)}.json`;
+                link.download = `Hirenest CRM_Sourcing_Report_${new Date().toISOString().slice(0, 10)}.json`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);

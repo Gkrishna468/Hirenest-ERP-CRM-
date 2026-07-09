@@ -1,3 +1,4 @@
+import { auth } from '@/services/firebase/config';
 import type { Candidate } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString, safeBudget } from '@/utils/safe';
@@ -7,6 +8,8 @@ async function apiFetch(url: string, options?: RequestInit) {
   const execSession = localStorage.getItem('hirenest_exec_session');
   if (execSession) {
     token = 'executive-bypass-token';
+  } else if (auth.currentUser) {
+    token = await auth.currentUser.getIdToken();
   } else {
     token = localStorage.getItem('fb_token') || '';
   }
@@ -17,7 +20,12 @@ async function apiFetch(url: string, options?: RequestInit) {
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
   };
   
-  return fetch(url, { ...options, headers });
+  const res = await fetch(url, { ...options, headers });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || err.message || "API request failed");
+  }
+  return res;
 }
 
 export const CandidateRepository = {

@@ -1,66 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { google } from "googleapis";
 import * as crypto from "crypto";
-import { initializeApp, getApps, applicationDefault, cert } from "firebase-admin/app";
-import { getFirestore, Firestore } from "firebase-admin/firestore";
-import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import * as dotenv from "dotenv";
-dotenv.config();
 
-import * as fs from "fs";
-import * as path from "path";
-
-let db: Firestore | null = null;
-let adminApp: any = null;
-
-if (!getApps()?.length) {
-  try {
-    const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-    let firestoreDbId = undefined;
-    let projectId = process.env.FIREBASE_PROJECT_ID;
-    
-    try {
-      const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-      if (firebaseConfig.firestoreDatabaseId) firestoreDbId = firebaseConfig.firestoreDatabaseId;
-      if (!projectId) projectId = firebaseConfig.projectId;
-    } catch (e) {
-      console.log("[Auth API Init Warning] Could not read firebase-applet-config.json");
-    }
-
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-    if (projectId && clientEmail && privateKey) {
-      adminApp = initializeApp({
-        credential: cert({ projectId, clientEmail, privateKey }),
-      });
-    } else {
-      adminApp = initializeApp({
-        credential: applicationDefault(),
-        projectId: projectId || "hirenest-os",
-      });
-    }
-    db = getFirestore(adminApp, firestoreDbId);
-  } catch (error) {
-    console.error("Firebase initialization error", error);
-    try {
-      if (adminApp) {
-        db = getFirestore(adminApp);
-      }
-    } catch (fallbackError) {
-      console.error("Firebase ultimate fallback error", fallbackError);
-    }
-  }
-} else {
-  adminApp = getApps()[0];
-  try {
-    const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    db = getFirestore(adminApp);
-  } catch(err) {
-    db = getFirestore(adminApp);
-  }
-}
+import { getAdminApp, getAdminDb, getAdminAuthClient } from "../utils/firebaseAdmin";
 
 const ALGORITHM = "aes-256-cbc";
 const rawKey = process.env.ENCRYPTION_KEY || "default-insecure-key-32-chars!!!";
@@ -119,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GMAIL_CLIENT_ID,
       process.env.GMAIL_CLIENT_SECRET,
-      process.env.GMAIL_REDIRECT_URI || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}/api/auth?action=callback`
+      process.env.GMAIL_REDIRECT_URI || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}/api/auth/google/callback`
     );
 
     const scopes = [
@@ -158,9 +101,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const logToFirestore = async (step: string, details?: any) => {
     console.log(`[OAuth Debug] ${step}`, details || '');
-    if (db) {
+    if (getAdminDb()) {
       try {
-        await db.collection('oauth_debug').add({
+        await getAdminDb().collection('oauth_debug').add({
           step,
           timestamp: new Date().toISOString(),
           details: details || null
@@ -175,7 +118,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GMAIL_CLIENT_ID,
       process.env.GMAIL_CLIENT_SECRET,
-      process.env.GMAIL_REDIRECT_URI || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}/api/auth?action=callback`
+      process.env.GMAIL_REDIRECT_URI || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}/api/auth/google/callback`
     );
 
     await logToFirestore("STEP_1_TOKEN_EXCHANGE_START");
@@ -193,12 +136,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let existingConnectionData: any = null;
     let connRef: any = null;
 
-    if (!db) {
+    if (!getAdminDb()) {
       throw new Error("Firestore db is not initialized. Cannot save Gmail connection.");
     }
 
     if (userId && userId !== 'unknown') {
-      const snapshot = await db.collection('gmail_connections')
+      const snapshot = await getAdminDb().collection('gmail_connections')
         .where('userId', '==', userId)
         .limit(1).get();
       if (!snapshot.empty) {
@@ -208,7 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!connRef && emailAddress) {
-      const snapshot = await db.collection('gmail_connections')
+      const snapshot = await getAdminDb().collection('gmail_connections')
         .where('email', '==', emailAddress)
         .limit(1).get();
       if (!snapshot.empty) {
@@ -234,9 +177,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!connRef) {
       // Use userId as doc ID to guarantee unique connection record per user
       if (userId && userId !== 'unknown') {
-        connRef = db.collection('gmail_connections').doc(userId);
+        connRef = getAdminDb().collection('gmail_connections').doc(userId);
       } else {
-        connRef = db.collection('gmail_connections').doc();
+        connRef = getAdminDb().collection('gmail_connections').doc();
       }
     }
 
@@ -253,7 +196,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }, { merge: true });
 
     // Emit GMAIL_CONNECTED event
-    await db.collection('system_events').add({
+    await getAdminDb().collection('system_events').add({
       eventType: 'GMAIL_CONNECTED',
       entityCollection: 'gmail_connections',
       entityId: connRefId,
@@ -264,7 +207,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // PERMANENT PRODUCT-MANAGER FIX: Update users collection so MailOS avoids constant lookups
     if (userId && userId !== 'unknown') {
       try {
-        await db.collection('users').doc(userId).set({
+        await getAdminDb().collection('users').doc(userId).set({
           id: userId,
           gmailConnected: true,
           gmailEmail: emailAddress,
@@ -293,7 +236,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         historyId = watchRes.data.historyId || historyId;
         console.log(`[Gmail Auth] Watch registration successful for ${emailAddress}`);
         
-        await db.collection('gmail_connections').doc(connRefId).update({
+        await getAdminDb().collection('gmail_connections').doc(connRefId).update({
           historyId: historyId
         });
         await logToFirestore("STEP_3_WATCH_API_SUCCESS");
@@ -326,12 +269,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(401).json({ error: 'Unauthorized: No requester credentials' });
         }
         
-        if (!db) {
+        if (!getAdminDb()) {
           return res.status(500).json({ error: 'Firestore db is not initialized.' });
         }
         
         // Fetch requester role from Firestore just to be 100% sure and secure
-        const requesterDoc = await db.collection('users').doc(requesterId).get();
+        const requesterDoc = await getAdminDb().collection('users').doc(requesterId).get();
         const requesterData = requesterDoc.data();
         const requesterRole = requesterData?.role || (req as any).user?.role;
         
@@ -346,7 +289,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         try {
           // Get target user info
-          const targetUserDoc = await db.collection('users').doc(targetUserId).get();
+          const targetUserDoc = await getAdminDb().collection('users').doc(targetUserId).get();
           if (!targetUserDoc.exists) {
             return res.status(404).json({ error: 'Target user profile not found' });
           }
@@ -355,13 +298,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const targetEmail = targetUserData?.email || '';
           
           // Reset password in Firebase Auth using Admin Auth
-          const adminAuth = getAdminAuth(adminApp);
+          const adminAuth = getAdminAuthClient();
           await adminAuth.updateUser(targetUserId, {
             password: newPassword
           });
           
           // Update Firestore user document
-          await db.collection('users').doc(targetUserId).set({
+          await getAdminDb().collection('users').doc(targetUserId).set({
             loginCount: 0,
             mustChangePassword: true,
             temporaryPassword: newPassword,
@@ -369,7 +312,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }, { merge: true });
           
           // Emit Event
-          await db.collection('system_events').add({
+          await getAdminDb().collection('system_events').add({
             eventType: 'PASSWORD_RESET',
             entityCollection: 'users',
             entityId: targetUserId,
@@ -403,12 +346,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(401).json({ error: 'Unauthorized: No requester credentials' });
         }
         
-        if (!db) {
+        if (!getAdminDb()) {
           return res.status(500).json({ error: 'Firestore db is not initialized.' });
         }
         
         // Fetch requester role from Firestore just to be 100% sure and secure
-        const requesterDoc = await db.collection('users').doc(requesterId).get();
+        const requesterDoc = await getAdminDb().collection('users').doc(requesterId).get();
         const requesterData = requesterDoc.data();
         const requesterRole = requesterData?.role || (req as any).user?.role;
         
@@ -427,13 +370,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         try {
           // Get target user info
-          const targetUserDoc = await db.collection('users').doc(targetUserId).get();
+          const targetUserDoc = await getAdminDb().collection('users').doc(targetUserId).get();
           const targetUserData = targetUserDoc.exists ? targetUserDoc.data() : null;
           const targetEmail = targetUserData?.email || '';
           const targetName = targetUserData?.name || '';
           
           // Delete from Firebase Auth using Admin Auth
-          const adminAuth = getAdminAuth(adminApp);
+          const adminAuth = getAdminAuthClient();
           let authDeleted = false;
           try {
             await adminAuth.deleteUser(targetUserId);
@@ -446,7 +389,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // Delete from Firestore
           let firestoreDeleted = false;
           if (targetUserDoc.exists) {
-            await db.collection('users').doc(targetUserId).delete();
+            await getAdminDb().collection('users').doc(targetUserId).delete();
             firestoreDeleted = true;
           }
           
@@ -455,7 +398,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
           
           // Emit Event to Ledger
-          await db.collection('system_events').add({
+          await getAdminDb().collection('system_events').add({
             eventType: 'USER_DELETED',
             entityCollection: 'users',
             entityId: targetUserId,

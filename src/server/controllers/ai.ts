@@ -1,52 +1,14 @@
 import { emailDraftParser } from "../ai/parsers/EmailDraft.js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { GoogleGenAI } from "@google/genai";
-import { initializeApp, getApps, applicationDefault, cert } from "firebase-admin/app";
-import { getFirestore, Firestore } from "firebase-admin/firestore";
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import * as fs from "fs";
-import * as path from "path";
 import { resumeParser } from "../ai/parsers/ResumeParser.js";
 import { candidateSummaryParser } from "../ai/parsers/CandidateSummary.js";
 import { executeServerAITask, AICache, AIRequestQueue } from "./aiGateway.js";
 
-let db: Firestore | null = null;
-let adminApp: any = null;
-
-if (!getApps()?.length) {
-  try {
-    const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    const projectId = process.env.FIREBASE_PROJECT_ID || firebaseConfig.projectId;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-    if (projectId && clientEmail && privateKey) {
-      adminApp = initializeApp({
-        credential: cert({ projectId, clientEmail, privateKey }),
-      });
-    } else {
-      adminApp = initializeApp({
-        credential: applicationDefault(),
-        projectId: projectId,
-      });
-    }
-    db = getFirestore(adminApp);
-  } catch (error) {
-    console.error("Firebase initialization error", error);
-  }
-} else {
-  adminApp = getApps()[0];
-  try {
-    const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    db = getFirestore(adminApp);
-  } catch(err) {
-    db = getFirestore(adminApp);
-  }
-}
+import { getAdminApp, getAdminDb, getAdminAuthClient } from "../utils/firebaseAdmin";
 
 export interface OptimizationResult {
   finalPrompt: string;
@@ -354,8 +316,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const insight = JSON.parse(cleanText);
 
     // Auto-log to Firestore
-    if (db) {
-      await db.collection("system_events").add({
+    if (getAdminDb()) {
+      await getAdminDb().collection("system_events").add({
         type: "brain_process",
         message: `AI Brain processed interaction: ${insight.profile.intent}`,
         timestamp: new Date().toISOString(),
@@ -366,7 +328,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       });
 
-      await db.collection("classification_audit").add({
+      await getAdminDb().collection("classification_audit").add({
         emailId: emailId || null,
         classification: insight.profile.intent,
         confidence: insight.profile.confidence || 0.8,
@@ -396,9 +358,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           requiresReview: (insight.profile.confidence || 0.9) < 0.95
         };
         
-        const reqRef = await db.collection("requirements").add(reqData);
+        const reqRef = await getAdminDb().collection("requirements").add(reqData);
 
-        await db.collection("system_events").add({
+        await getAdminDb().collection("system_events").add({
           type: "lifecycle_automation",
           message: `Automated Requirement Created: ${insight.extractedRequirement.title}`,
           timestamp: new Date().toISOString(),
@@ -409,7 +371,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           payload: { requirementId: reqRef.id }
         });
 
-        await db.collection("system_events").add({
+        await getAdminDb().collection("system_events").add({
           type: "lifecycle_automation",
           message: `Requirement Broadcasted to Vendor Network: ${insight.extractedRequirement.title}`,
           timestamp: new Date().toISOString(),
@@ -436,10 +398,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           requiresReview: (insight.profile.confidence || 0.9) < 0.95
         };
         
-        const candRef = await db.collection("candidates").add(candData);
+        const candRef = await getAdminDb().collection("candidates").add(candData);
         
         // Ownership mapping for the vendor
-        await db.collection("candidateOwnership").add({
+        await getAdminDb().collection("candidateOwnership").add({
           candidateId: candRef.id,
           vendorName: candData.vendorName,
           source: "mailos",
@@ -447,7 +409,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         // Submission linkage
-        const subRef = await db.collection("submissions").add({
+        const subRef = await getAdminDb().collection("submissions").add({
           candidateId: candRef.id,
           status: "pending_review",
           source: "mailos",
@@ -455,7 +417,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           createdAt: new Date().toISOString()
         });
 
-        await db.collection("system_events").add({
+        await getAdminDb().collection("system_events").add({
           type: "lifecycle_automation",
           message: `Automated Vendor Submission: ${insight.extractedSubmission.candidateName}`,
           timestamp: new Date().toISOString(),
@@ -468,7 +430,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (emailId) {
-        await db.collection("emails").doc(emailId).update({
+        await getAdminDb().collection("emails").doc(emailId).update({
           isAiAnalyzed: true,
           aiAnalysis: insight,
           entityType: insight.profile.intent,
@@ -498,7 +460,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const systemPrompt = `
-    Act as the HireNestOS MailOS Copilot, an AI-native staffing communication engine.
+    Act as the Hirenest CRM MailOS Copilot, an AI-native staffing communication engine.
     You are generating a highly contextual response based on the staffing lifecycle.
     
     Requested Action: ${action}
@@ -530,8 +492,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const draft = (emailDraft.subject ? "Subject: " + emailDraft.subject + "\n\n" : "") + emailDraft.body;
 
     // Log the generation
-    if (db) {
-      await db.collection("email_copilot_logs").add({
+    if (getAdminDb()) {
+      await getAdminDb().collection("email_copilot_logs").add({
         emailId: emailId || null,
         promptType: action,
         generatedBy: "user",
@@ -613,10 +575,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         try {
-          if (!db) {
+          if (!getAdminDb()) {
              return res.status(500).json({ error: 'Database not initialized' });
           }
-          const snapshot = await db.collection('classification_audit').orderBy('createdAt', 'desc').limit(100).get();
+          const snapshot = await getAdminDb().collection('classification_audit').orderBy('createdAt', 'desc').limit(100).get();
           const audits = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           return res.status(200).json(audits);
         } catch (error: any) {
@@ -629,15 +591,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(405).json({ error: 'Method Not Allowed' });
         }
         try {
-          if (!db) {
+          if (!getAdminDb()) {
             return res.status(500).json({ error: 'Database not initialized' });
           }
-          const auditSnapshot = await db.collection('classification_audit').get();
+          const auditSnapshot = await getAdminDb().collection('classification_audit').get();
           const totalCallsFromAudit = auditSnapshot.size || 15;
           const validatedCalls = auditSnapshot.docs.filter(d => d.data().validated).length;
 
           // Fetch dynamic AI Gateway telemetry metrics (Law 2 / SSOT alignment)
-          const telDoc = await db.collection('ingestion_telemetry').doc('overall').get();
+          const telDoc = await getAdminDb().collection('ingestion_telemetry').doc('overall').get();
           const telData = telDoc.exists ? telDoc.data() : {};
 
           const totalAiCalls = telData?.totalAiCalls || totalCallsFromAudit;
@@ -657,7 +619,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const estInputTokens = totalAiCalls * 1250;
           const estOutputTokens = totalAiCalls * 280;
 
-          const eventsSnapshot = await db.collection('system_events').get();
+          const eventsSnapshot = await getAdminDb().collection('system_events').get();
           const totalEvents = eventsSnapshot.size || 42;
 
           return res.status(200).json({
@@ -689,13 +651,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(405).json({ error: 'Method Not Allowed' });
         }
         try {
-          if (!db) {
+          if (!getAdminDb()) {
             return res.status(500).json({ error: 'Database not initialized' });
           }
           const { gate } = req.body;
           
           // Log automated diagnostic confirmation inside the Immutable Ledger (Law 1)
-          const eventRef = await db.collection('system_events').add({
+          const eventRef = await getAdminDb().collection('system_events').add({
             type: 'DIAGNOSTIC_SUITE_RUN',
             message: `GA Release Gate Automated Diagnostic run succeeded for: ${gate || 'All Pillars'}. Codebase, custom claims & Firestore multi-tenant checks validated.`,
             timestamp: new Date().toISOString(),
@@ -724,10 +686,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(405).json({ error: 'Method Not Allowed' });
         }
         try {
-          if (!db) {
+          if (!getAdminDb()) {
             return res.status(500).json({ error: 'Database not initialized' });
           }
-          const snapshot = await db.collection('system_events')
+          const snapshot = await getAdminDb().collection('system_events')
             .orderBy('timestamp', 'desc')
             .limit(50)
             .get();
@@ -766,8 +728,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(405).json({ error: 'Method Not Allowed' });
         }
         try {
-          if (!db) throw new Error("Database not initialized");
-          const snapshot = await db.collection("ingestion_executions").orderBy("timestamp", "desc").limit(50).get();
+          if (!getAdminDb()) throw new Error("Database not initialized");
+          const snapshot = await getAdminDb().collection("ingestion_executions").orderBy("timestamp", "desc").limit(50).get();
           
           let todayUploads = 0;
           let imported = 0;

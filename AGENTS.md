@@ -14,9 +14,10 @@ Status: ADVANCED RC - GA STAGE PREPARATION
   - DELETE = denied
 - Foundation for Revenue reporting, Activity timeline, AI context, Executive dashboards, and Compliance audits.
 
-## Law 2: Single Source of Truth
-- **Firebase** is the single source of truth.
-- Everything derives from it: accounts, contacts, vendors, requirements, candidates, submissions, interviews, offers, placements, communications, followups, invoices, and system_events.
+## Law 2: Unified Enterprise Data Model (Single Source of Truth)
+- Every business entity (Vendor, Client, Requirement, Candidate, Submission, Interview, Offer, Placement, Organization, User) exists exactly once in the `(default)` Firestore database.
+- HireNest CRM and HireNestOS must never maintain separate copies of the same entity. All applications read and write the shared document directly through repositories and services. 
+- Any update made from CRM, Vendor Workspace, or Client Workspace is immediately visible everywhere because all interfaces consume the same Single Source of Truth.
 - No duplicate databases. No shadow business logic.
 
 ## Law 3: AI Governance
@@ -37,11 +38,9 @@ Status: ADVANCED RC - GA STAGE PREPARATION
 - Supabase acts as a read-only rollback system for at least 14 days post-cutover before decommissioning.
 
 ## Law 5: Domain-Driven Design & SSOT
-- **Shared Firebase ≠ Shared Ownership.**
-- **CRM Domain** owns: `crm_leads`, `crm_accounts`, `crm_contacts`, `crm_opportunities`, `crm_activities`, `crm_followups`, `crm_campaigns`, `crm_communications`. (CRM writes, OS reads).
-- **OS Domain** owns: `clients`, `requirements`, `candidates`, `submissions`, `interviews`, `placements`, `vendors`, `deal_rooms`. (OS writes, CRM reads).
-- **Shared Domain** owns: `system_events`, `audit_logs`, `workflow_instances`, `integration_mappings`.
-- **Event-Driven Flow**: Domains NEVER write directly to each other's collections. They emit and react to `system_events`.
+- **Shared Enterprise Data Model** via Firestore (default).
+- CRM is the System of Engagement (Operations). OS is the System of Intelligence (AI & Workspaces).
+- **Event-Driven Flow**: Domains NEVER duplicate each other's collections. They emit and react to `system_events`.
 - **Database-Enforced Ownership**: Firestore security rules must enforce these boundaries.
 
 ## RC-1 Governance Rules (During Soak Test)
@@ -50,12 +49,11 @@ Status: ADVANCED RC - GA STAGE PREPARATION
 - Feature freeze protects migration integrity.
 
 ## HireNest v1.0 Architecture (Frozen)
-- **HireNest CRM**: Commercial Command Center (Relationship Layer). Owns: `crm_leads`, `crm_accounts`, `crm_contacts`, `crm_vendor_accounts`, `crm_opportunities`, `crm_followups`, `crm_communications`, `crm_campaigns`.
-- **HireNestOS**: Execution Engine (Fulfillment Layer). Owns: `requirements`, `candidates`, `submissions`, `interviews`, `offers`, `placements`, `deal_rooms`.
+- **HireNest CRM**: Commercial Command Center (Relationship Layer). Admins, BDMs, Recruiters, Sales.
+- **HirenestOS**: Execution & Intelligence Platform (Workspaces & AI Layer). AI Agents, Matching Engine, Client Workspaces, Vendor Workspaces.
+- **Shared Enterprise Data**: `clients`, `vendors`, `requirements`, `candidates`, `submissions`, `interviews`, `offers`, `placements`, `deal_rooms`.
 - **system_events**: Company Ledger (Event Fabric).
 - **Firebase**: Enterprise SSOT.
-- **Shared Domain**: `system_events`, `integration_mappings`, `audit_logs`, `workflow_instances`.
-- **Workspace Provisioning**: No dual writes. Create Vendor/Client -> Create Firebase Auth User -> Emit `VENDOR_CREATED`/`CLIENT_CREATED` -> OS Listener Creates Workspace.
 
 ## Founder Principle
 - **North Star**: "No Profile Left Behind". Every profile submitted must either become Feedback, Interview, Offer, Join, or Redeployment. No candidate should disappear into email threads.
@@ -85,8 +83,24 @@ Status: ADVANCED RC - GA STAGE PREPARATION
 - [ ] Disaster recovery tested
 - [ ] Replay tests successful
 
-
 ## UI/UX Philosophy
 - Clean, minimal, high-contrast layouts.
 - Always include an Executive View (Business Health Score) for the Admin/Founder roles.
 - Actions create events. Events create timelines. Timelines create intelligence.
+
+## Unified Business Workflow Layer (Execution Roadmap)
+
+- **Phase 1: Organization (Tenant) Foundation**
+  Every document across `users`, `clients`, `vendors`, `requirements`, `candidates`, `submissions`, and `placements` must contain `organizationId`, `createdBy`, `createdAt`, `updatedBy`, `updatedAt`, `sourceApp` (CRM | OS | API | AI), and `sourceWorkspace` (Vendor | Client | Recruiter | Admin).
+- **Phase 2: Client Workspace (OS)**
+  Client portal to manage Open Requirements, Submissions, Interviews, Offers, and Placements directly from OS, writing instantly to SSOT.
+- **Phase 3: Vendor Workspace**
+  Delivery portal for Vendors to upload Bench, update Resumes/Availability, and submit Candidates, with all actions reflecting live in CRM.
+- **Phase 4: Recruiter Workspace (CRM)**
+  Operations cockpit linking Requirements with AI Matches, Vendor/Internal Candidates, and 1-click Submissions.
+- **Phase 5: AI Agent Layer**
+  Background intelligence (Vendor Agent, Client Agent, Recruiter Agent, COO Agent) providing smart prompts and automation triggers.
+- **Phase 6: Communication Hub**
+  Emails, WhatsApp, Calls, and Notes unified directly under Vendor, Client, and Candidate entities.
+- **Phase 7: Universal Timeline**
+  Standardized Event-Sourcing visualization bridging the lifecycle across Candidates, Vendors, and Clients.

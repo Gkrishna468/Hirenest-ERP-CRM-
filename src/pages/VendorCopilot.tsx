@@ -24,7 +24,7 @@ export default function VendorCopilot({
   const [copilotChat, setCopilotChat] = useState<Array<{ sender: 'user' | 'ai'; text: string; timestamp: string }>>([
     {
       sender: 'ai',
-      text: `Hello! I am the **HireNest OS Unified Vendor Copilot**. I have full visibility into **${selectedVendor?.company}**'s candidate pool, SLA response logs, outstanding placements, and current requirements.\n\nYou can ask me complex queries or click any of the suggestions below to generate a report instantly!`,
+      text: `Hello! I am the **Hirenest CRM Unified Vendor Copilot**. I have full visibility into **${selectedVendor?.company}**'s candidate pool, SLA response logs, outstanding placements, and current requirements.\n\nYou can ask me complex queries or click any of the suggestions below to generate a report instantly!`,
       timestamp: new Date().toLocaleTimeString(),
     },
   ]);

@@ -61,7 +61,7 @@ export default function Login() {
           </div>
           <div className="text-center">
             <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight" style={{textShadow: '0 1px 1px white'}}>
-              HireNestOS
+              Hirenest CRM
             </h1>
             <p className="text-slate-600 font-medium text-sm mt-1">
               AI-Native Staffing Operating System
@@ -175,7 +175,7 @@ export default function Login() {
 
           <div className="mt-8 pt-8 border-t border-slate-100 text-center">
             <p className="text-xs text-slate-400">
-              HireNestOS - Built for IT Staffing & Global Talent Delivery
+              Hirenest CRM - Built for IT Staffing & Global Talent Delivery
             </p>
           </div>
         </div>

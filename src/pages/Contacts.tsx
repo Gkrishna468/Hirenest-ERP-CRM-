@@ -27,7 +27,8 @@ import {
   Check
 } from 'lucide-react';
 import { SourceBadge } from '@/components/SourceBadge';
-import { dbProxy } from '@/services/firebase/db-proxy';
+import { UserRepository } from '@/repositories/UserRepository';
+import type { User } from '@/types';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -73,31 +74,26 @@ export default function Contacts() {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        let snapDocs = await dbProxy.getDocs('contacts');
-        let fetchedContacts: Contact[] = snapDocs.map((data: any) => {
+                let users = await UserRepository.list();
+        let fetchedContacts: Contact[] = users.map((data: any) => {
           return {
             id: data.id,
             name: data.name || 'Unknown',
-            title: data.title || '',
-            company: data.company || '',
+            title: data.role || '',
+            company: data.companyId || '',
             email: data.email || '',
             phone: data.phone || '',
-            location: data.location || '',
-            source: (data.source || 'crm') as 'crm' | 'os',
+            location: '',
+            source: 'crm',
             rating: data.rating || 0,
-            lastMeeting: data.lastMeeting || '',
-            birthday: data.birthday || '',
-            linkedin: data.linkedin || '',
-            callsCount: data.callsCount || 0,
-            emailsCount: data.emailsCount || 0,
-            whatsappCount: data.whatsappCount || 0,
-            requirementsGiven: data.requirementsGiven || 0,
-            placementsCount: data.placementsCount || 0,
-            personalNotes: data.personalNotes || '',
-            aiSummary: data.aiSummary || ''
-          };
+            lastMeeting: data.lastMeeting,
+            birthday: data.birthday,
+            linkedin: data.linkedin,
+            callsCount: data.callsCount,
+            emailsCount: data.emailsCount,
+            whatsappCount: data.whatsappCount,
+          } as Contact;
         });
-
         setContacts(fetchedContacts);
       } catch (error) {
         console.error('Error fetching contacts:', error);
@@ -116,7 +112,7 @@ export default function Contacts() {
 
   const handleUpdateRating = async (contactId: string, newRating: number) => {
     try {
-      await dbProxy.updateDoc('contacts', contactId, { rating: newRating });
+      await UserRepository.update(contactId, { rating: newRating });
       setContacts(prev => prev.map(c => c.id === contactId ? { ...c, rating: newRating } : c));
       if (selectedContact && selectedContact.id === contactId) {
         setSelectedContact(prev => prev ? { ...prev, rating: newRating } : null);
@@ -157,7 +153,7 @@ export default function Contacts() {
         aiSummary: 'Awaiting interaction logs.'
       };
 
-      const result = await dbProxy.addDoc('contacts', payload);
+      const result = await UserRepository.create(crypto.randomUUID(), payload);
       const added: Contact = { id: result.id, ...payload };
 
       setContacts(prev => [added, ...prev]);
@@ -177,7 +173,7 @@ export default function Contacts() {
     if (type === 'followup') {
       text = `Subject: Sourcing Pipeline Follow-up - ${contact.company}\n\nHi ${firstName},\n\nI hope your week is off to a great start.\n\nFollowing up on our alignment conversation a couple of days ago regarding your open requirements. Our sourcing tracking currently holds some highly aligned tech profiles that scored excellently under our Trust framework validation.\n\nLet me know if you would have 5 minutes tomorrow afternoon to run a quick review.\n\nBest regards,\nGopal`;
     } else if (type === 'birthday') {
-      text = `Subject: Happy Birthday, ${firstName}! 🎉\n\nHi ${firstName},\n\nWishing you a fantastic birthday today! Hope you have an awesome celebration and a great year ahead.\n\nWarm regards,\nGopal & the HireNest OS Team`;
+      text = `Subject: Happy Birthday, ${firstName}! 🎉\n\nHi ${firstName},\n\nWishing you a fantastic birthday today! Hope you have an awesome celebration and a great year ahead.\n\nWarm regards,\nGopal & the Hirenest CRM Team`;
     } else {
       text = `Subject: Reconnecting - Sourcing updates - ${contact.company}\n\nHi ${firstName},\n\nIt has been a while since we last spoke. I noticed you've recently scaled some engineering requisitions.\n\nWe have updated our local talent pool with high-match candidates ready for fast deployment. Let me know if you are open to a brief alignment call.\n\nBest,\nGopal`;
     }

@@ -1,15 +1,14 @@
 import { submissionRepository } from "../repositories/SubmissionRepository";
 import { getAdminDb } from "../utils/firebaseAdmin";
 import * as crypto from "crypto";
-import { domainEventPublisher } from "../events/DomainEventPublisher";
 
 export class SubmissionService {
   async getById(id: string) {
-    return await submissionRepository.getById(id);
+    return await submissionRepository.findById(id);
   }
 
   async list() {
-    return await submissionRepository.list();
+    return await submissionRepository.findAll();
   }
 
   async create(data: any, performedBy: string = 'System') {
@@ -21,18 +20,7 @@ export class SubmissionService {
       updatedAt: new Date().toISOString(),
     };
 
-    const db = getAdminDb();
-    await db.runTransaction(async (transaction) => {
-      await submissionRepository.create(id, item, transaction);
-      
-      domainEventPublisher.publish({
-        eventType: "SUBMISSION_CREATED",
-        entityCollection: "submissions",
-        entityId: id,
-        metadata: { performedBy },
-        performedBy
-      }, transaction);
-    });
+    return await submissionRepository.create(item, performedBy);
 
     return item;
   }
@@ -40,33 +28,11 @@ export class SubmissionService {
   async update(id: string, updates: any, performedBy: string = 'System') {
     const cleanUpdates: any = { ...updates, updatedAt: new Date().toISOString() };
     
-    const db = getAdminDb();
-    await db.runTransaction(async (transaction) => {
-      await submissionRepository.update(id, cleanUpdates, transaction);
-      
-      domainEventPublisher.publish({
-        eventType: "SUBMISSION_UPDATED",
-        entityCollection: "submissions",
-        entityId: id,
-        metadata: { updates: Object.keys(updates), performedBy },
-        performedBy
-      }, transaction);
-    });
+    await submissionRepository.update(id, cleanUpdates, performedBy);
   }
 
   async delete(id: string, performedBy: string = 'System') {
-    const db = getAdminDb();
-    await db.runTransaction(async (transaction) => {
-      await submissionRepository.delete(id, transaction);
-      
-      domainEventPublisher.publish({
-        eventType: "SUBMISSION_DELETED",
-        entityCollection: "submissions",
-        entityId: id,
-        metadata: { performedBy },
-        performedBy
-      }, transaction);
-    });
+    await submissionRepository.archive(id, performedBy);
   }
 }
 

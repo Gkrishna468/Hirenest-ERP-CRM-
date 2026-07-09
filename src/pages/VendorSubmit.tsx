@@ -457,7 +457,7 @@ export default function VendorSubmit() {
               fileName: file.name,
               candidateName,
               status: "CONFLICT",
-              detail: "Ownership lock claimed by another partner vendor in HireNestOS.",
+              detail: "Ownership lock claimed by another partner vendor in Hirenest CRM.",
               sha256: simulatedSha256
             });
           } else {
@@ -646,7 +646,7 @@ export default function VendorSubmit() {
               fileName: file.name,
               candidateName,
               status: "CONFLICT",
-              detail: "Ownership lock claimed by another partner vendor in HireNestOS.",
+              detail: "Ownership lock claimed by another partner vendor in Hirenest CRM.",
               sha256: simulatedSha256
             });
           } else {
@@ -1180,7 +1180,7 @@ export default function VendorSubmit() {
                   <Database className="w-5 h-5 text-amber-500" /> Talent Pool Sourcing Strategy
                 </h3>
                 <p className="text-slate-300 text-xs leading-relaxed font-sans">
-                  The global Talent Pool allows partner vendors to register qualified candidates directly onto the HireNestOS ledger without tying them to a specific requirement.
+                  The global Talent Pool allows partner vendors to register qualified candidates directly onto the Hirenest CRM ledger without tying them to a specific requirement.
                 </p>
                 <div className="space-y-3 pt-2 font-sans text-xs text-slate-400">
                   <p className="flex items-start gap-2">

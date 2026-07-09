@@ -17,7 +17,7 @@ import { RequirementRepository } from "@/repositories/RequirementRepository";
 import { CandidateRepository } from "@/repositories/CandidateRepository";
 import { PricingRepository } from "@/repositories/PricingRepository";
 import { UserRepository } from "@/repositories/UserRepository";
-import { dbProxy } from "@/services/firebase/db-proxy";
+
 import type { Client, Vendor, Job, Candidate, AgentLog, Deal } from "@/types";
 
 interface DataContextType {
@@ -49,7 +49,7 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, apiFetch } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -97,10 +97,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     const fetchLogs = async () => {
       try {
-        const docs = await dbProxy.getDocs("agent_logs", {
-           orderBy: [{ field: 'createdAt', direction: 'desc' }],
-           limit: 50
-        });
+        const docs = await (await apiFetch('/api/system_events')).json();
         const logsList: AgentLog[] = docs.map((l: any) => ({
           id: l.id,
           type: l.type || "info",
@@ -143,13 +140,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     
     // Log event in Firestore Company Ledger
     const logId = crypto.randomUUID();
-    await dbProxy.setDoc("agent_logs", logId, {
+    await apiFetch('/api/system_events', { method: 'POST', body: JSON.stringify({ id: logId, 
       type: "client",
       level: "info",
       message: `Client "${data.company}" added to CRM ledger.`,
       createdAt: new Date().toISOString(),
       userId: user?.id || "system",
-    });
+    }) });
 
     await refreshAll();
   };
@@ -202,16 +199,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     // Log event in Firestore
     const logId = crypto.randomUUID();
-    await dbProxy.setDoc("agent_logs", logId, {
+    await apiFetch('/api/system_events', { method: 'POST', body: JSON.stringify({ id: logId, 
       type: "vendor",
       level: "info",
       message: `Vendor Partner "${data.name}" onboarded under permanent code ${vendorPayload.vendorCode}.`,
       createdAt: new Date().toISOString(),
       userId: user?.id || "system",
-    });
+    }) });
 
     // Law 1 Ledger Event
-    await dbProxy.setDoc("system_events", crypto.randomUUID(), {
+    await apiFetch('/api/system_events', { method: 'POST', body: JSON.stringify({ id: crypto.randomUUID(), 
       type: "VENDOR_CREATED",
       message: `Vendor Partner "${data.name}" onboarded under permanent code ${vendorPayload.vendorCode}.`,
       timestamp: new Date().toISOString(),
@@ -224,7 +221,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         organizationId: vendorPayload.organizationId,
         status: "active"
       }
-    });
+    }) });
 
     await refreshAll();
   };
@@ -246,13 +243,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     // Log event in Firestore
     const logId = crypto.randomUUID();
-    await dbProxy.setDoc("agent_logs", logId, {
+    await apiFetch('/api/system_events', { method: 'POST', body: JSON.stringify({ id: logId, 
       type: "job",
       level: "info",
       message: `Requisition "${data.title}" drafted and pending approval.`,
       createdAt: new Date().toISOString(),
       userId: user?.id || "system",
-    });
+    }) });
 
     await refreshAll();
   };
@@ -274,13 +271,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     // Log event in Firestore
     const logId = crypto.randomUUID();
-    await dbProxy.setDoc("agent_logs", logId, {
+    await apiFetch('/api/system_events', { method: 'POST', body: JSON.stringify({ id: logId, 
       type: "candidate",
       level: "info",
       message: `Candidate profile "${data.name}" ingested into core pool.`,
       createdAt: new Date().toISOString(),
       userId: user?.id || "system",
-    });
+    }) });
 
     await refreshAll();
   };
@@ -308,13 +305,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     // Log event in Firestore
     const logId = crypto.randomUUID();
-    await dbProxy.setDoc("agent_logs", logId, {
+    await apiFetch('/api/system_events', { method: 'POST', body: JSON.stringify({ id: logId, 
       type: "revenue",
       level: "success",
       message: `CFO approved requisition ID ${id} with target budget ₹${budget}.`,
       createdAt: new Date().toISOString(),
       userId: user?.id || "system",
-    });
+    }) });
 
     await refreshAll();
   };

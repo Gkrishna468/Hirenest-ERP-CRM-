@@ -1,4 +1,3 @@
-import { dbProxy } from '@/services/firebase/db-proxy';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 
 export const AgentRepository = {

@@ -431,7 +431,7 @@ export default function PublicApply() {
               <form onSubmit={handleCandidateSubmit} className="space-y-5 animate-in fade-in duration-300">
                 <div className="space-y-1">
                   <h3 className="text-base font-bold text-white tracking-tight">Direct Candidate Application</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">Apply directly to this requisition. Your profile is securely processed by HireNestOS.</p>
+                  <p className="text-xs text-slate-400 leading-relaxed">Apply directly to this requisition. Your profile is securely processed by Hirenest CRM.</p>
                 </div>
 
                 <div className="space-y-4">

@@ -146,7 +146,7 @@ export async function executeAITask(options: AILogOptions): Promise<string> {
 
   try {
     const token = await getAuthToken();
-    const response = await fetch('/api/ai?action=gateway-inference', {
+    const response = await fetch('/api/ai/gateway-inference', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -219,7 +219,7 @@ export async function executeAITaskWithSchema(options: AILogOptions & { response
 
   try {
     const token = await getAuthToken();
-    const response = await fetch('/api/ai?action=gateway-inference', {
+    const response = await fetch('/api/ai/gateway-inference', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

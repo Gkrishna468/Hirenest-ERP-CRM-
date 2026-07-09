@@ -91,7 +91,7 @@ export function Sidebar() {
           <Zap className="text-white w-5 h-5 fill-current drop-shadow-md" />
         </div>
         <h1 className="text-xl font-black text-slate-800 tracking-tight" style={{textShadow: '0 1px 1px white'}}>
-          HireNestOS
+          Hirenest CRM
         </h1>
       </div>
 

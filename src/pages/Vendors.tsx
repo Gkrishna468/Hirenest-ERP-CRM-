@@ -63,7 +63,7 @@ import { SourceBadge } from "@/components/SourceBadge";
 
 import { VendorRepository } from '@/repositories/VendorRepository';
 import { CandidateRepository } from '@/repositories/CandidateRepository';
-import { dbProxy } from '@/services/firebase/db-proxy';
+
 import { eventService } from '@/services/firebase/eventService';
 
 // Import our advanced modular sub-components
@@ -366,17 +366,17 @@ export default function Vendors() {
       };
 
       // Create Organization Document
-      await dbProxy.setDoc('organizations', vendorId, {
-        id: vendorId,
+      await apiFetch('/api/clients', { method: 'POST', body: JSON.stringify({ 
+        
         name: partnerForm.companyName,
         industry: 'IT Staffing & Consulting',
         gst: partnerForm.gst,
         pan: partnerForm.pan,
         createdAt: new Date().toISOString()
-      });
+      }) });
 
       // Create Vendor Document
-      await VendorRepository.create({ id: vendorId, ...payload });
+      await VendorRepository.create({  ...payload });
 
       // Add audit event to immutable Company Ledger
       await eventService.logEvent({
@@ -597,7 +597,7 @@ export default function Vendors() {
       setBulkResumes([...updated]);
       
       try {
-        const response = await apiFetch('/api/ai?action=parse-resume', {
+        const response = await apiFetch('/api/ai/parse-resume', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ resumeText: updated[i].text })
@@ -811,7 +811,7 @@ export default function Vendors() {
 
       // Log execution metadata to dedicated ingestion_executions collection
       try {
-        await dbProxy.addDoc('ingestion_executions', {
+        await apiFetch('/api/system/ingestion_executions', { method: 'POST', body: JSON.stringify({
           vendorId: selectedVendor?.id || 'UNKNOWN',
           userId: (user as any)?.uid || (user as any)?.id || user?.email || 'SYSTEM',
           timestamp: new Date().toISOString(),
@@ -823,7 +823,7 @@ export default function Vendors() {
           gatewayUsed: 'Ollama/AI Fallback',
           executionTimeMs: executionTime,
           traceId
-        });
+        }) });
       } catch (logErr) {
         console.error("Failed to write ingestion execution ledger log:", logErr);
       }

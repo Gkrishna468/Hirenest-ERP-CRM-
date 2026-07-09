@@ -4,11 +4,11 @@ import * as crypto from "crypto";
 
 export class RequirementService {
   async getById(id: string) {
-    return await requirementRepository.getById(id);
+    return await requirementRepository.findById(id);
   }
 
   async list() {
-    const list = await requirementRepository.list();
+    const list = await requirementRepository.findAll();
     return list.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   }
 
@@ -26,21 +26,7 @@ export class RequirementService {
       approvalStatus: data.approvalStatus || 'pending',
     };
 
-    const db = getAdminDb();
-    await db.runTransaction(async (transaction) => {
-      await requirementRepository.create(id, requirement, transaction);
-      
-      const eventRef = db.collection("system_events").doc();
-      transaction.set(eventRef, {
-        eventType: "REQUIREMENT_CREATED",
-        entityCollection: "requirements",
-        entityId: id,
-        metadata: { title: requirement.title, performedBy },
-        createdAt: new Date().toISOString()
-      });
-    });
-
-    return requirement;
+    return await requirementRepository.create(requirement, performedBy);
   }
 
   async update(id: string, updates: any, performedBy: string = 'System') {
@@ -55,35 +41,11 @@ export class RequirementService {
     if (updates.clientId !== undefined) cleanUpdates.client_id = updates.clientId;
     if (updates.clientName !== undefined) cleanUpdates.client_name = updates.clientName;
 
-    const db = getAdminDb();
-    await db.runTransaction(async (transaction) => {
-      await requirementRepository.update(id, cleanUpdates, transaction);
-      
-      const eventRef = db.collection("system_events").doc();
-      transaction.set(eventRef, {
-        eventType: "REQUIREMENT_UPDATED",
-        entityCollection: "requirements",
-        entityId: id,
-        metadata: { updates: Object.keys(updates), performedBy },
-        createdAt: new Date().toISOString()
-      });
-    });
+    await requirementRepository.update(id, cleanUpdates, performedBy);
   }
 
   async delete(id: string, performedBy: string = 'System') {
-    const db = getAdminDb();
-    await db.runTransaction(async (transaction) => {
-      await requirementRepository.delete(id, transaction);
-      
-      const eventRef = db.collection("system_events").doc();
-      transaction.set(eventRef, {
-        eventType: "REQUIREMENT_DELETED",
-        entityCollection: "requirements",
-        entityId: id,
-        metadata: { performedBy },
-        createdAt: new Date().toISOString()
-      });
-    });
+    await requirementRepository.archive(id, performedBy);
   }
 }
 

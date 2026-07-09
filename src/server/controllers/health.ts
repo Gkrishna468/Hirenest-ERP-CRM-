@@ -1,47 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { initializeApp, getApps, applicationDefault, cert } from "firebase-admin/app";
-import { getFirestore, Firestore } from "firebase-admin/firestore";
 import * as dotenv from "dotenv";
-dotenv.config();
 
-import * as fs from "fs";
-import * as path from "path";
-
-let db: Firestore | null = null;
-let adminApp: any = null;
-
-if (!getApps()?.length) {
-  try {
-    const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    const projectId = process.env.FIREBASE_PROJECT_ID || firebaseConfig.projectId;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-    if (projectId && clientEmail && privateKey) {
-      adminApp = initializeApp({
-        credential: cert({ projectId, clientEmail, privateKey }),
-      });
-    } else {
-      adminApp = initializeApp({
-        credential: applicationDefault(),
-        projectId: projectId,
-      });
-    }
-    db = getFirestore(adminApp);
-  } catch (error) {
-    console.error("Firebase initialization error", error);
-  }
-} else {
-  adminApp = getApps()[0];
-  try {
-    const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    db = getFirestore(adminApp);
-  } catch(err) {
-    db = getFirestore(adminApp);
-  }
-}
+import { getAdminApp, getAdminDb, getAdminAuthClient } from "../utils/firebaseAdmin";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const action = req.query.action || (req.body && req.body.action);
@@ -49,7 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!action) {
      return res.json({
         status: "ok",
-        service: "HireNestOS",
+        service: "Hirenest CRM",
         timestamp: new Date().toISOString()
      });
   }
@@ -75,12 +35,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'firebase':
       return await (async () => {
   try {
-    if (!db) {
+    if (!getAdminDb()) {
       return res.status(500).json({ error: 'Firestore Admin is not initialized', firebase: false });
     }
     
     // Just a simple read to verify connection
-    const healthDoc = await db.collection('system_health').doc('firebase_ping').get();
+    const healthDoc = await getAdminDb().collection('system_health').doc('firebase_ping').get();
     
     return res.status(200).json({ 
       firebase: true,
@@ -106,13 +66,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })();
     case 'inspect':
       return await (async () => {
-        if (!db) return res.status(500).json({ error: 'Firestore Admin is not initialized' });
+        if (!getAdminDb()) return res.status(500).json({ error: 'Firestore Admin is not initialized' });
         const collections = ["requirements", "jobs", "requirements_public", "requirements_private", "clients", "vendors", "candidates", "submissions"];
         const results: any = {};
         for (const col of collections) {
           try {
-            const snap = await db.collection(col).limit(5).get();
-            const countSnap = await db.collection(col).count().get();
+            const snap = await getAdminDb().collection(col).limit(5).get();
+            const countSnap = await getAdminDb().collection(col).count().get();
             results[col] = {
               count: countSnap.data().count,
               samples: snap.docs.map(d => ({ id: d.id, ...d.data() }))

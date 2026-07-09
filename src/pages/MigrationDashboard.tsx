@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { migrationService } from '@/services/firebase/migrationService';
 import { Activity, Database, CheckCircle2, AlertTriangle, RefreshCw, ShieldCheck, Zap, ShieldAlert } from 'lucide-react';
-import { dbProxy } from '@/services/firebase/db-proxy';
+
 
 interface Metric {
   id: string;
@@ -18,7 +18,7 @@ interface Metric {
 }
 
 export default function MigrationDashboard() {
-  const { user } = useAuth();
+  const { user, apiFetch } = useAuth();
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,10 +29,7 @@ export default function MigrationDashboard() {
   const fetchMetrics = async () => {
     setLoading(true);
     try {
-      const recentMetrics = await dbProxy.getDocs('migration_metrics', {
-        orderBy: [{ field: 'timestamp', direction: 'desc' }],
-        limit: 20
-      });
+      const recentMetrics = await (await apiFetch("/api/system/migration_metrics")).json();
       setMetrics(recentMetrics);
     } catch (error) {
       console.error('Failed to fetch migration metrics', error);
