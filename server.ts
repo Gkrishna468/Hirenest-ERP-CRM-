@@ -3,7 +3,7 @@ import { clientsRouter } from "./src/server/routers/clients";
 import { submissionsRouter } from "./src/server/routers/submissions";
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
+// import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 
 // Load environment variables
@@ -116,6 +116,7 @@ try {
 async function startServer() {
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
