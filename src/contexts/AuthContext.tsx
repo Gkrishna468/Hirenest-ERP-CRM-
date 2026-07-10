@@ -70,14 +70,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
              await firebaseUser.getIdToken(true);
           }
 
-          const profile = await UserRepository.getById(firebaseUser.uid);
-          if (profile) {
-            if (isExecRoot && profile.role !== 'admin') {
-              profile.role = 'admin';
-              await UserRepository.update(firebaseUser.uid, { role: 'admin' });
-            }
-            setUser(profile);
-          } else {
+          const response = await apiFetch('/api/auth/me');
+          if (response.ok) {
+            const data = await response.json();
+            setUser(data.user);
+            setWorkspaceContext(data.workspaceContext);
+          } else if (response.status === 404) {
             // Check if there is an unlinked pre-created profile by email
             const preCreatedProfile = firebaseUser.email ? await UserRepository.getByEmail(firebaseUser.email) : null;
             if (preCreatedProfile) {
@@ -93,7 +91,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               if (preCreatedProfile.id !== firebaseUser.uid) {
                 await UserRepository.delete(preCreatedProfile.id);
               }
-              setUser(claimedUser);
+              const meRes = await apiFetch('/api/auth/me');
+              if (meRes.ok) {
+                const meData = await meRes.json();
+                setUser(meData.user);
+                setWorkspaceContext(meData.workspaceContext);
+              } else {
+                setUser(claimedUser);
+              }
             } else {
               // Fallback: create default user document in Firestore if not exists
               const fallbackUser = await UserRepository.create(firebaseUser.uid, {
@@ -102,8 +107,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 role: isExecRoot ? 'admin' : 'viewer',
                 status: 'active',
               });
-              setUser(fallbackUser);
+              const meRes = await apiFetch('/api/auth/me');
+              if (meRes.ok) {
+                const meData = await meRes.json();
+                setUser(meData.user);
+                setWorkspaceContext(meData.workspaceContext);
+              } else {
+                setUser(fallbackUser);
+              }
             }
+          } else {
+            const isExecRoot = firebaseUser.uid === 'me995j91dmNkwfXXfaCyrDo8oa03' || firebaseUser.email === 'admin@hirenestworkforce.com';
+            setUser({
+              id: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              name: isExecRoot ? 'Gopal Krishna' : (firebaseUser.email?.split('@')[0] || 'User'),
+              role: isExecRoot ? 'admin' : 'viewer',
+              status: 'active',
+            });
+            setWorkspaceContext(null);
           }
         } catch (err) {
           console.error('Error resolving user profile:', err);
@@ -115,38 +137,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role: isExecRoot ? 'admin' : 'viewer',
             status: 'active',
           });
+          setWorkspaceContext(null);
         }
       } else {
         // Force re-login if Firebase session is missing to ensure Firestore works
         localStorage.removeItem('hirenest_exec_session');
-    localStorage.removeItem('fb_token');
+        localStorage.removeItem('fb_token');
         setUser(null);
+        setWorkspaceContext(null);
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
-
-  useEffect(() => {
-    if (user) {
-      apiFetch('/api/auth/workspace-context')
-        .then(async (res) => {
-          if (res.ok) {
-            const ctx = await res.json();
-            setWorkspaceContext(ctx);
-          } else {
-            setWorkspaceContext(null);
-          }
-        })
-        .catch((err) => {
-          console.error("Failed to fetch workspace context:", err);
-          setWorkspaceContext(null);
-        });
-    } else {
-      setWorkspaceContext(null);
-    }
-  }, [user]);
 
   const signIn = async (email: string, password: string) => {
     // Executive Bypass for GOPAL and Demo Admin

@@ -244,17 +244,9 @@ export default function Settings() {
         throw new Error(`A user profile with email ${emailLower} already exists.`);
       }
 
-      // Initialize secondary App instance to create Auth credentials without logging out Admin
-      const apps = getSecondaryApps();
-      const existing = apps.find(a => a.name === 'SecondaryProvisionApp');
-      if (existing) {
-        await deleteSecondaryApp(existing);
-      }
-      secondaryApp = initializeSecondaryApp(firebaseConfig, 'SecondaryProvisionApp');
-      const secondaryAuth = getSecondaryAuth(secondaryApp);
-      
-      const cred = await createSecondaryUserWithEmailAndPassword(secondaryAuth, emailLower, pwd);
-      const uid = cred.user.uid;
+      // We no longer create the Auth credentials client-side.
+      // The server will handle Firebase Auth creation to prevent INVALID_LOGIN_CREDENTIALS issues.
+      const uid = crypto.randomUUID();
 
       // Create profile in Firestore linked to the Auth UID
       await UserRepository.create(uid, {

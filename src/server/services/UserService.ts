@@ -22,6 +22,38 @@ export class UserService {
   }
 
   async create(data: any, performedBy: string = 'System') {
+    let authUid = data.id;
+
+    if (data.temporaryPassword) {
+      try {
+        const { getAdminAuthClient } = require("../utils/firebaseAdmin");
+        const adminAuth = getAdminAuthClient();
+        console.log(`[UserService] Creating Firebase Auth user for ${data.email}`);
+        const userRecord = await adminAuth.createUser({
+          email: data.email,
+          password: data.temporaryPassword,
+          displayName: data.name,
+        });
+        authUid = userRecord.uid;
+        data.id = authUid; // Use the Firebase Auth UID as the Firestore document ID
+      } catch (error: any) {
+        console.error(`[UserService] Error creating Firebase Auth user:`, error);
+        if (error.code === 'auth/email-already-exists') {
+          console.log(`[UserService] Firebase Auth user already exists, using email lookup`);
+          const { getAdminAuthClient } = require("../utils/firebaseAdmin");
+          const adminAuth = getAdminAuthClient();
+          const userRecord = await adminAuth.getUserByEmail(data.email);
+          authUid = userRecord.uid;
+          data.id = authUid;
+          if (data.temporaryPassword) {
+            await adminAuth.updateUser(authUid, { password: data.temporaryPassword });
+          }
+        } else {
+          throw error;
+        }
+      }
+    }
+
     const user = await userRepository.create(data, performedBy);
     
     // Publish USER_CREATED
@@ -51,7 +83,6 @@ export class UserService {
         payload: user
       });
     }
-
     return user;
   }
 

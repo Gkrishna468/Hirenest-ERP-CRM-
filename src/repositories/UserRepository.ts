@@ -127,8 +127,9 @@ export const UserRepository = {
       lastLogin: data.lastLogin || new Date().toISOString(),
     };
     try {
-      await apiFetch(`/api/users`, { method: 'POST', body: JSON.stringify(user) });
-      return user;
+      const res = await apiFetch(`/api/users`, { method: 'POST', body: JSON.stringify(user) });
+      const createdUser = await res.json();
+      return createdUser;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `users/${id}`);
       throw error;

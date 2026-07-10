@@ -7,7 +7,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   const p = req.path;
   
   // Allow health checks, webhooks, and token endpoints
-  if (p === '/health' || p === '/health/checks' || p === '/webhooks' || p === '/firebase-token' || p === '/db') {
+  if (p === '/health' || p === '/health/checks' || p === '/webhooks' || p === '/firebase-token' || p === '/db' || p === '/auth/google/callback') {
     return next();
   }
 

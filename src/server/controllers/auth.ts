@@ -67,7 +67,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const scopes = [
       'https://www.googleapis.com/auth/gmail.readonly',
-      'https://www.googleapis.com/auth/gmail.modify'
+      'https://www.googleapis.com/auth/gmail.modify',
+      'https://www.googleapis.com/auth/gmail.send',
+      'https://www.googleapis.com/auth/userinfo.email',
+      'openid'
     ];
 
     const url = oauth2Client.generateAuthUrl({
@@ -132,6 +135,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!emailAddress) throw new Error("Could not get email address");
 
+    if (emailAddress !== 'gopal@hirenestworkforce.com') {
+      return res.status(403).json({ error: 'Only corporate Gmail allowed.' });
+    }
+
     // Look up any existing connection for this user or email to find refresh token fallback
     let existingConnectionData: any = null;
     let connRef: any = null;
@@ -140,6 +147,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       throw new Error("Firestore db is not initialized. Cannot save Gmail connection.");
     }
 
+    // Save to system_integrations
+    await getAdminDb().collection('system_integrations').doc('gmail_connection').set({
+      email: emailAddress,
+      access_token: tokens.access_token || '',
+      refresh_token: tokens.refresh_token || existingConnectionData?.refresh_token || '',
+      expiry_date: tokens.expiry_date || null,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+
+    // Fallback: also maintain the existing gmail_connections collection if needed by other components
     if (userId && userId !== 'unknown') {
       const snapshot = await getAdminDb().collection('gmail_connections')
         .where('userId', '==', userId)

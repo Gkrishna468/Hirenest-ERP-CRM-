@@ -182,8 +182,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchIngestionData();
-    // Poll every 15s to keep real-time updates of the pipeline on active cockpit view
-    const interval = setInterval(fetchIngestionData, 15000);
+    // Poll every 45s to optimize client performance and keep updates stable
+    const interval = setInterval(fetchIngestionData, 45000);
     return () => clearInterval(interval);
   }, []);
 

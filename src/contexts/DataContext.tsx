@@ -140,7 +140,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     };
 
     fetchLogs();
-    const interval = setInterval(fetchLogs, 10000); // Poll every 10 seconds
+    const interval = setInterval(fetchLogs, 30000); // Poll every 30 seconds to reduce database pressure
 
     return () => clearInterval(interval);
   }, [user]);

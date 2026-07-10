@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import authHandler from '../controllers/auth';
+import { userService } from '../services/UserService';
 
 const router = Router();
 
@@ -8,6 +9,25 @@ router.get('/workspace-context', (req, res) => {
     return res.status(401).json({ error: "No active workspace context" });
   }
   res.status(200).json((req as any).workspaceContext);
+});
+
+router.get('/me', async (req: any, res: any) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const userProfile = await userService.getById(userId);
+    if (!userProfile) {
+      return res.status(404).json({ error: "User profile not found" });
+    }
+    res.status(200).json({
+      user: userProfile,
+      workspaceContext: req.workspaceContext
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.get('/google/url', async (req, res) => {
