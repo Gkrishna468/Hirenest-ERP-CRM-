@@ -28,23 +28,46 @@ export default async function handler(req: any, res: any) {
       
       const requirementTitle = reqRef.data()?.title || "Requirement";
 
-      // 2. Fetch active vendors
-      const vendorsQuery = await getAdminDb().collection("clients").where("isVendor", "==", true).get();
-      const vendors = vendorsQuery.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // 2. Fetch active vendors from canonical vendors collection with legacy fallback
+      let vendorsQuery = await getAdminDb().collection("vendors").get();
+      let vendors = vendorsQuery.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      // 3. For each vendor, create vendor_broadcasts entry
+      if (vendors.length === 0) {
+        const fallbackQuery = await getAdminDb().collection("clients").where("isVendor", "==", true).get();
+        vendors = fallbackQuery.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
+
+      // 3. For each vendor, create broadcast_deliveries and vendor_broadcasts entries
       const batch = getAdminDb().batch();
       let sentCount = 0;
 
       for (const vendor of vendors) {
+        // 1. RC-1/RC-2 compliant broadcast_deliveries record
+        const deliveryRef = getAdminDb().collection("broadcast_deliveries").doc();
+        batch.set(deliveryRef, {
+          id: deliveryRef.id,
+          broadcastId: `BRD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          requirementId,
+          requirementTitle,
+          vendorId: vendor.id,
+          vendorName: (vendor as any).name || (vendor as any).company || "",
+          channel: "whatsapp",
+          deliveryType: "WHATSAPP",
+          sentAt: new Date().toISOString(),
+          status: "sent",
+          source: "mailos"
+        });
+
+        // 2. Backward compatible vendor_broadcasts record
         const broadcastRef = getAdminDb().collection("vendor_broadcasts").doc();
         batch.set(broadcastRef, {
+          id: broadcastRef.id,
           broadcastId: `BRD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
           requirementId,
           requirementTitle,
           channel: "whatsapp",
           vendorId: vendor.id,
-          vendorName: (vendor as any).name || (vendor as any).company,
+          vendorName: (vendor as any).name || (vendor as any).company || "",
           sentAt: new Date().toISOString(),
           status: "sent",
           source: "mailos"

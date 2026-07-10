@@ -117,16 +117,40 @@ requirementsRouter.post("/:id/broadcast", async (req, res) => {
           }
         });
 
-        // Fetch active vendors
-        const vendorsQuery = await db.collection("clients").where("isVendor", "==", true).get();
-        const vendors = vendorsQuery.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Fetch active vendors from canonical vendors collection with legacy fallback
+        let vendorsQuery = await db.collection("vendors").get();
+        let vendors = vendorsQuery.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        if (vendors.length === 0) {
+          const fallbackQuery = await db.collection("clients").where("isVendor", "==", true).get();
+          vendors = fallbackQuery.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        }
 
         let sentCount = 0;
         const batch = db.batch();
 
         for (const vendor of vendors) {
+          // 1. RC-1/RC-2 compliant broadcast_deliveries record
+          const deliveryRef = db.collection("broadcast_deliveries").doc();
+          batch.set(deliveryRef, {
+            id: deliveryRef.id,
+            broadcastId: `BRD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            jobId: broadcastId,
+            requirementId: reqId,
+            requirementTitle: requirement.title || "Requirement",
+            vendorId: vendor.id,
+            vendorName: (vendor as any).name || (vendor as any).company || "",
+            channel: "portal",
+            deliveryType: "PORTAL",
+            sentAt: new Date().toISOString(),
+            status: "sent",
+            source: "crm_broadcast"
+          });
+
+          // 2. Backward compatible vendor_broadcasts record
           const broadcastRef = db.collection("vendor_broadcasts").doc();
           batch.set(broadcastRef, {
+            id: broadcastRef.id,
             broadcastId: `BRD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             requirementId: reqId,
             requirementTitle: requirement.title || "Requirement",
