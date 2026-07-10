@@ -9,7 +9,7 @@ import {
   Send, Brain, Compass, HelpCircle, Star, Sparkles, 
   Check, ChevronRight, CheckCircle2, XCircle, Search, 
   FileSignature, ChevronDown, Landmark, Trash2, ArrowRight
-} from "lucide-react";
+, Building2} from "lucide-react";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
 
