@@ -49,7 +49,11 @@ export default function VendorSubmit() {
   const [vendorPasswordInput, setVendorPasswordInput] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   
-  
+  const [vendorCodeInput, setVendorCodeInput] = useState('');
+  const [vendorSecretInput, setVendorSecretInput] = useState('');
+  const [otpStep, setOtpStep] = useState(false);
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [otpCodeInput, setOtpCodeInput] = useState('');
   
   const [otpChecking, setOtpChecking] = useState(false);
   const [matchingVendor, setMatchingVendor] = useState<any>(null);
