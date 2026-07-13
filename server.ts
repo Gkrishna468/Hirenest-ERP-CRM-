@@ -47,6 +47,10 @@ app.use((req, res, next) => {
   next();
 });
 
+// OpenAI compatibility endpoints (Goose, VS Code Extensions, etc.)
+app.use("/v1", openAIRouter);
+app.use("/api/v1", openAIRouter);
+
 // Use API Gateway Auth
 app.use("/api", requireAuth);
 
@@ -74,7 +78,6 @@ app.all("/api/webhooks", async (req, res) => {
 // 3. Auth Gateway
 app.use("/api/auth", authRouter);
     app.use("/api/ai", aiRouter);
-    app.use("/v1", openAIRouter);
     app.use("/api/gmail", gmailRouter);
 
 // 4. Gmail Gateway
