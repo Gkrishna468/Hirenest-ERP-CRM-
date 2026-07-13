@@ -58,8 +58,8 @@ async function authorizeGateway(req: Request, res: Response, next: any) {
   next();
 }
 
-// 1. GET /v1/models
-router.get("/models", authorizeGateway, (req: Request, res: Response) => {
+// 1. GET /v1/models (Unauthenticated for discovery/tools support)
+router.get("/models", (req: Request, res: Response) => {
   const availableModels = [
     {
       id: "gemini-2.5-pro",
