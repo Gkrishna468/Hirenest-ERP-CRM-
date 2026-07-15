@@ -876,6 +876,41 @@ async function runCloudAi(options: AISerializedOptions): Promise<string> {
   return response.text || "";
 }
 
+async function checkCostCapAndEnforce(): Promise<boolean> {
+  const db = getAdminDb();
+  if (!db) return false;
+
+  try {
+    const configDoc = await db.collection("system_config").doc("ai_governance").get();
+    const config = configDoc.exists ? configDoc.data() : null;
+    const limit = config ? parseFloat(config.costCapLimit || "10.00") : 10.00;
+
+    // Sum today's AI gateway costs from system_events
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const snapshot = await db.collection("system_events")
+      .where("type", "==", "AI_GATEWAY_INFERENCE")
+      .where("timestamp", ">=", today.toISOString())
+      .get();
+
+    let totalCost = 0;
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      if (d && d.data && d.data.estimatedCost) {
+        totalCost += parseFloat(d.data.estimatedCost);
+      }
+    });
+
+    if (totalCost >= limit) {
+      console.warn(`[AI Governance] Cost cap breached! Today's cost: $${totalCost.toFixed(4)}, Limit: $${limit.toFixed(4)}. Force routing to local/heuristic models.`);
+      return true;
+    }
+  } catch (err) {
+    console.warn("[AI Governance] Error checking cost cap limit:", err);
+  }
+  return false;
+}
+
 /**
  * 7. Unified Platform AI Ingress Layer Orchestrator (executeServerAITask)
  */
@@ -884,7 +919,13 @@ export async function executeServerAITask(options: AISerializedOptions): Promise
   const dbInstance = getAdminDb();
 
   // A. Determine Capability & Retrieve Prioritized Provider Chain
-  const providerChain = CapabilityRegistry.getProvidersForCapability(options.action);
+  let providerChain = CapabilityRegistry.getProvidersForCapability(options.action);
+
+  // Check and enforce Cost Cap limit budget
+  const isCostCapBreached = await checkCostCapAndEnforce();
+  if (isCostCapBreached) {
+    providerChain = ["ollama"]; // Enforce free local model
+  }
 
   // B. Resolve Prompt Registry Configuration & Apply Template
   let finalPrompt = options.prompt;

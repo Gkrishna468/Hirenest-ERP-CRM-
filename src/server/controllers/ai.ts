@@ -801,6 +801,67 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(500).json({ error: error.message });
         }
       })();
+    case 'get-governance':
+      return await (async () => {
+        if (req.method !== 'GET') {
+          return res.status(405).json({ error: 'Method Not Allowed' });
+        }
+        try {
+          const db = getAdminDb();
+          let config = {
+            law1Enforced: true,
+            law3Enforced: true,
+            costCapLimit: "10.00",
+            mfaForSensitiveTools: true,
+            routingStrategy: "balanced"
+          };
+          if (db) {
+            const doc = await db.collection("system_config").doc("ai_governance").get();
+            if (doc.exists) {
+              config = { ...config, ...doc.data() as any };
+            }
+          }
+          return res.status(200).json(config);
+        } catch (error: any) {
+          return res.status(500).json({ error: error.message });
+        }
+      })();
+    case 'update-governance':
+      return await (async () => {
+        if (req.method !== 'POST') {
+          return res.status(405).json({ error: 'Method Not Allowed' });
+        }
+        try {
+          const db = getAdminDb();
+          const { law1Enforced, law3Enforced, costCapLimit, mfaForSensitiveTools, routingStrategy } = req.body;
+          const config = {
+            law1Enforced: law1Enforced !== false,
+            law3Enforced: law3Enforced !== false,
+            costCapLimit: costCapLimit || "10.00",
+            mfaForSensitiveTools: mfaForSensitiveTools !== false,
+            routingStrategy: routingStrategy || "balanced",
+            updatedAt: new Date().toISOString()
+          };
+          if (db) {
+            await db.collection("system_config").doc("ai_governance").set(config, { merge: true });
+            
+            // Log this security/governance change to Immutable Company Ledger (Law 1)
+            await db.collection("system_events").add({
+              type: "GOVERNANCE_RULE_CHANGED",
+              message: `AI Governance console updated: Law 3 is now ${config.law3Enforced ? 'ACTIVE' : 'DISABLED'}, Daily Cost Limit set to $${config.costCapLimit}.`,
+              timestamp: new Date().toISOString(),
+              role: "administrator",
+              data: {
+                config,
+                updatedBy: "System Operator"
+              }
+            });
+          }
+          return res.status(200).json({ success: true, config });
+        } catch (error: any) {
+          return res.status(500).json({ error: error.message });
+        }
+      })();
     default:
       return res.status(400).json({ error: "Invalid action: " + action });
   }
