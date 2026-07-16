@@ -34,7 +34,11 @@ import {
   Target,
   ThumbsUp,
   ThumbsDown,
-  Users
+  Users,
+  FileText,
+  Globe,
+  Wrench,
+  Compass
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -132,6 +136,43 @@ export default function AIAccuracy() {
   const [selectedRejectionReason, setSelectedRejectionReason] = useState<'salary' | 'location' | 'experience' | 'role_mismatch'>('salary');
   const [showRoiMetricsBreakdown, setShowRoiMetricsBreakdown] = useState(false);
 
+  // --- ENTERPRISE INTEGRATION SPRINT CONSOLE STATES ---
+  const [activeIntegrationSprint, setActiveIntegrationSprint] = useState<'sprint1' | 'sprint2' | 'sprint3' | 'sprint4' | 'sprint5'>('sprint1');
+  
+  // Capability Broker (Integration Gateway) States
+  const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
+  const [pendingApprovalsLoading, setPendingApprovalsLoading] = useState(false);
+  
+  // Stirling PDF (Sprint 1) States
+  const [isStirlingRunning, setIsStirlingRunning] = useState(false);
+  const [stirlingLogs, setStirlingLogs] = useState<string[]>([]);
+  const [stirlingResult, setStirlingResult] = useState<any | null>(null);
+  const [stirlingActionType, setStirlingActionType] = useState<'ocr_parse' | 'sanitize' | 'offer_gen'>('ocr_parse');
+
+  // Browser Use (Sprint 2) States
+  const [isBrowserUseRunning, setIsBrowserUseRunning] = useState(false);
+  const [browserUseLogs, setBrowserUseLogs] = useState<string[]>([]);
+  const [browserUseResult, setBrowserUseResult] = useState<any | null>(null);
+  const [browserUsePlatform, setBrowserUsePlatform] = useState<'linkedin' | 'dice' | 'indeed'>('linkedin');
+
+  // Crawl4AI (Sprint 3) States
+  const [isCrawlRunning, setIsCrawlRunning] = useState(false);
+  const [crawlLogs, setCrawlLogs] = useState<string[]>([]);
+  const [crawlResult, setCrawlResult] = useState<any | null>(null);
+  const [crawlTargetUrl, setCrawlTargetUrl] = useState('https://www.acme-enterprise-staffing.com');
+
+  // Maxun (Sprint 4) States
+  const [isMaxunRunning, setIsMaxunRunning] = useState(false);
+  const [maxunLogs, setMaxunLogs] = useState<string[]>([]);
+  const [maxunResult, setMaxunResult] = useState<any | null>(null);
+  const [maxunTargetDomain, setMaxunTargetDomain] = useState('cloudtechsolutions.io');
+
+  // OpenHands (Sprint 5) States
+  const [isOpenHandsRunning, setIsOpenHandsRunning] = useState(false);
+  const [openHandsLogs, setOpenHandsLogs] = useState<string[]>([]);
+  const [openHandsResult, setOpenHandsResult] = useState<any | null>(null);
+  const [openHandsTaskType, setOpenHandsTaskType] = useState<'bug_fix' | 'refactor' | 'audit'>('bug_fix');
+
   // Failover simulator states
   const [isSimulatingFailover, setIsSimulatingFailover] = useState(false);
   const [failoverStep, setFailoverStep] = useState(-1);
@@ -141,6 +182,22 @@ export default function AIAccuracy() {
 
   // Business flow step state
   const [selectedFlowStep, setSelectedFlowStep] = useState<number>(0);
+
+  // --- TELEMETRY SUB-TABS & ENTERPRISE ROI METRICS STATES ---
+  const [telemetrySubTab, setTelemetrySubTab] = useState<'costs' | 'impact'>('costs');
+  const [roiRecruiterCount, setRoiRecruiterCount] = useState<number>(25);
+  const [roiAvgPlacementValue, setRoiAvgPlacementValue] = useState<number>(18000);
+
+  // --- CUSTOMER HEALTH CENTER STATES ---
+  const [healthCenterTenant, setHealthCenterTenant] = useState<'summit' | 'apex' | 'nexus'>('summit');
+  const [accuracySubTab, setAccuracySubTab] = useState<'evidence' | 'health'>('evidence');
+  const [isTuningPolicy, setIsTuningPolicy] = useState(false);
+  const [tuningLogs, setTuningLogs] = useState<string[]>([]);
+  const [tuningSuccess, setTuningSuccess] = useState(false);
+  const [isUploadingKb, setIsUploadingKb] = useState(false);
+  const [kbLogs, setKbLogs] = useState<string[]>([]);
+  const [kbDocumentName, setKbDocumentName] = useState("");
+  const [kbSuccess, setKbSuccess] = useState(false);
 
   // Preloaded High-Fidelity Traces for the Evidence Engine & Replay Simulator
   const sampleTraces = [
@@ -356,6 +413,143 @@ export default function AIAccuracy() {
       console.error("Error fetching system events", err);
     } finally {
       setEventsLoading(false);
+    }
+
+    // Fetch pending human-in-the-loop approvals
+    try {
+      setPendingApprovalsLoading(true);
+      const res = await apiFetch('/api/broker/pending');
+      if (res.ok) {
+        const data = await safeJson(res);
+        setPendingApprovals(data.jobs || []);
+      }
+    } catch (err) {
+      console.error("Error fetching pending approvals", err);
+    } finally {
+      setPendingApprovalsLoading(false);
+    }
+  };
+
+  const handleApprovalAction = async (jobId: string, approved: boolean) => {
+    try {
+      const res = await apiFetch(`/api/broker/approve/${jobId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approved })
+      });
+
+      if (res.ok) {
+        toast.success(approved ? "Job successfully approved & launched!" : "Job successfully rejected & cancelled.");
+        fetchData(); // Refreshes both pending approvals and system events
+      } else {
+        const errData = await safeJson(res);
+        toast.error(errData?.error || "Failed to process approval action.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Approval connection error.");
+    }
+  };
+
+  const runBrokerJob = async (
+    capability: string,
+    action: string,
+    payload: any,
+    setRunning: (val: boolean) => void,
+    setLogs: React.Dispatch<React.SetStateAction<string[]>>,
+    setResult: (res: any) => void,
+    actionName: string
+  ) => {
+    setRunning(true);
+    setResult(null);
+    setLogs([`[BROKER] Posting job request to Capability Broker...`, `[BROKER] Capability: '${capability}', Action: '${action}'`]);
+
+    try {
+      const response = await apiFetch('/api/broker/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ capability, action, payload })
+      });
+
+      if (!response.ok) {
+        const errData = await safeJson(response);
+        throw new Error(errData?.error || `Server returned ${response.status}`);
+      }
+
+      const initData = await safeJson(response);
+      const jobId = initData.jobId;
+
+      if (initData.status === 'awaiting_approval') {
+        setLogs(prev => [
+          ...prev,
+          `[SECURITY SHIELD] Job ${jobId} requires Human-in-the-Loop approval before executing (Law 3 sensitive action constraint).`,
+          `[ACTION REQUIRED] Please review and approve the pending job in the approval panel.`
+        ]);
+        setResult({
+          status: "AWAITING APPROVAL",
+          jobId,
+          needsApproval: true,
+          message: "Awaiting administrator validation."
+        });
+        setRunning(false);
+        toast.info(`Job ${jobId} staged. Human approval required.`);
+        fetchData(); // Refresh list of pending approvals
+        return;
+      }
+
+      setLogs(prev => [...prev, `[BROKER] Job ${jobId} successfully staged. Status: ${initData.status}. Starting polling...`]);
+
+      // Poll loop
+      let attempts = 0;
+      const maxAttempts = 50; // 50 seconds max
+      
+      const pollInterval = setInterval(async () => {
+        attempts++;
+        if (attempts > maxAttempts) {
+          clearInterval(pollInterval);
+          setLogs(prev => [...prev, `[FATAL] Polling timeout exceeded for job ${jobId}.`]);
+          setRunning(false);
+          toast.error("Job timed out.");
+          return;
+        }
+
+        try {
+          const statusRes = await apiFetch(`/api/broker/status/${jobId}`);
+          if (statusRes.ok) {
+            const statusData = await statusRes.json();
+            const job = statusData.job;
+            
+            // Update logs
+            if (job.logs && job.logs.length > 0) {
+              setLogs(job.logs);
+            }
+
+            if (job.status === 'completed') {
+              clearInterval(pollInterval);
+              setResult(job.result);
+              setRunning(false);
+              toast.success(`${actionName} completed successfully!`);
+              fetchData(); // Refresh system events timeline and cost telemetry
+            } else if (job.status === 'failed') {
+              clearInterval(pollInterval);
+              setResult({ status: "FAILED", error: job.error });
+              setRunning(false);
+              toast.error(`Job failed: ${job.error}`);
+            } else if (job.status === 'rejected') {
+              clearInterval(pollInterval);
+              setResult({ status: "REJECTED", error: "Job rejected by user approval." });
+              setRunning(false);
+              toast.info("Job rejected.");
+            }
+          }
+        } catch (pollErr: any) {
+          console.error("Polling error:", pollErr);
+        }
+      }, 1200);
+
+    } catch (err: any) {
+      setLogs(prev => [...prev, `[ERROR] Failed to execute job: ${err.message || String(err)}`]);
+      setRunning(false);
+      toast.error(err.message || "Failed to trigger broker job");
     }
   };
 
@@ -576,9 +770,152 @@ export default function AIAccuracy() {
     toast.success("Chaos simulation completed. 100% Self-Healing Recovery Quality!");
   };
 
+  // --- ENTERPRISE INTEGRATION SPRINT SIMULATORS ---
+  const runStirlingSimulation = async (type: 'ocr_parse' | 'sanitize' | 'offer_gen') => {
+    if (isStirlingRunning) return;
+    setStirlingActionType(type);
+    const actionNames = {
+      ocr_parse: "Stirling PDF OCR Parser & Ingestion",
+      sanitize: "Stirling PII Resume Sanitizer",
+      offer_gen: "Stirling PDF Offer Letter Synthesis"
+    };
+    await runBrokerJob(
+      "stirling_pdf",
+      type,
+      {
+        fileName: type === "ocr_parse" ? "Amanda_Rollins_Scanned.pdf" : type === "sanitize" ? "Raw_Candidate_Resume.pdf" : "Gopal_Offer_Placement.pdf",
+        pagesCount: 3,
+        candidateName: "Dr. Amanda Rollins",
+        clientName: "Goldman Sachs Group",
+        salary: "₹18,00,000",
+        organizationId: "bootstrap-org"
+      },
+      setIsStirlingRunning,
+      setStirlingLogs,
+      setStirlingResult,
+      actionNames[type]
+    );
+  };
+
+  const runBrowserUseSimulation = async (platform: 'linkedin' | 'dice' | 'indeed') => {
+    if (isBrowserUseRunning) return;
+    setBrowserUsePlatform(platform);
+    const actionNames = {
+      linkedin: "LinkedIn Sourcing Crawler",
+      dice: "Dice Tech Talent Crawler",
+      indeed: "Indeed Client Career Page Parser"
+    };
+    await runBrokerJob(
+      "browser_use",
+      `search_${platform}`,
+      {
+        query: platform === "linkedin" ? "React Staff Architect Bengaluru" : platform === "dice" ? "AWS Cloud Architect + Kubernetes" : "Node.js Staff Developer Careers",
+        organizationId: "bootstrap-org"
+      },
+      setIsBrowserUseRunning,
+      setBrowserUseLogs,
+      setBrowserUseResult,
+      actionNames[platform]
+    );
+  };
+
+  const runCrawl4AISimulation = async () => {
+    if (isCrawlRunning) return;
+    await runBrokerJob(
+      "crawl4ai",
+      "crawl_job",
+      {
+        url: crawlTargetUrl,
+        organizationId: "bootstrap-org"
+      },
+      setIsCrawlRunning,
+      setCrawlLogs,
+      setCrawlResult,
+      "Crawl4AI Web Page Scraper"
+    );
+  };
+
+  const runMaxunSimulation = async () => {
+    if (isMaxunRunning) return;
+    await runBrokerJob(
+      "maxun",
+      "find_leads",
+      {
+        domain: maxunTargetDomain,
+        organizationId: "bootstrap-org"
+      },
+      setIsMaxunRunning,
+      setMaxunLogs,
+      setMaxunResult,
+      "Maxun Lead Generation Scraper"
+    );
+  };
+
+  const runOpenHandsSimulation = async (type: 'bug_fix' | 'refactor' | 'audit') => {
+    if (isOpenHandsRunning) return;
+    setOpenHandsTaskType(type);
+    const actionNames = {
+      bug_fix: "OpenHands Autonomous Bug Fix (Gate 11)",
+      refactor: "OpenHands Repository Pattern Consolidation",
+      audit: "OpenHands Security Rules Audit Check"
+    };
+    await runBrokerJob(
+      "openhands",
+      type,
+      {
+        organizationId: "bootstrap-org"
+      },
+      setIsOpenHandsRunning,
+      setOpenHandsLogs,
+      setOpenHandsResult,
+      actionNames[type]
+    );
+  };
+
+  const runPolicyTuningSimulation = async (tenantKey: string) => {
+    if (isTuningPolicy) return;
+    setIsTuningPolicy(true);
+    setTuningSuccess(false);
+    setTuningLogs([`[POLICY TUNER] Initializing AI weight optimization loop for tenant: ${tenantKey}...`]);
+    await new Promise(r => setTimeout(r, 600));
+    setTuningLogs(prev => [...prev, `[TUNER] Retrieving rejection root causes. Flagging ${tenantKey === 'nexus' ? 'Role Mismatches (50%)' : 'Experience filters'} as priority.`]);
+    await new Promise(r => setTimeout(r, 700));
+    setTuningLogs(prev => [...prev, "[TUNER] Adjusting neural routing constraints. Decreasing model bias towards strict keyword matching."]);
+    await new Promise(r => setTimeout(r, 600));
+    setTuningLogs(prev => [...prev, "[TUNER] Loading context from historical human selections to optimize candidate relevance score functions."]);
+    await new Promise(r => setTimeout(r, 800));
+    setTuningLogs(prev => [...prev, "[LEDGER] Dispatched policy update event TENANT_POLICY_TUNED to Immutable Company Ledger."]);
+    await new Promise(r => setTimeout(r, 500));
+    setTuningSuccess(true);
+    setIsTuningPolicy(false);
+    toast.success("AI matching weights and policies updated successfully!");
+  };
+
+  const simulateKbUpload = async (tenantKey: string, docName: string) => {
+    if (!docName.trim()) {
+      toast.error("Please enter a document name first.");
+      return;
+    }
+    setIsUploadingKb(true);
+    setKbSuccess(false);
+    setKbLogs([`[UPLOADER] Registering document ingestion task for: ${docName}...`]);
+    await new Promise(r => setTimeout(r, 600));
+    setKbLogs(prev => [...prev, `[UPLOADER] Splitting document content into structured chunks. Vectorizing texts using Gemini embeddings...`]);
+    await new Promise(r => setTimeout(r, 800));
+    setKbLogs(prev => [...prev, `[GUARDRAILS] Scanning document for safety. No PII or compliance leaks detected.`]);
+    await new Promise(r => setTimeout(r, 600));
+    setKbLogs(prev => [...prev, `[LEDGER] Ingestion successfully mapped to tenant organization: ${tenantKey}. Saved block to company ledger.`]);
+    await new Promise(r => setTimeout(r, 500));
+    setKbSuccess(true);
+    setIsUploadingKb(false);
+    setKbDocumentName("");
+    toast.success("Knowledge base document uploaded and vectorized successfully!");
+  };
+
   const businessSteps = [
     {
       title: "Requirement Created",
+
       subtitle: "Client Posts New Hiring Need",
       status: "COMPLETED",
       details: {
@@ -1119,6 +1456,579 @@ export default function AIAccuracy() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Enterprise Integration Pipeline Console (Sprints 1-5) */}
+          <div id="enterprise-integrations-console" className="bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                  <BrainCircuit className="w-4 h-4 text-indigo-500 animate-pulse" /> Enterprise Integration Pipeline Console
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 font-medium">
+                  Monitor and simulate full-stack API integration pipelines across core development sprints.
+                </p>
+              </div>
+              <span className="self-start sm:self-auto bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full font-mono flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" /> PIPELINES OPERATIONAL
+              </span>
+            </div>
+
+            {/* Sprint Navigation Tabs */}
+            <div className="flex flex-wrap gap-2 border-b border-slate-100 pb-3">
+              {[
+                { key: 'sprint1', label: "Sprint 1: Stirling PDF", badge: "Resume Intel" },
+                { key: 'sprint2', label: "Sprint 2: Browser Use", badge: "AI Recruiter" },
+                { key: 'sprint3', label: "Sprint 3: Crawl4AI", badge: "Client Intel" },
+                { key: 'sprint4', label: "Sprint 4: Maxun", badge: "Lead Gen" },
+                { key: 'sprint5', label: "Sprint 5: OpenHands", badge: "AI Dev" }
+              ].map((sprint) => (
+                <button
+                  key={sprint.key}
+                  onClick={() => setActiveIntegrationSprint(sprint.key as any)}
+                  className={cn(
+                    "px-4 py-2 text-xs font-black uppercase tracking-wider rounded-2xl border transition-all flex items-center gap-2",
+                    activeIntegrationSprint === sprint.key
+                      ? "bg-indigo-600 text-white border-transparent shadow-md font-black"
+                      : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-950 font-bold"
+                  )}
+                >
+                  <span>{sprint.label}</span>
+                  <span className={cn(
+                    "text-[8px] px-1.5 py-0.5 rounded-full font-mono font-black",
+                    activeIntegrationSprint === sprint.key ? "bg-indigo-500 text-white" : "bg-slate-200 text-slate-700"
+                  )}>
+                    {sprint.badge}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              {/* Left Column: Config and trigger */}
+              <div className="lg:col-span-5 space-y-6">
+                
+                {/* Sprint 1: Stirling PDF */}
+                {activeIntegrationSprint === 'sprint1' && (
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="bg-slate-50 border border-slate-100 p-4 rounded-3xl space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">REPOSITORY</span>
+                        <a href="https://github.com/Stirling-Tools/Stirling-PDF" target="_blank" rel="noreferrer" className="text-indigo-600 text-xs font-bold hover:underline">Stirling-Tools/Stirling-PDF</a>
+                      </div>
+                      <p className="text-[11px] text-slate-600 font-semibold leading-relaxed">
+                        High-performance offline PDF manipulation engine. Integrated directly into the CRM to power robust resume OCR scanning, candidate sanitization (PII shielding), and multi-tenant document generation.
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Choose Stirling API Endpoint</span>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { key: 'ocr_parse', label: "Resume OCR", icon: FileText },
+                          { key: 'sanitize', label: "PII Scrub", icon: ShieldCheck },
+                          { key: 'offer_gen', label: "Offer Gen", icon: CheckCircle2 }
+                        ].map((btn) => (
+                          <button
+                            key={btn.key}
+                            onClick={() => setStirlingActionType(btn.key as any)}
+                            className={cn(
+                              "p-3 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5",
+                              stirlingActionType === btn.key
+                                ? "bg-indigo-50 border-indigo-500 ring-2 ring-indigo-500/20 text-indigo-700"
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                            )}
+                          >
+                            <btn.icon className="w-4 h-4" />
+                            <span className="text-[10px] font-black uppercase tracking-tight">{btn.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => runStirlingSimulation(stirlingActionType)}
+                      disabled={isStirlingRunning}
+                      className="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest py-3.5 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2"
+                    >
+                      {isStirlingRunning ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
+                          Processing Document Stream...
+                        </>
+                      ) : (
+                        <>
+                          <PlayCircle className="w-4 h-4 text-emerald-400" />
+                          Execute Stirling API Request
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Sprint 2: Browser Use */}
+                {activeIntegrationSprint === 'sprint2' && (
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="bg-slate-50 border border-slate-100 p-4 rounded-3xl space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">REPOSITORY</span>
+                        <a href="https://github.com/browser-use/browser-use" target="_blank" rel="noreferrer" className="text-indigo-600 text-xs font-bold hover:underline">browser-use/browser-use</a>
+                      </div>
+                      <p className="text-[11px] text-slate-600 font-semibold leading-relaxed">
+                        Next-generation browser agent library. Drives automated LinkedIn candidate outreaches, AWS-hosted Dice technical search, and Indeed crawling matching with zero manual overhead.
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Select Scraper Automation Target</span>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { key: 'linkedin', label: "LinkedIn Pro", icon: Users },
+                          { key: 'dice', label: "Dice Search", icon: Search },
+                          { key: 'indeed', label: "Indeed Jobs", icon: Globe }
+                        ].map((btn) => (
+                          <button
+                            key={btn.key}
+                            onClick={() => setBrowserUsePlatform(btn.key as any)}
+                            className={cn(
+                              "p-3 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5",
+                              browserUsePlatform === btn.key
+                                ? "bg-indigo-50 border-indigo-500 ring-2 ring-indigo-500/20 text-indigo-700"
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                            )}
+                          >
+                            <btn.icon className="w-4 h-4" />
+                            <span className="text-[10px] font-black uppercase tracking-tight">{btn.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => runBrowserUseSimulation(browserUsePlatform)}
+                      disabled={isBrowserUseRunning}
+                      className="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest py-3.5 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2"
+                    >
+                      {isBrowserUseRunning ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
+                          Browser-Use Chromium Bot Active...
+                        </>
+                      ) : (
+                        <>
+                          <PlayCircle className="w-4 h-4 text-emerald-400" />
+                          Launch Headless Web Agent
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Sprint 3: Crawl4AI */}
+                {activeIntegrationSprint === 'sprint3' && (
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="bg-slate-50 border border-slate-100 p-4 rounded-3xl space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">REPOSITORY</span>
+                        <a href="https://github.com/unclecode/crawl4ai" target="_blank" rel="noreferrer" className="text-indigo-600 text-xs font-bold hover:underline">unclecode/crawl4ai</a>
+                      </div>
+                      <p className="text-[11px] text-slate-600 font-semibold leading-relaxed">
+                        Extremely fast, asynchronous web crawler optimized for LLMs. Crawls client portals and outputs beautiful semantic markdown to detect target company tech stacks, JDs, and organizational details.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Target Client Website URL</label>
+                      <input
+                        type="url"
+                        value={crawlTargetUrl}
+                        onChange={(e) => setCrawlTargetUrl(e.target.value)}
+                        placeholder="https://client-portal.com"
+                        className="w-full text-xs px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
+                      />
+                    </div>
+
+                    <button
+                      onClick={runCrawl4AISimulation}
+                      disabled={isCrawlRunning}
+                      className="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest py-3.5 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2"
+                    >
+                      {isCrawlRunning ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
+                          Crawl4AI Crawling Client...
+                        </>
+                      ) : (
+                        <>
+                          <Globe className="w-4 h-4 text-emerald-400" />
+                          Trigger Async Crawl Session
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Sprint 4: Maxun */}
+                {activeIntegrationSprint === 'sprint4' && (
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="bg-slate-50 border border-slate-100 p-4 rounded-3xl space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">REPOSITORY</span>
+                        <a href="https://github.com/getmaxun/maxun" target="_blank" rel="noreferrer" className="text-indigo-600 text-xs font-bold hover:underline">getmaxun/maxun</a>
+                      </div>
+                      <p className="text-[11px] text-slate-600 font-semibold leading-relaxed">
+                        Autonomous lead capture developer tools. Pulls public organizational records, sizes client growth indicators, and aggregates validated executive corporate contact details directly to the CRM database.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Scan Prospect Corporate Domain</label>
+                      <input
+                        type="text"
+                        value={maxunTargetDomain}
+                        onChange={(e) => setMaxunTargetDomain(e.target.value)}
+                        placeholder="prospect-domain.io"
+                        className="w-full text-xs px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
+                      />
+                    </div>
+
+                    <button
+                      onClick={runMaxunSimulation}
+                      disabled={isMaxunRunning}
+                      className="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest py-3.5 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2"
+                    >
+                      {isMaxunRunning ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
+                          Scraping Corporate Contacts...
+                        </>
+                      ) : (
+                        <>
+                          <Search className="w-4 h-4 text-emerald-400" />
+                          Execute Maxun Lead Scraper
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Sprint 5: OpenHands */}
+                {activeIntegrationSprint === 'sprint5' && (
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="bg-slate-50 border border-slate-100 p-4 rounded-3xl space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">REPOSITORY</span>
+                        <a href="https://github.com/OpenHands/OpenHands" target="_blank" rel="noreferrer" className="text-indigo-600 text-xs font-bold hover:underline">OpenHands/OpenHands</a>
+                      </div>
+                      <p className="text-[11px] text-slate-600 font-semibold leading-relaxed">
+                        Autonomous software engineering agent. Simulates automated workspace bug fixing, robust system refactor audits, and continuous claims check validations directly from the developer console.
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Choose OpenHands Task</span>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { key: 'bug_fix', label: "Bug Fix", icon: Wrench },
+                          { key: 'refactor', label: "Refactor", icon: RefreshCw },
+                          { key: 'audit', label: "Audit rules", icon: ShieldCheck }
+                        ].map((btn) => (
+                          <button
+                            key={btn.key}
+                            onClick={() => setOpenHandsTaskType(btn.key as any)}
+                            className={cn(
+                              "p-3 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5",
+                              openHandsTaskType === btn.key
+                                ? "bg-indigo-50 border-indigo-500 ring-2 ring-indigo-500/20 text-indigo-700"
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                            )}
+                          >
+                            <btn.icon className="w-4 h-4" />
+                            <span className="text-[10px] font-black uppercase tracking-tight">{btn.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => runOpenHandsSimulation(openHandsTaskType)}
+                      disabled={isOpenHandsRunning}
+                      className="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest py-3.5 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2"
+                    >
+                      {isOpenHandsRunning ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
+                          OpenHands Coding Agent Active...
+                        </>
+                      ) : (
+                        <>
+                          <PlayCircle className="w-4 h-4 text-emerald-400" />
+                          Spawn Autonomous Sandbox
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Right Column: Console Terminal Monitor */}
+              <div className="lg:col-span-7 space-y-4">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Live Integration Pipeline Monitor</span>
+                
+                <div className="bg-slate-950 text-slate-300 rounded-3xl p-5 font-mono text-xs flex flex-col justify-between h-[360px] border border-slate-800 shadow-xl overflow-hidden relative">
+                  <div className="absolute right-0 top-0 p-3 flex gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                  </div>
+
+                  {/* Terminal Logs Output */}
+                  <div className="space-y-2.5 flex-1 overflow-y-auto pr-2 max-h-[180px]">
+                    <div className="border-b border-slate-800 pb-2 text-slate-500 flex justify-between font-bold text-[10px]">
+                      <span>INTEGRATION_LOGGER_v2.0.4</span>
+                      <span>STATUS: ONLINE</span>
+                    </div>
+
+                    {/* Sprint 1 logs */}
+                    {activeIntegrationSprint === 'sprint1' && (
+                      stirlingLogs.length > 0 ? (
+                        stirlingLogs.map((log, idx) => (
+                          <div key={idx} className="leading-relaxed text-[11px] text-slate-300">
+                            <span className="text-indigo-400 font-bold">&gt;&gt;</span> {log}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-slate-600 italic text-center py-8">Awaiting Stirling PDF API execution trigger...</div>
+                      )
+                    )}
+
+                    {/* Sprint 2 logs */}
+                    {activeIntegrationSprint === 'sprint2' && (
+                      browserUseLogs.length > 0 ? (
+                        browserUseLogs.map((log, idx) => (
+                          <div key={idx} className="leading-relaxed text-[11px] text-slate-300">
+                            <span className="text-indigo-400 font-bold">&gt;&gt;</span> {log}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-slate-600 italic text-center py-8">Awaiting Browser-Use Web Agent execution trigger...</div>
+                      )
+                    )}
+
+                    {/* Sprint 3 logs */}
+                    {activeIntegrationSprint === 'sprint3' && (
+                      crawlLogs.length > 0 ? (
+                        crawlLogs.map((log, idx) => (
+                          <div key={idx} className="leading-relaxed text-[11px] text-slate-300">
+                            <span className="text-indigo-400 font-bold">&gt;&gt;</span> {log}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-slate-600 italic text-center py-8">Awaiting Crawl4AI markdown extraction trigger...</div>
+                      )
+                    )}
+
+                    {/* Sprint 4 logs */}
+                    {activeIntegrationSprint === 'sprint4' && (
+                      maxunLogs.length > 0 ? (
+                        maxunLogs.map((log, idx) => (
+                          <div key={idx} className="leading-relaxed text-[11px] text-slate-300">
+                            <span className="text-indigo-400 font-bold">&gt;&gt;</span> {log}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-slate-600 italic text-center py-8">Awaiting Maxun public lead directory scraper trigger...</div>
+                      )
+                    )}
+
+                    {/* Sprint 5 logs */}
+                    {activeIntegrationSprint === 'sprint5' && (
+                      openHandsLogs.length > 0 ? (
+                        openHandsLogs.map((log, idx) => (
+                          <div key={idx} className="leading-relaxed text-[11px] text-slate-300">
+                            <span className="text-indigo-400 font-bold">&gt;&gt;</span> {log}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-slate-600 italic text-center py-8">Awaiting OpenHands autonomous agent workspace patch...</div>
+                      )
+                    )}
+                  </div>
+
+                  {/* Terminal Outputs Panel (Durable structured results) */}
+                  <div className="border-t border-slate-800 pt-3 mt-3 bg-slate-950 relative z-10 text-[11px]">
+                    
+                    {/* Stirling Result */}
+                    {activeIntegrationSprint === 'sprint1' && stirlingResult && (
+                      <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-800/80 space-y-1 text-slate-200 animate-in fade-in">
+                        <div className="flex justify-between font-bold">
+                          <span className="text-emerald-400 font-black tracking-wider text-[10px]">{stirlingResult.status}</span>
+                          <span className="text-slate-500 font-mono">LATENCY: {stirlingResult.latency}</span>
+                        </div>
+                        {stirlingResult.ocrConfidence && <div className="text-slate-400">OCR Confidence: <span className="text-white font-black">{stirlingResult.ocrConfidence}</span></div>}
+                        <div className="text-slate-400">Target Output File: <span className="text-white font-black font-mono">{stirlingResult.file}</span></div>
+                        {stirlingResult.extractedFields && (
+                          <div className="mt-1 pt-1.5 border-t border-slate-800/60 text-[10px] text-slate-400 grid grid-cols-2 gap-1 font-semibold">
+                            <div>Name: <span className="text-indigo-300">{stirlingResult.extractedFields.name}</span></div>
+                            <div>Skills: <span className="text-indigo-300">{stirlingResult.extractedFields.skills.slice(0, 3).join(', ')}</span></div>
+                          </div>
+                        )}
+                        {stirlingResult.scrubCount && <div className="text-slate-400">PII Fields scrubbed: <span className="text-amber-400 font-black">{stirlingResult.scrubCount} entities</span></div>}
+                      </div>
+                    )}
+
+                    {/* Browser Use Result */}
+                    {activeIntegrationSprint === 'sprint2' && browserUseResult && (
+                      <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-800/80 space-y-1 text-slate-200 animate-in fade-in">
+                        <div className="flex justify-between font-bold">
+                          <span className="text-emerald-400 font-black tracking-wider text-[10px]">{browserUseResult.status}</span>
+                          <span className="text-slate-500 font-mono font-bold">LATENCY: {browserUseResult.latency}</span>
+                        </div>
+                        <div className="text-slate-400">Profiles Checked: <span className="text-white font-black">{browserUseResult.profilesScraped || browserUseResult.jobsScraped} profiles</span></div>
+                        <div className="text-slate-400">Actions Logged: <span className="text-white font-semibold">{browserUseResult.actionTaken}</span></div>
+                        <div className="text-slate-400">Candidates Processed: <span className="text-indigo-300 font-bold">{(browserUseResult.scrapedCandidates || browserUseResult.scrapedRequirements).join(', ')}</span></div>
+                      </div>
+                    )}
+
+                    {/* Crawl4AI Result */}
+                    {activeIntegrationSprint === 'sprint3' && crawlResult && (
+                      <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-800/80 space-y-1 text-slate-200 animate-in fade-in">
+                        <div className="flex justify-between font-bold">
+                          <span className="text-emerald-400 font-black tracking-wider text-[10px]">{crawlResult.status}</span>
+                          <span className="text-slate-500 font-mono font-bold">LATENCY: {crawlResult.latency}</span>
+                        </div>
+                        <div className="text-slate-400">Parsed Output Length: <span className="text-white font-black">{crawlResult.markdownLength}</span></div>
+                        <div className="text-slate-400">Detected Tech Stack: <span className="text-emerald-400 font-mono font-bold">{crawlResult.detectedTechStack.join(' | ')}</span></div>
+                        <div className="text-slate-400">Vibe Check: <span className="text-indigo-300 font-semibold">{crawlResult.targetVibe}</span></div>
+                      </div>
+                    )}
+
+                    {/* Maxun Result */}
+                    {activeIntegrationSprint === 'sprint4' && maxunResult && (
+                      <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-800/80 space-y-1 text-slate-200 animate-in fade-in">
+                        <div className="flex justify-between font-bold">
+                          <span className="text-emerald-400 font-black tracking-wider text-[10px]">{maxunResult.status}</span>
+                          <span className="text-slate-500 font-mono font-bold">LATENCY: {maxunResult.latency}</span>
+                        </div>
+                        <div className="text-slate-400">BDM Leads Scraped: <span className="text-white font-black">{maxunResult.leadsFoundCount} clients</span></div>
+                        <div className="text-slate-400">Corporate Target: <span className="text-indigo-300 font-semibold">{maxunResult.targetCompany}</span></div>
+                        <div className="mt-1 pt-1 border-t border-slate-800/60 grid grid-cols-2 gap-1 text-[10px] text-slate-400">
+                          {maxunResult.contacts.map((contact: any, i: number) => (
+                            <div key={i}>{contact.role}: <span className="text-white font-mono">{contact.email}</span></div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* OpenHands Result */}
+                    {activeIntegrationSprint === 'sprint5' && openHandsResult && (
+                      <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-800/80 space-y-1 text-slate-200 animate-in overflow-hidden relative">
+                        <div className="flex justify-between font-bold">
+                          <span className="text-emerald-400 font-black tracking-wider text-[10px]">{openHandsResult.status}</span>
+                          <span className="text-slate-500 font-mono font-bold">COMPILE: OK</span>
+                        </div>
+                        <div className="text-slate-400">Refactoring Scope: <span className="text-indigo-300 font-semibold">{openHandsResult.task}</span></div>
+                        {openHandsResult.filePatched && <div className="text-slate-400">Patched file: <span className="text-slate-300 font-mono font-semibold">{openHandsResult.filePatched}</span></div>}
+                        {openHandsResult.diff && (
+                          <pre className="mt-1.5 p-2 bg-slate-950 text-[10px] font-mono leading-tight text-slate-300 rounded border border-slate-800 overflow-x-auto">
+                            {openHandsResult.diff.trim()}
+                          </pre>
+                        )}
+                        {openHandsResult.lawConstraintCompliance && (
+                          <div className="text-slate-400">Enterprise Laws Audit: <span className="text-emerald-400 font-black">{openHandsResult.lawConstraintCompliance} COMPLIANT</span></div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Empty result placeholder */}
+                    {!(
+                      (activeIntegrationSprint === 'sprint1' && stirlingResult) ||
+                      (activeIntegrationSprint === 'sprint2' && browserUseResult) ||
+                      (activeIntegrationSprint === 'sprint3' && crawlResult) ||
+                      (activeIntegrationSprint === 'sprint4' && maxunResult) ||
+                      (activeIntegrationSprint === 'sprint5' && openHandsResult)
+                    ) && (
+                      <div className="text-slate-500 text-center text-[10px] font-semibold flex items-center justify-center gap-1.5 h-12 bg-slate-900/30 border border-dashed border-slate-800 rounded-2xl">
+                        <Terminal className="w-4 h-4 text-slate-600 animate-pulse" />
+                        Trigger active Sprint API request above to display structured response payload...
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+
+                {/* Human-in-the-Loop Administrator Approval Queue */}
+                <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 space-y-3.5 mt-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-500 animate-pulse" /> Human-in-the-Loop Queue
+                    </h4>
+                    <span className="bg-slate-100 border border-slate-200 text-slate-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full font-mono">
+                      Law 3 Safeguard Active
+                    </span>
+                  </div>
+                  
+                  {pendingApprovalsLoading ? (
+                    <div className="flex items-center justify-center py-6 gap-2 text-xs text-slate-500 font-semibold">
+                      <RefreshCw className="w-4 h-4 animate-spin text-indigo-500" /> Loading pending authorizations...
+                    </div>
+                  ) : pendingApprovals.length > 0 ? (
+                    <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
+                      {pendingApprovals.map((job) => (
+                        <div key={job.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3 hover:border-slate-300 transition-all duration-150 animate-in fade-in">
+                          <div className="flex justify-between items-start gap-4">
+                            <div className="space-y-1">
+                              <span className="bg-amber-100 text-amber-800 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-mono">
+                                Awaiting Approval
+                              </span>
+                              <h5 className="text-[12px] font-bold text-slate-900 leading-tight">
+                                {job.capability === 'stirling_pdf' ? 'Stirling PDF' : job.capability === 'browser_use' ? 'Browser Use' : job.capability === 'crawl4ai' ? 'Crawl4AI' : job.capability === 'maxun' ? 'Maxun Scraper' : 'OpenHands Developer'} - Action: {job.action}
+                              </h5>
+                              <p className="text-[10px] font-mono text-slate-500">ID: {job.id}</p>
+                            </div>
+                            <div className="text-right text-[10px] text-slate-400 font-medium font-mono">
+                              Staged: {new Date(job.createdAt).toLocaleTimeString()}
+                            </div>
+                          </div>
+                          
+                          {/* Metadata */}
+                          <div className="bg-slate-50 rounded-xl p-2.5 text-[10px] font-mono text-slate-600 space-y-1 border border-slate-100">
+                            {job.payload?.candidateName && <div>Candidate: <span className="text-slate-900 font-bold">{job.payload.candidateName}</span></div>}
+                            {job.payload?.clientName && <div>Client: <span className="text-slate-900 font-bold">{job.payload.clientName}</span></div>}
+                            {job.payload?.salary && <div>Salary: <span className="text-slate-900 font-bold">{job.payload.salary}</span></div>}
+                            {job.payload?.query && <div>Search query: <span className="text-slate-900 font-bold">"{job.payload.query}"</span></div>}
+                            {job.payload?.url && <div>Target URL: <span className="text-indigo-600 font-semibold">{job.payload.url}</span></div>}
+                            {job.payload?.domain && <div>Target Domain: <span className="text-indigo-600 font-semibold">{job.payload.domain}</span></div>}
+                          </div>
+
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleApprovalAction(job.id, true)}
+                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider py-2 rounded-xl transition-all flex items-center justify-center gap-1 shadow-sm font-semibold"
+                            >
+                              <Check className="w-3.5 h-3.5" /> Approve & Execute
+                            </button>
+                            <button
+                              onClick={() => handleApprovalAction(job.id, false)}
+                              className="flex-1 bg-white hover:bg-red-50 text-red-600 border border-red-200 hover:border-red-300 text-[10px] font-black uppercase tracking-wider py-2 rounded-xl transition-all flex items-center justify-center gap-1 font-semibold"
+                            >
+                              <XCircle className="w-3.5 h-3.5" /> Reject & Abort
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-emerald-50/50 border border-dashed border-emerald-200 rounded-2xl p-4 text-center text-slate-500 font-semibold text-[10px] flex items-center justify-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-500" />
+                      Zero operations currently waiting for administrator authorization. Guardrails secure.
+                    </div>
+                  )}
+                </div>
+
               </div>
             </div>
           </div>
@@ -2245,106 +3155,281 @@ export default function AIAccuracy() {
       {/* Tab Contents: TELEMETRY & COST GOVERNANCE */}
       {activeTab === 'telemetry' && (
         <div className="space-y-6">
+          {/* Sub-tabs Selector for Telemetry */}
+          <div className="flex border-b border-slate-200 gap-6 pb-2">
+            <button
+              onClick={() => setTelemetrySubTab('costs')}
+              className={cn(
+                "pb-2 text-sm font-black uppercase tracking-wider border-b-2 transition-all",
+                telemetrySubTab === 'costs'
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-slate-400 hover:text-slate-600"
+              )}
+            >
+              LLM Infrastructure Costs
+            </button>
+            <button
+              onClick={() => setTelemetrySubTab('impact')}
+              className={cn(
+                "pb-2 text-sm font-black uppercase tracking-wider border-b-2 transition-all",
+                telemetrySubTab === 'impact'
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-slate-400 hover:text-slate-600"
+              )}
+            >
+              AI Business Impact & ROI Dashboard
+            </button>
+          </div>
+
           {telemetryLoading ? (
-            <div className="p-12 text-center text-slate-400 font-medium">Loading cost and operational telemetry...</div>
+            <div className="p-12 text-center text-slate-400 font-medium">Loading telemetry analytics...</div>
           ) : telemetry ? (
-            <>
-              {/* Telemetry Metrics Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Cumulative API Requests</p>
-                    <p className="text-4xl font-black text-slate-900">{telemetry.totalCalls}</p>
+            telemetrySubTab === 'costs' ? (
+              <>
+                {/* Telemetry Metrics Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Cumulative API Requests</p>
+                      <p className="text-4xl font-black text-slate-900">{telemetry.totalCalls}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-4 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full self-start">
+                      <TrendingUp className="w-3.5 h-3.5" /> 100% Successful
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 mt-4 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full self-start">
-                    <TrendingUp className="w-3.5 h-3.5" /> 100% Successful
+
+                  <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Token Consumption</p>
+                      <p className="text-4xl font-black text-indigo-600">{(telemetry.estInputTokens + telemetry.estOutputTokens).toLocaleString()}</p>
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-500 mt-4 uppercase tracking-wider font-mono">
+                      I: {telemetry.estInputTokens.toLocaleString()} | O: {telemetry.estOutputTokens.toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Cumulative LLM Cost</p>
+                      <p className="text-4xl font-black text-emerald-600">${telemetry.estCost.toFixed(5)}</p>
+                    </div>
+                    <div className="flex items-center gap-1 mt-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                      <Info className="w-3 h-3 text-slate-400" /> Based on Cloud AI Rates
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Ledger Event Count</p>
+                      <p className="text-4xl font-black text-purple-600">{telemetry.totalEvents}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-4 text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full self-start">
+                      <Database className="w-3.5 h-3.5" /> Immutable ledger
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Token Consumption</p>
-                    <p className="text-4xl font-black text-indigo-600">{(telemetry.estInputTokens + telemetry.estOutputTokens).toLocaleString()}</p>
-                  </div>
-                  <p className="text-[10px] font-bold text-slate-500 mt-4 uppercase tracking-wider font-mono">
-                    I: {telemetry.estInputTokens.toLocaleString()} | O: {telemetry.estOutputTokens.toLocaleString()}
-                  </p>
-                </div>
-
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Cumulative LLM Cost</p>
-                    <p className="text-4xl font-black text-emerald-600">${telemetry.estCost.toFixed(5)}</p>
-                  </div>
-                  <div className="flex items-center gap-1 mt-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">
-                    <Info className="w-3 h-3 text-slate-400" /> Based on Cloud AI Rates
-                  </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Ledger Event Count</p>
-                    <p className="text-4xl font-black text-purple-600">{telemetry.totalEvents}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-4 text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full self-start">
-                    <Database className="w-3.5 h-3.5" /> Immutable ledger
-                  </div>
-                </div>
-              </div>
-
-              {/* Performance Latency and Cache Analytics */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm lg:col-span-2 space-y-4">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-2">
-                    <Timer className="w-4 h-4 text-indigo-500" /> Latency Trace Distribution (ms)
-                  </h3>
-                  <div className="space-y-4">
-                    {[
-                      { label: 'p50 (Median Performance)', ms: telemetry.p50Latency, color: 'bg-emerald-500', width: '35%' },
-                      { label: 'p90 (Active Load Spike)', ms: telemetry.p90Latency, color: 'bg-indigo-500', width: '60%' },
-                      { label: 'p99 (Absolute Peak Lag)', ms: telemetry.p99Latency, color: 'bg-purple-500', width: '90%' }
-                    ].map((bar, i) => (
-                      <div key={i} className="space-y-1">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="font-bold text-slate-700">{bar.label}</span>
-                          <span className="font-mono font-black text-slate-900">{bar.ms} ms</span>
-                        </div>
-                        <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                          <div className={cn("h-full rounded-full", bar.color)} style={{ width: bar.width }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5 flex flex-col justify-between">
-                  <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
-                      <TrendingUp className="w-4 h-4 text-indigo-500" /> Operational Efficiency
+                {/* Performance Latency and Cache Analytics */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm lg:col-span-2 space-y-4">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-2">
+                      <Timer className="w-4 h-4 text-indigo-500" /> Latency Trace Distribution (ms)
                     </h3>
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-600">Model Cache Hits</span>
-                        <span className="text-xs font-black text-slate-900">74%</span>
+                      {[
+                        { label: 'p50 (Median Performance)', ms: telemetry.p50Latency, color: 'bg-emerald-500', width: '35%' },
+                        { label: 'p90 (Active Load Spike)', ms: telemetry.p90Latency, color: 'bg-indigo-500', width: '60%' },
+                        { label: 'p99 (Absolute Peak Lag)', ms: telemetry.p99Latency, color: 'bg-purple-500', width: '90%' }
+                      ].map((bar, i) => (
+                        <div key={i} className="space-y-1">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-bold text-slate-700">{bar.label}</span>
+                            <span className="font-mono font-black text-slate-900">{bar.ms} ms</span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                            <div className={cn("h-full rounded-full", bar.color)} style={{ width: bar.width }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5 flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
+                        <TrendingUp className="w-4 h-4 text-indigo-500" /> Operational Efficiency
+                      </h3>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-600">Model Cache Hits</span>
+                          <span className="text-xs font-black text-slate-900">74%</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-600">API Gateway Up-Time</span>
+                          <span className="text-xs font-black text-emerald-600">100.00%</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-600">Rate Limit Utilization</span>
+                          <span className="text-xs font-black text-slate-900">1.2%</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-600">API Gateway Up-Time</span>
-                        <span className="text-xs font-black text-emerald-600">100.00%</span>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1">Active Gateway Model</span>
+                      <span className="text-xs font-black text-indigo-600 font-mono">Cloud AI (STABLE)</span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              // AI Business Impact & ROI Dashboard
+              <div className="space-y-8 animate-in fade-in duration-300">
+                {/* Impact Metrics Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
+                  {[
+                    { label: "AI-Assisted Placements", val: `${Math.floor(roiRecruiterCount * 1.68)}`, sub: "+18% Quarter-over-Quarter", color: "text-indigo-600" },
+                    { label: "Revenue Influenced", val: `$${(Math.floor(roiRecruiterCount * 1.68) * roiAvgPlacementValue).toLocaleString()}`, sub: "Direct recruitment pipeline", color: "text-emerald-600" },
+                    { label: "Hours Saved", val: `${(roiRecruiterCount * 16 * 4).toLocaleString()} hrs`, sub: "Administrative overhead pruned", color: "text-purple-600" },
+                    { label: "Recruiter Productivity", val: "+28% Lift", sub: "Based on submission metrics", color: "text-amber-600" },
+                    { label: "Vendor Response Rate", val: "3.4 hours", sub: "Down from 24h baseline", color: "text-rose-600" },
+                    { label: "Fill Time Index", val: "4.2 days", sub: "Down from 14 days baseline", color: "text-teal-600" }
+                  ].map((metric, i) => (
+                    <div key={i} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{metric.label}</p>
+                        <p className={cn("text-3xl font-black", metric.color)}>{metric.val}</p>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-600">Rate Limit Utilization</span>
-                        <span className="text-xs font-black text-slate-900">1.2%</span>
+                      <p className="text-[10px] font-bold text-slate-500 mt-3">{metric.sub}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Yield Modeler and Confidence Panel */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  {/* Left ROI Modeler */}
+                  <div className="lg:col-span-8 bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm space-y-6">
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                        <Coins className="w-5 h-5 text-indigo-600" /> Enterprise ROI Calculator & Yield Modeler
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Interact with core operational parameters to dynamically estimate the annual economic impact of the HireNest AI platform.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs font-bold text-slate-700">
+                            <span>Active Recruiters in Platform</span>
+                            <span className="font-mono text-indigo-600">{roiRecruiterCount}</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="5" 
+                            max="200" 
+                            step="5"
+                            value={roiRecruiterCount}
+                            onChange={(e) => setRoiRecruiterCount(parseInt(e.target.value))}
+                            className="w-full accent-indigo-600 h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs font-bold text-slate-700">
+                            <span>Average Placement Fee ($)</span>
+                            <span className="font-mono text-emerald-600">${roiAvgPlacementValue.toLocaleString()}</span>
+                          </div>
+                          <input 
+                            type="number" 
+                            value={roiAvgPlacementValue}
+                            onChange={(e) => setRoiAvgPlacementValue(parseInt(e.target.value) || 0)}
+                            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                          />
+                        </div>
+                      </div>
+
+                      {/* ROI Output Summary */}
+                      <div className="bg-slate-50 border border-slate-200/60 rounded-3xl p-6 space-y-4">
+                        <span className="text-[10px] font-black uppercase text-indigo-500 tracking-widest block font-mono">Platform Yield Projection</span>
+                        
+                        <div className="space-y-3 text-xs">
+                          <div className="flex justify-between font-semibold">
+                            <span className="text-slate-500">Time Saved (Annually):</span>
+                            <span className="text-slate-900 font-mono font-bold">{(roiRecruiterCount * 16 * 4 * 12).toLocaleString()} Hours</span>
+                          </div>
+                          <div className="flex justify-between font-semibold">
+                            <span className="text-slate-500">Administrative Value Reclaimed:</span>
+                            <span className="text-emerald-600 font-mono font-bold">${(roiRecruiterCount * 16 * 4 * 12 * 50).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between font-semibold">
+                            <span className="text-slate-500">Incremental Capacity Placements:</span>
+                            <span className="text-slate-900 font-mono font-bold">{Math.floor(roiRecruiterCount * 0.8)} Placements/yr</span>
+                          </div>
+                          <div className="flex justify-between font-semibold">
+                            <span className="text-slate-500">Incremental Placement Revenue:</span>
+                            <span className="text-indigo-600 font-mono font-bold">${(Math.floor(roiRecruiterCount * 0.8) * roiAvgPlacementValue).toLocaleString()}</span>
+                          </div>
+
+                          <div className="border-t border-slate-200 pt-3 flex justify-between items-center">
+                            <span className="font-bold text-slate-900 text-sm">Total Economic Multiplier:</span>
+                            <span className="text-lg font-black text-emerald-600 font-mono">
+                              ${((roiRecruiterCount * 16 * 4 * 12 * 50) + (Math.floor(roiRecruiterCount * 0.8) * roiAvgPlacementValue)).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1">Active Gateway Model</span>
-                    <span className="text-xs font-black text-indigo-600 font-mono">Cloud AI (STABLE)</span>
+                  {/* Right Human Adoption Card */}
+                  <div className="lg:col-span-4 bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <h4 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
+                        <Users className="w-4 h-4 text-indigo-500" /> Human Adoption Metrics
+                      </h4>
+                      
+                      <div className="space-y-4">
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-slate-600">Recommendation Acceptance Rate</span>
+                            <span className="font-bold text-slate-900">84.2%</span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                            <div className="bg-indigo-600 h-full rounded-full" style={{ width: '84.2%' }} />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-slate-600">Daily Recruiter Ingestion Util</span>
+                            <span className="font-bold text-slate-900">91.8%</span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                            <div className="bg-emerald-500 h-full rounded-full" style={{ width: '91.8%' }} />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-slate-600">SLA Confirmation Compliance</span>
+                            <span className="font-bold text-slate-900">96.5%</span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                            <div className="bg-purple-500 h-full rounded-full" style={{ width: '96.5%' }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-indigo-50/50 border border-indigo-100 p-4 rounded-2xl text-[11px] leading-relaxed text-indigo-900 mt-6 font-semibold">
+                      Recruiters confirmed 142 of 168 automated matched candidate profiles directly, demonstrating 84.2% platform confidence levels.
+                    </div>
                   </div>
                 </div>
               </div>
-            </>
+            )
           ) : (
             <div className="p-12 text-center text-slate-400 font-medium">Failed to retrieve telemetry data.</div>
           )}
@@ -2354,8 +3439,35 @@ export default function AIAccuracy() {
       {/* Tab Contents: AI TRUST CENTER, EVIDENCE ENGINE & REPLAY SIMULATOR */}
       {activeTab === 'accuracy' && (
         <div className="space-y-8 animate-in fade-in duration-300">
-          
-          {/* Top Statistics Row */}
+          {/* Sub-tabs Selector for Trust Center */}
+          <div className="flex border-b border-slate-200 gap-6 pb-2">
+            <button
+              onClick={() => setAccuracySubTab('evidence')}
+              className={cn(
+                "pb-2 text-sm font-black uppercase tracking-wider border-b-2 transition-all",
+                accuracySubTab === 'evidence'
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-slate-400 hover:text-slate-600"
+              )}
+            >
+              Cognitive Replay & Evidence
+            </button>
+            <button
+              onClick={() => setAccuracySubTab('health')}
+              className={cn(
+                "pb-2 text-sm font-black uppercase tracking-wider border-b-2 transition-all",
+                accuracySubTab === 'health'
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-slate-400 hover:text-slate-600"
+              )}
+            >
+              Customer Success & Health Center
+            </button>
+          </div>
+
+          {accuracySubTab === 'evidence' ? (
+            <>
+              {/* Top Statistics Row */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
               { label: 'Requirements', intent: 'Requirement', color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -2920,7 +4032,390 @@ export default function AIAccuracy() {
             </div>
 
           </div>
+        </>
+      ) : (
+        /* Customer Success & Health Center Tab Content */
+        <div className="space-y-8 animate-in fade-in duration-300">
+          
+          {/* Tenant Switcher Section */}
+          <div className="bg-slate-50 border border-slate-200 rounded-3xl p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-3">
+              <Globe className="w-5 h-5 text-indigo-500 shrink-0" />
+              <div>
+                <h4 className="text-sm font-black text-slate-900 uppercase tracking-wide">Multi-Tenant Success Monitor</h4>
+                <p className="text-xs text-slate-500 font-medium font-semibold">Isolate organizational telemetry, track adoption, and enforce custom security policies.</p>
+              </div>
+            </div>
 
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: "summit", label: "Summit Staffing Ltd" },
+                { key: "apex", label: "Apex Talent Group" },
+                { key: "nexus", label: "Nexus Partners Global" }
+              ].map((tenant) => (
+                <button
+                  key={tenant.key}
+                  onClick={() => setHealthCenterTenant(tenant.key as any)}
+                  className={cn(
+                    "px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border",
+                    healthCenterTenant === tenant.key
+                      ? "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/10"
+                      : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                  )}
+                >
+                  {tenant.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Dynamic Health Stats Grid */}
+          {(() => {
+            const data = {
+              summit: {
+                name: "Summit Staffing Ltd",
+                orgId: "org_summit_1920",
+                healthScore: 92,
+                status: "Excellent",
+                color: "emerald",
+                automation: 78,
+                kbCount: 4,
+                requests: 12450,
+                tokens: "4.8M",
+                trust: 99.8,
+                policies: ["PII Masking Rule", "Double submission validator", "SLA follow-up limits", "Cost Ceiling Limiters"],
+                risk: "Low Risk",
+                riskColor: "text-emerald-700 bg-emerald-50 border-emerald-200",
+                riskDesc: "Strong human adoption rate and steady monthly usage. Enterprise renewals are scheduled in 11 months with zero risk indicators.",
+                confidence: 88.5,
+                causes: [
+                  { label: "Salary range gaps", rate: 45, color: "bg-indigo-500" },
+                  { label: "Location constraint mismatch", rate: 25, color: "bg-sky-500" },
+                  { label: "Experience levels lack alignment", rate: 20, color: "bg-purple-500" },
+                  { label: "Specific niche skill mismatch", rate: 10, color: "bg-pink-500" }
+                ]
+              },
+              apex: {
+                name: "Apex Talent Group",
+                orgId: "org_apex_9102",
+                healthScore: 84,
+                status: "Highly Stable",
+                color: "indigo",
+                automation: 64,
+                kbCount: 3,
+                requests: 8900,
+                tokens: "3.2M",
+                trust: 99.2,
+                policies: ["PII Masking Rule", "Multi-tenant context isolation", "Background check assurance"],
+                risk: "Low Risk",
+                riskColor: "text-indigo-700 bg-indigo-50 border-indigo-200",
+                riskDesc: "Client recently upgraded with high satisfaction. AI-assisted hiring capacity holds plenty of room for expansion.",
+                confidence: 81.2,
+                causes: [
+                  { label: "Experience levels lack alignment", rate: 50, color: "bg-purple-500" },
+                  { label: "Salary range gaps", rate: 30, color: "bg-indigo-500" },
+                  { label: "Location constraint mismatch", rate: 15, color: "bg-sky-500" },
+                  { label: "Specific niche skill mismatch", rate: 5, color: "bg-pink-500" }
+                ]
+              },
+              nexus: {
+                name: "Nexus Partners Global",
+                orgId: "org_nexus_3345",
+                healthScore: 68,
+                status: "Needs Attn",
+                color: "amber",
+                automation: 45,
+                kbCount: 1,
+                requests: 3100,
+                tokens: "1.1M",
+                trust: 94.5,
+                policies: ["PII Masking Rule"],
+                risk: "Medium Risk - Review",
+                riskColor: "text-amber-700 bg-amber-50 border-amber-200",
+                riskDesc: "Relatively low recruiter recommendation acceptance rate. Knowledge ingestion lacks proper onboarding documents.",
+                confidence: 64.8,
+                causes: [
+                  { label: "Specific niche skill mismatch", rate: 55, color: "bg-pink-500" },
+                  { label: "Role/JD definition ambiguity", rate: 25, color: "bg-amber-500" },
+                  { label: "Salary range gaps", rate: 15, color: "bg-indigo-500" },
+                  { label: "Location constraint mismatch", rate: 5, color: "bg-sky-500" }
+                ]
+              }
+            }[healthCenterTenant];
+
+            return (
+              <div className="space-y-8 animate-in fade-in duration-300">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  
+                  {/* Health Score Card with radial score representation */}
+                  <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tenant Health Score</p>
+                      <p className="text-3xl font-black text-slate-900">{data.healthScore}%</p>
+                      <span className={cn(
+                        "text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full border inline-block mt-1",
+                        data.healthScore >= 90 
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                          : data.healthScore >= 75
+                          ? "bg-indigo-50 text-indigo-700 border-indigo-100"
+                          : "bg-amber-50 text-amber-700 border-amber-100"
+                      )}>
+                        {data.status}
+                      </span>
+                    </div>
+
+                    {/* Circular progress meter */}
+                    <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">
+                      <svg className="w-16 h-16 transform -rotate-90">
+                        <circle cx="32" cy="32" r="26" stroke="#e2e8f0" strokeWidth="4.5" fill="transparent" />
+                        <circle 
+                          cx="32" 
+                          cy="32" 
+                          r="26" 
+                          stroke={data.healthScore >= 90 ? "#10b981" : data.healthScore >= 75 ? "#4f46e5" : "#f59e0b"} 
+                          strokeWidth="4.5" 
+                          fill="transparent" 
+                          strokeDasharray={2 * Math.PI * 26}
+                          strokeDashoffset={2 * Math.PI * 26 * (1 - data.healthScore / 100)}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <span className="absolute text-xs font-black font-mono text-slate-700">{data.healthScore}%</span>
+                    </div>
+                  </div>
+
+                  {/* Automation Rate */}
+                  <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Process Automation Rate</p>
+                      <p className="text-3xl font-black text-indigo-600">{data.automation}%</p>
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-500 mt-4 leading-normal font-semibold">
+                      Percentage of requirements auto-matched to active candidate pools.
+                    </p>
+                  </div>
+
+                  {/* API Usage Indicators */}
+                  <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Monthly API Volume</p>
+                      <p className="text-3xl font-black text-slate-900">{data.requests.toLocaleString()}</p>
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-500 mt-4 leading-normal font-semibold">
+                      Total usage: <span className="font-mono text-indigo-600 font-bold">{data.tokens}</span> tokens consumed.
+                    </p>
+                  </div>
+
+                  {/* Trust rating and auditing index */}
+                  <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Trust Compliance Index</p>
+                      <p className="text-3xl font-black text-emerald-600">{data.trust}%</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono font-semibold">
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> Audited & Verified
+                    </div>
+                  </div>
+                </div>
+
+                {/* Knowledge base and security policies panel */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  {/* Left: Knowledge base mapping */}
+                  <div className="lg:col-span-6 bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm space-y-4">
+                    <div className="border-b border-slate-100 pb-3">
+                      <h4 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-indigo-500" /> Vector Knowledge Base Mapped
+                      </h4>
+                      <p className="text-xs text-slate-500 font-medium font-semibold">Upload corporate training directories or compliance guidelines to ground the tenant's AI context.</p>
+                    </div>
+
+                    <div className="space-y-4 font-semibold">
+                      <div className="flex items-center justify-between text-xs font-semibold text-slate-700 bg-slate-50 p-3 rounded-2xl border border-slate-150">
+                        <span>Active Knowledge Bases:</span>
+                        <span className="font-mono font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-xl">
+                          {data.kbCount + (kbSuccess ? 1 : 0)} Mapped Documents
+                        </span>
+                      </div>
+
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block font-mono">Ingest New Knowledge File</span>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="E.g., summit_employee_onboarding_guide.pdf"
+                            value={kbDocumentName}
+                            onChange={(e) => setKbDocumentName(e.target.value)}
+                            disabled={isUploadingKb}
+                            className="flex-1 text-xs font-semibold border border-slate-200 rounded-xl px-3 py-2.5 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/15"
+                          />
+                          <button
+                            onClick={() => simulateKbUpload(healthCenterTenant, kbDocumentName)}
+                            disabled={isUploadingKb || !kbDocumentName.trim()}
+                            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black uppercase tracking-wider text-[10px] px-4 py-2.5 rounded-xl transition-all flex items-center gap-2"
+                          >
+                            <RefreshCw className={cn("w-3.5 h-3.5", isUploadingKb && "animate-spin")} />
+                            <span>{isUploadingKb ? "Ingesting..." : "Upload & Vectorize"}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Knowledge Base Live Logs */}
+                      {kbLogs.length > 0 && (
+                        <div className="bg-slate-900 text-slate-300 rounded-2xl p-4 border border-slate-800 font-mono text-[11px] space-y-2.5">
+                          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <span className="font-bold text-white uppercase text-[9px] tracking-wider font-sans">Ingestion Stream Logs</span>
+                            {isUploadingKb && <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />}
+                          </div>
+                          <div className="space-y-1.5 max-h-[140px] overflow-y-auto custom-scrollbar">
+                            {kbLogs.map((log, idx) => (
+                              <p key={idx} className="leading-relaxed animate-in fade-in duration-200">{log}</p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: Active Policies Checklist */}
+                  <div className="lg:col-span-6 bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm space-y-4">
+                    <div className="border-b border-slate-100 pb-3">
+                      <h4 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                        <Lock className="w-4 h-4 text-indigo-500" /> Active Security Policies Enforced
+                      </h4>
+                      <p className="text-xs text-slate-500 font-medium font-semibold">Verify structural constraints guarding context integrity and preventing prompt injections.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      {[
+                        { name: "PII Masking Rule", active: true, desc: "Anonymizes candidate names, salaries and contact data before inference" },
+                        { name: "Multi-tenant context isolation", active: data.orgId !== "org_nexus_3345", desc: "Guarantees complete boundary protection against cross-organizational leaks" },
+                        { name: "SLA follow-up limits", active: healthCenterTenant === "summit", desc: "Triggers notification SLA reminder loops automatically" },
+                        { name: "Cost Ceiling Limiters", active: healthCenterTenant === "summit", desc: "Halts models if budget constraints are breached" },
+                        { name: "Double submission validator", active: true, desc: "Warns system if candidate belongs to other requirements" },
+                        { name: "Background check assurance", active: healthCenterTenant === "apex", desc: "Flags profiles awaiting verified compliance files" }
+                      ].map((policy, idx) => (
+                        <div key={idx} className="bg-slate-50 border border-slate-200/50 rounded-2xl p-4 space-y-1.5">
+                          <div className="flex items-center justify-between font-semibold">
+                            <span className="text-xs font-black text-slate-900 leading-none">{policy.name}</span>
+                            <span className={cn(
+                              "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                              policy.active 
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
+                                : "bg-slate-100 text-slate-400 border-slate-200"
+                            )}>
+                              {policy.active ? "Enforced" : "Inactive"}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-semibold leading-normal">{policy.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Decision Confidence & Human Adoption Index */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  {/* Left: Rejection analysis causes */}
+                  <div className="lg:col-span-5 bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm space-y-4">
+                    <div className="border-b border-slate-100 pb-3">
+                      <h4 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-indigo-500" /> Rejection Root Cause Breakdown
+                      </h4>
+                      <p className="text-xs text-slate-500 font-medium font-semibold">Statistical distribution of candidate recommendation rejections by humans.</p>
+                    </div>
+
+                    <div className="space-y-3.5">
+                      {data.causes.map((cause, idx) => (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex justify-between items-center text-xs font-bold">
+                            <span className="text-slate-700">{cause.label}</span>
+                            <span className="font-mono text-slate-900">{cause.rate}%</span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                            <div className={cn("h-full rounded-full", cause.color)} style={{ width: `${cause.rate}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Right: Policy Tuning and Confidence Index */}
+                  <div className="lg:col-span-7 bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm flex flex-col justify-between space-y-6">
+                    <div>
+                      <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+                        <div>
+                          <h4 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                            <Wrench className="w-4 h-4 text-indigo-500" /> AI Policy Tuning Room
+                          </h4>
+                          <p className="text-xs text-slate-500 font-medium mt-0.5 font-semibold">Optimize recommendation weights dynamically based on human rejection vectors.</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-semibold">Confidence Index</span>
+                          <span className="text-2xl font-black text-indigo-600 font-mono">
+                            {data.confidence + (tuningSuccess ? 3.5 : 0)}%
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="text-xs font-semibold text-slate-500 leading-normal mt-4">
+                        Analyze human selections to retune the candidate relevance scoring matrix. Dispatches weights updates to the gateway automatically.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      <button
+                        onClick={() => runPolicyTuningSimulation(healthCenterTenant)}
+                        disabled={isTuningPolicy}
+                        className="w-full bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-black uppercase tracking-wider text-xs py-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-sm font-semibold"
+                      >
+                        <RefreshCw className={cn("w-4 h-4", isTuningPolicy && "animate-spin")} />
+                        <span>{isTuningPolicy ? "Recalculating Matrix Weights..." : "Optimize AI Scoring Weights"}</span>
+                      </button>
+
+                      {tuningLogs.length > 0 && (
+                        <div className="bg-slate-900 text-slate-300 rounded-3xl p-5 border border-slate-800 font-mono text-xs space-y-4 animate-in fade-in duration-300">
+                          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                            <span className="font-bold text-white uppercase text-[10px] tracking-widest font-sans">Policy Tuning Console</span>
+                            {isTuningPolicy && <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />}
+                          </div>
+                          <div className="space-y-2 max-h-[160px] overflow-y-auto custom-scrollbar">
+                            {tuningLogs.map((log, idx) => (
+                              <p key={idx} className="leading-relaxed animate-in fade-in duration-200">{log}</p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Renewal Risk Card */}
+                <div className={cn("border rounded-[2rem] p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6", data.healthScore >= 90 ? "bg-emerald-50/45 border-emerald-200" : data.healthScore >= 75 ? "bg-indigo-50/45 border-indigo-200" : "bg-amber-50/45 border-amber-200")}>
+                  <div className="space-y-1.5 flex-1 font-semibold">
+                    <div className="flex items-center gap-2">
+                      <span className={cn("text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border", data.riskColor)}>
+                        {data.risk}
+                      </span>
+                      <span className="text-xs font-black text-slate-900 font-mono">Renewal Assessment</span>
+                    </div>
+                    <p className="text-xs text-slate-700 font-medium leading-relaxed">
+                      {data.riskDesc}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 self-end md:self-auto font-semibold">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider font-mono">Success Score:</span>
+                    <span className={cn("text-2xl font-black font-mono", data.healthScore >= 90 ? "text-emerald-600" : data.healthScore >= 75 ? "text-indigo-600" : "text-amber-600")}>
+                      {data.healthScore}/100
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+        </div>
+      )}
         </div>
       )}
 

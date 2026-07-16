@@ -25,6 +25,7 @@ import gmailRouter from "./src/server/routers/gmail";
 import candidatesRouter from "./src/server/routers/candidates";
 import candidatesHandler from "./src/server/controllers/candidates";
 import aiRouter from "./src/server/routers/ai";
+import brokerRouter from "./src/server/routers/broker";
 import openAIRouter from "./src/api-lib/handlers/openai";
 import agentsHandler from "./src/server/controllers/agents";
 import firebaseTokenHandler from "./src/server/controllers/firebase-token";
@@ -78,6 +79,7 @@ app.all("/api/webhooks", async (req, res) => {
 // 3. Auth Gateway
 app.use("/api/auth", authRouter);
     app.use("/api/ai", aiRouter);
+    app.use("/api/broker", brokerRouter);
     app.use("/api/gmail", gmailRouter);
 
 // 4. Gmail Gateway
