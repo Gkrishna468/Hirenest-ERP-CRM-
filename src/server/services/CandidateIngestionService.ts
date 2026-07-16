@@ -1,19 +1,58 @@
+import { submissionService } from "./SubmissionService";
 import { requirementMatchParser } from "../ai/parsers/RequirementMatch.js";
 import { CandidateRepository, candidateRepository } from "../repositories/CandidateRepository";
 import { getAdminDb } from "../utils/firebaseAdmin";
+import { DomainEventPublisher } from "../events/DomainEventPublisher";
 import { FieldValue } from "firebase-admin/firestore";
 import { executeServerAITask } from "../controllers/aiGateway.js";
+import { resumeParser } from "../ai/parsers/ResumeParser";
 
 export class CandidateIngestionService {
   
+  
+  async ingestCandidateFile(vendorId: string, requirementId: string, fileBuffer: Buffer, fileName: string, mimeType: string, isPool: boolean = false) {
+    try {
+      // 1. Extract text from PDF
+      // pdf2json for text extraction
+      const PDFParser = (await import("pdf2json")).default;
+      const resumeText = await new Promise<string>((resolve, reject) => {
+          const pdfParser = new PDFParser(this as any, 1);
+          pdfParser.on("pdfParser_dataError", (errData: any) => reject(errData.parserError));
+          pdfParser.on("pdfParser_dataReady", () => {
+              resolve(pdfParser.getRawTextContent());
+          });
+          pdfParser.parseBuffer(fileBuffer);
+      });
+
+      if (!resumeText || resumeText.trim().length === 0) {
+        return { status: 400, data: { success: false, error: "Could not extract text from file" } };
+      }
+
+      // 2. Parse using AI
+      const identityData = await resumeParser.parse(resumeText);
+      const candidateName = identityData.name && identityData.name !== "Unknown Candidate" ? identityData.name : fileName;
+      
+      // 3. Delegate to existing logic
+      if (isPool) {
+        return await this.submitToPool(vendorId, candidateName, identityData);
+      } else {
+        return await this.submitCandidateToRequirement(vendorId, candidateName, requirementId, identityData);
+      }
+    } catch (e: any) {
+      console.error("[CandidateIngestionService.ingestCandidateFile] Error:", e);
+      return { status: 500, data: { success: false, error: e.message } };
+    }
+  }
+
   async submitCandidateToRequirement(vendorId: string, candidateName: string, requirementId: string, identityData: any, candidateHash?: string) {
     const db = getAdminDb();
     const existingVaultDoc = await candidateRepository.findIdentityByEmailOrPhone(identityData.email, identityData.phone);
     
-    return await db.runTransaction(async (transaction) => {
+    const txResult = await db.runTransaction(async (transaction) => {
       if (existingVaultDoc) {
         if (existingVaultDoc.vendorId !== vendorId) {
           return {
+            _conflict: true,
             status: 409,
             data: { 
               duplicate: true,
@@ -77,41 +116,73 @@ export class CandidateIngestionService {
           createdAt: new Date().toISOString()
         });
       }
-
-      transaction.set(db.collection("submission_ledger").doc(), {
-        requirementId: reqId,
-        candidateId,
-        vendorId,
-        submittedAt: new Date().toISOString(),
-        status: "submitted",
-        aiMatchScore
-      });
-
-      transaction.set(db.collection("system_events").doc(), {
-        eventType: isUpdate ? "CANDIDATE_UPDATED" : "CANDIDATE_SUBMITTED",
-        entityCollection: "candidates",
-        entityId: candidateId,
-        metadata: { vendorId, candidateName, requirementId: reqId },
-        createdAt: new Date().toISOString()
-      });
-
-      return { 
-        status: 200, 
-        data: { 
-          success: true, 
-          action: isUpdate ? "UPDATED" : "CREATED",
-          candidateId, 
-          assignedBdm 
-        } 
-      };
+      return { candidateId, isUpdate, reqId, assignedBdm, aiMatchScore, skillsList, candidateName };
     });
+
+    const candidateId = txResult.candidateId;
+    const isUpdate = txResult.isUpdate;
+    const reqId = txResult.reqId;
+    const assignedBdm = txResult.assignedBdm;
+    const aiMatchScore = txResult.aiMatchScore;
+    const skillsList = txResult.skillsList;
+    
+    // Redefine db for non-transactional calls
+    const dbAdmin = getAdminDb();
+    
+    if (txResult._conflict) {
+      return { status: txResult.status, data: txResult.data };
+    }
+    
+    const matchRef = await dbAdmin.collection("matches").add({
+      requirementId: reqId,
+      candidateId: candidateId,
+      candidateName: candidateName,
+      vendorId: vendorId,
+      score: aiMatchScore,
+      skills: skillsList,
+      status: "AI Reviewed",
+      createdAt: new Date().toISOString(),
+      bdmMandate: assignedBdm,
+      source: "Vendor Workspace"
+    });
+
+    await submissionService.create({
+      requirementId: reqId,
+      candidateId: candidateId,
+      vendorId: vendorId,
+      matchId: matchRef.id,
+      status: "Submitted",
+      createdAt: new Date().toISOString()
+    }, vendorId, { workspace: "Vendor", vendorId });
+
+    await DomainEventPublisher.publishDomainEvent({
+      type: "CANDIDATE_SUBMITTED",
+      aggregateType: "Candidate",
+      aggregateId: candidateId,
+      actorId: vendorId,
+      actorRole: "Vendor",
+      sourceApp: "OS",
+      sourceWorkspace: "Vendor",
+      organizationId: "bootstrap-org",
+      payload: { requirementId: reqId, vendorId, matchScore: aiMatchScore }
+    });
+
+    return { 
+      status: 200, 
+      data: { 
+        success: true, 
+        action: isUpdate ? "UPDATED_AND_SUBMITTED" : "CREATED_AND_SUBMITTED", 
+        candidateId, 
+        assignedBdm 
+      } 
+    };
   }
 
   async submitToPool(vendorId: string, candidateName: string, identityData: any, resumeHash?: string) {
     const db = getAdminDb();
     const existingVaultDoc = await candidateRepository.findIdentityByEmailOrPhone(identityData.email, identityData.phone);
     
-    return await db.runTransaction(async (transaction) => {
+    const txResult = await db.runTransaction(async (transaction) => {
       if (existingVaultDoc && existingVaultDoc.vendorId !== vendorId) {
         return {
           status: 409,

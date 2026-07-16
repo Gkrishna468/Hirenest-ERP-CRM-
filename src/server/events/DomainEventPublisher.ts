@@ -1,6 +1,7 @@
 import { Transaction } from "firebase-admin/firestore";
 import { getAdminDb } from "../utils/firebaseAdmin";
 import * as crypto from "crypto";
+import { ProjectionEngine } from "../engine/ProjectionEngine";
 
 export interface DomainEvent {
   id: string;
@@ -56,6 +57,22 @@ export class DomainEventPublisher {
     } else {
       await ref.set(event);
     }
+    
+    // Map to DomainEvent and Trigger Projection Engine
+    await ProjectionEngine.handleEvent({
+      id: event.id,
+      type: event.type,
+      aggregateType: entityType,
+      aggregateId: entityId,
+      organizationId: metadata?.organizationId || "bootstrap-org",
+      actorId: performedBy,
+      actorRole: "System",
+      sourceApp: "CRM",
+      sourceWorkspace: "System",
+      payload: metadata || {},
+      correlationId: event.id,
+      timestamp: event.timestamp
+    } as any, transaction);
   }
 
   static async publishDomainEvent(

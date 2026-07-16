@@ -143,7 +143,8 @@ export default function Vendors() {
     name: string; 
     size: string; 
     status: 'pending' | 'parsing' | 'done' | 'failed'; 
-    text?: string; 
+    text?: string;
+    file?: File; 
     parsedData?: any; 
     error?: string;
     stages?: {
@@ -533,6 +534,7 @@ export default function Vendors() {
       const parsedName = f.name.replace(/\.[^/.]+$/, "").split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
       return {
         id: crypto.randomUUID(),
+        file: f,
         name: f.name,
         size: `${(f.size / 1024).toFixed(1)} KB`,
         status: 'pending' as const,
@@ -586,77 +588,99 @@ export default function Vendors() {
         ...updated[i], 
         status: 'parsing',
         stages: {
-          upload: 'success',
+          upload: 'pending',
           parse: 'pending',
           dupCheck: 'pending',
           identityRes: 'pending',
           firestore: 'pending'
         },
-        resultMessage: 'Parsing...'
+        resultMessage: 'Uploading & Processing...'
       };
       setBulkResumes([...updated]);
       
       try {
-        const response = await apiFetch('/api/ai/parse-resume', {
+        const formData = new FormData();
+        if (updated[i].file) {
+          formData.append('resume', updated[i].file as Blob);
+        }
+        formData.append('vendorId', selectedVendor?.id || '');
+        if (bulkUploadMode !== 'talent-pool' && bulkReqId) {
+            formData.append('requirementId', bulkReqId);
+            formData.append('isPool', 'false');
+        } else {
+            formData.append('isPool', 'true');
+        }
+
+        const token = localStorage.getItem('__hirenest_token');
+        const reqHeaders: Record<string, string> = {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+
+        const response = await fetch('/api/candidates/ingest', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText: updated[i].text })
+          headers: reqHeaders,
+          body: formData
         });
         
         if (response.ok) {
-          const parsed = await safeJson(response);
+          const parsed = await response.json();
           updated[i] = {
             ...updated[i],
             status: 'done',
             stages: {
               upload: 'success',
               parse: 'success',
-              dupCheck: 'pending',
-              identityRes: 'pending',
-              firestore: 'pending'
+              dupCheck: 'success',
+              identityRes: 'success',
+              firestore: 'success'
             },
-            resultMessage: 'Parsed successfully',
+            resultMessage: 'Ingested successfully',
             parsedData: {
               ...updated[i].parsedData,
-              ...parsed,
-              name: parsed.name && parsed.name !== 'Unknown Candidate' ? parsed.name : updated[i].parsedData.name
+              ...parsed
             }
           };
         } else {
-          const errorText = await response.text().catch(() => 'AI Gateway unavailable');
+          const errorData = await response.json().catch(() => ({ error: 'AI Gateway unavailable' }));
+          
+          let failMessage = 'Ingestion Failed';
+          let dupCheckStatus: "success" | "error" | "pending" | "duplicate" = "pending";
+          let resultStatus: "failed" | "done" | "pending" | "parsing" = "failed";
+
+          if (response.status === 409) {
+             failMessage = 'Duplicate skipped';
+             dupCheckStatus = 'duplicate';
+             resultStatus = 'failed';
+          }
+          
           updated[i] = { 
             ...updated[i], 
-            status: 'failed', 
-            error: errorText,
+            status: resultStatus, 
+            error: errorData.error || errorData.message || 'Unknown error',
+            resultMessage: failMessage,
             stages: {
+              ...updated[i].stages!,
               upload: 'success',
-              parse: 'failed',
-              dupCheck: 'skipped',
-              identityRes: 'skipped',
-              firestore: 'skipped'
-            },
-            resultMessage: 'Parse Failed'
+              parse: 'success',
+              dupCheck: dupCheckStatus as any
+            }
           };
         }
-      } catch (err) {
+      } catch (err: any) {
         updated[i] = { 
           ...updated[i], 
           status: 'failed', 
-          error: 'Connection error',
+          error: err.message || 'Network error',
+          resultMessage: 'Network Error',
           stages: {
-            upload: 'success',
-            parse: 'failed',
-            dupCheck: 'skipped',
-            identityRes: 'skipped',
-            firestore: 'skipped'
-          },
-          resultMessage: 'Connection Error'
+            ...updated[i].stages!,
+            upload: 'error'
+          }
         };
       }
       setBulkResumes([...updated]);
-      await new Promise(r => setTimeout(r, 450)); // pipeline step-by-step aesthetic visual pace
-    }
-  };
+      await new Promise(r => setTimeout(r, 450));
+    }  };
 
   const runIdentityResolution = async () => {
     setBulkStep(4);

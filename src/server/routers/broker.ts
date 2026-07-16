@@ -1,5 +1,8 @@
 import { Router } from "express";
 import { getAdminDb } from "../utils/firebaseAdmin";
+import { candidateService } from "../services/CandidateService";
+import { requirementService } from "../services/RequirementService";
+import { candidateRepository } from "../repositories/CandidateRepository";
 import { executeServerAITask } from "../controllers/aiGateway";
 
 const router = Router();
@@ -422,8 +425,8 @@ async function processJobInBackground(
         };
 
         // Let's also insert this candidate into the SSOT so it actually updates our database!
-        const candRef = await db.collection("candidates").add({
-          name: parsedData.name || "Dr. Amanda Rollins",
+        const createdCand = await candidateService.create({
+            name: parsedData.name || "Dr. Amanda Rollins",
           email: parsedData.email || "amanda.rollins@stirlingtech.org",
           phone: parsedData.phone || "+1-555-0199",
           skills: parsedData.skills || ["PyTorch", "TensorFlow", "Deep Learning", "Kubernetes"],
@@ -432,11 +435,11 @@ async function processJobInBackground(
           noticePeriod: parsedData.noticePeriod || "Immediate",
           vendorId: "STIRLING_PDF_OCR",
           vendorName: "Stirling PDF Intake",
-          organizationId: payload?.organizationId || "bootstrap-org",
-          createdAt: new Date().toISOString()
-        });
+          organizationId: payload?.organizationId || "bootstrap-org"
+        }, "broker-ocr", { organizationId: payload?.organizationId || "bootstrap-org" });
+          
 
-        await logHelper(`[CRM SYNC] Automatically provisioned Candidate document '${candRef.id}' in single source of truth.`);
+        await logHelper(`[CRM SYNC] Automatically provisioned Candidate document '${createdCand.id}' in single source of truth.`);
       } 
       else if (action === "sanitize") {
         await logHelper("[STIRLING PDF] Initiating POST /api/v1/document/sanitize endpoint...");
@@ -503,7 +506,7 @@ async function processJobInBackground(
         // Write the candidates directly into the Firestore database!
         const createdIds: string[] = [];
         for (const cand of candidatesArray) {
-          const candRef = await db.collection("candidates").add({
+          const createdCand = await candidateService.create({
             name: cand.name || cand.candidateName || "Unknown Candidate",
             currentTitle: cand.currentTitle || cand.role || "Software Engineer",
             skills: cand.skills || ["React", "TypeScript"],
@@ -511,11 +514,11 @@ async function processJobInBackground(
             currentCompany: cand.currentCompany || "Enterprise Corp",
             vendorId: "BROWSER_USE_CRAWLER",
             vendorName: "Browser Use automation",
-            organizationId: payload?.organizationId || "bootstrap-org",
             stage: "available",
-            createdAt: new Date().toISOString()
-          });
-          createdIds.push(candRef.id);
+            organizationId: payload?.organizationId || "bootstrap-org"
+        }, "broker-crawler", { organizationId: payload?.organizationId || "bootstrap-org" });
+          
+          createdIds.push(createdCand.id);
         }
 
         await logHelper(`[CRM SYNC] Successfully loaded ${createdIds.length} candidate profiles into single source of truth.`);
@@ -579,7 +582,7 @@ Output as a valid JSON object.`;
       await logHelper(`[KNOWLEDGE BASE] Generating embeddings and storing vectors into knowledge_graph...`);
 
       // Write requirement into Firestore single source of truth (CRM auto-creation!)
-      const reqRef = await db.collection("requirements").add({
+      const createdReq = await requirementService.create({
         title: parsedData.title || parsedData.RequirementTitle || "Java Fullstack Developer",
         clientName: parsedData.client || parsedData.ClientName || "Apex Tech",
         clientId: "ORG-GLOBAL-HQ",
@@ -589,16 +592,14 @@ Output as a valid JSON object.`;
         budget: parsedData.budget || "14 LPA",
         description: parsedData.description || "Clean crawled requirement.",
         status: "open",
-        source: "crawl4ai",
-        organizationId: payload?.organizationId || "bootstrap-org",
-        createdAt: new Date().toISOString()
-      });
+        source: "crawl4ai", organizationId: payload?.organizationId || "bootstrap-org"}, "broker-crawler", { organizationId: payload?.organizationId || "bootstrap-org" });
+      
 
-      await logHelper(`[CRM SYNC] Automated Requirement document '${reqRef.id}' successfully provisioned in Firestore.`);
+      await logHelper(`[CRM SYNC] Automated Requirement document '${createdReq.id}' successfully provisioned in Firestore.`);
 
       // Store in vector/knowledge collection
       await db.collection("knowledge_graph").add({
-        entityId: reqRef.id,
+        entityId: createdReq.id,
         entityType: "requirement",
         techStack: parsedData.skills || [],
         url,
@@ -606,12 +607,11 @@ Output as a valid JSON object.`;
       });
 
       // Recommend candidates based on skills overlap
-      const candidatesSnap = await db.collection("candidates").get();
+      const candidatesSnap = await candidateRepository.findAll();
       const matchedCandidates: string[] = [];
       const requirementSkills = (parsedData.skills || []).map((s: string) => s.toLowerCase());
 
-      candidatesSnap.forEach((doc) => {
-        const cand = doc.data();
+      candidatesSnap.forEach((cand: any) => {
         const candSkills = (cand.skills || []).map((s: string) => s.toLowerCase());
         const overlap = candSkills.filter((s: string) => requirementSkills.includes(s));
         if (overlap.length >= 1) {
@@ -632,7 +632,7 @@ Output as a valid JSON object.`;
         targetVibe: "Enterprise Product Core Engineering",
         matchingSlaMetrics: `Job requirement successfully created and linked with ${matchedCandidates.length} potential matching profiles.`,
         recommendedCandidates: matchedCandidates.slice(0, 5),
-        createdRequirementId: reqRef.id
+        createdRequirementId: createdReq.id
       };
     }
 

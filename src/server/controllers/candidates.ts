@@ -13,7 +13,7 @@ export default async function handler(req: any, res: any) {
       if (!vendorId || !candidateName) {
         return res.status(400).json({ success: false, error: { message: "Missing required fields" } });
       }
-      const result = await candidateIngestionService.submitCandidateToRequirement(vendorId, candidateName, requirementId, identityData, candidateHash);
+      const result = (await candidateIngestionService.submitCandidateToRequirement(vendorId, candidateName, requirementId, identityData, candidateHash)) as any;
       return res.status(result.status).json(result.data);
     } 
     
@@ -22,7 +22,7 @@ export default async function handler(req: any, res: any) {
       if (!vendorId || !candidateName) {
         return res.status(400).json({ success: false, error: { message: "Missing required fields" } });
       }
-      const result = await candidateIngestionService.submitToPool(vendorId, candidateName, identityData, resumeHash);
+      const result = (await candidateIngestionService.submitToPool(vendorId, candidateName, identityData, resumeHash)) as any;
       return res.status(result.status).json(result.data);
     } 
     
