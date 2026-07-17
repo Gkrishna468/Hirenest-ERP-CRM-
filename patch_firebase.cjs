@@ -1,4 +1,6 @@
-import { initializeApp } from 'firebase/app';
+const fs = require('fs');
+
+const content = `import { initializeApp } from 'firebase/app';
 import { 
   initializeAuth, 
   browserLocalPersistence, 
@@ -29,3 +31,5 @@ try {
   }
 }
 export const auth = authInstance;
+`;
+fs.writeFileSync('src/services/firebase/config.ts', content);
