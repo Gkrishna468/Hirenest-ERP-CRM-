@@ -4,11 +4,17 @@ import { candidateService } from '../services/CandidateService';
 import multer from 'multer';
 import { candidateIngestionService } from '../services/CandidateIngestionService';
 
+
+
 const router = Router();
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.post('/ingest', upload.single('resume'), async (req: any, res: any) => {
+router.post('/ingest', (req, res, next) => {
+    console.log("[Router] /ingest called. Content-Type:", req.headers['content-type']);
+    next();
+  }, upload.single('resume'), async (req: any, res: any) => {
+    console.log("[Router] multer finished. file:", !!req.file, "body:", req.body);
   try {
     const file = req.file;
     const vendorId = req.body.vendorId;
@@ -25,7 +31,7 @@ router.post('/ingest', upload.single('resume'), async (req: any, res: any) => {
     const result = (await candidateIngestionService.ingestCandidateFile(vendorId, requirementId, file.buffer, file.originalname, file.mimetype, isPool)) as any;
     return res.status(result.status).json(result.data);
   } catch (error: any) {
-    console.error("[Candidates Ingest Error]", error);
+    console.log("ERROR:", "[Candidates Ingest Error]", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -36,7 +42,7 @@ router.post('/pool', async (req, res) => {
   try {
     await candidatesHandler(req as any, res as any);
   } catch (error) {
-    console.error("[Candidates Error]", error);
+    console.log("ERROR:", "[Candidates Error]", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -46,7 +52,7 @@ router.post('/requirement', async (req, res) => {
   try {
     await candidatesHandler(req as any, res as any);
   } catch (error) {
-    console.error("[Candidates Error]", error);
+    console.log("ERROR:", "[Candidates Error]", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -56,7 +62,7 @@ router.post('/reprocess', async (req, res) => {
   try {
     await candidatesHandler(req as any, res as any);
   } catch (error) {
-    console.error("[Candidates Error]", error);
+    console.log("ERROR:", "[Candidates Error]", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -66,7 +72,7 @@ router.post('/rotation', async (req, res) => {
   try {
     await candidatesHandler(req as any, res as any);
   } catch (error) {
-    console.error("[Candidates Error]", error);
+    console.log("ERROR:", "[Candidates Error]", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -76,7 +82,7 @@ router.post('/validate', async (req, res) => {
   try {
     await candidatesHandler(req as any, res as any);
   } catch (error) {
-    console.error("[Candidates Error]", error);
+    console.log("ERROR:", "[Candidates Error]", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });

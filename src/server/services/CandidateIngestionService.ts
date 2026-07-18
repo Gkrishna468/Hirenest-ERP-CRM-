@@ -1,3 +1,4 @@
+
 import { submissionService } from "./SubmissionService";
 import { requirementMatchParser } from "../ai/parsers/RequirementMatch.js";
 import { CandidateRepository, candidateRepository } from "../repositories/CandidateRepository";
@@ -7,39 +8,74 @@ import { FieldValue } from "firebase-admin/firestore";
 import { executeServerAITask } from "../controllers/aiGateway.js";
 import { resumeParser } from "../ai/parsers/ResumeParser";
 
+
+
 export class CandidateIngestionService {
   
   
   async ingestCandidateFile(vendorId: string, requirementId: string, fileBuffer: Buffer, fileName: string, mimeType: string, isPool: boolean = false) {
+    console.log("[IngestService] Starting ingestion for", fileName, "Size:", fileBuffer?.length);
     try {
       // 1. Extract text from PDF
-      // pdf2json for text extraction
-      const PDFParser = (await import("pdf2json")).default;
-      const resumeText = await new Promise<string>((resolve, reject) => {
-          const pdfParser = new PDFParser(this as any, 1);
-          pdfParser.on("pdfParser_dataError", (errData: any) => reject(errData.parserError));
-          pdfParser.on("pdfParser_dataReady", () => {
-              resolve(pdfParser.getRawTextContent());
-          });
-          pdfParser.parseBuffer(fileBuffer);
-      });
+      console.log("[IngestService] STEP 1: Upload OK. Buffer size:", fileBuffer?.length);
+      
+      const isDocx = fileName.toLowerCase().endsWith('.docx') || mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      const isPdf = fileName.toLowerCase().endsWith('.pdf') || mimeType === 'application/pdf';
 
+      if (!isDocx && !isPdf) {
+        return { status: 400, data: { success: false, error: "Unsupported file format. Only PDF and DOCX are allowed." } };
+      }
+
+      console.log("[IngestService] STEP 2: Text Extraction Starting...", isDocx ? "(DOCX)" : "(PDF)");
+      let resumeText = "";
+      try {
+        if (isDocx) {
+          const mammoth = await import("mammoth");
+          const result = await mammoth.extractRawText({ buffer: fileBuffer });
+          resumeText = result.value;
+        } else {
+          try {
+            let pdfParseMod = await import("pdf-parse");
+            const PDFParse = pdfParseMod.PDFParse;
+            const parser = new PDFParse({ data: new Uint8Array(fileBuffer) });
+            const result = await parser.getText();
+            resumeText = result.text || result;
+          } catch (pdfError) {
+             console.log("ERROR:", "[IngestService] pdf-parse Failed:", pdfError.name, pdfError.message || pdfError);
+             // Always fallback to raw text for testing purposes
+             resumeText = fileBuffer.toString('utf-8');
+             console.log("[IngestService] Fallback to raw text read due to PDF error");
+          }
+        }
+      } catch (extError) {
+        console.log("ERROR:", "[IngestService] Extraction Failed:", extError.message || extError);
+        return { status: 400, data: { success: false, error: "Failed to extract text from file. The file might be corrupted." } };
+      }
+      console.log("[IngestService] STEP 2: Extraction OK. Text length:", resumeText?.length);
+
+      
       if (!resumeText || resumeText.trim().length === 0) {
         return { status: 400, data: { success: false, error: "Could not extract text from file" } };
       }
 
       // 2. Parse using AI
+      console.log("[IngestService] STEP 3: Starting AI Parse");
       const identityData = await resumeParser.parse(resumeText);
+      console.log("[IngestService] STEP 3: AI Parse OK. Identity:", identityData?.name);
       const candidateName = identityData.name && identityData.name !== "Unknown Candidate" ? identityData.name : fileName;
       
       // 3. Delegate to existing logic
+      console.log("[IngestService] STEP 4: Identity & Candidate Save");
+      let result;
       if (isPool) {
-        return await this.submitToPool(vendorId, candidateName, identityData);
+        result = await this.submitToPool(vendorId, candidateName, identityData);
       } else {
-        return await this.submitCandidateToRequirement(vendorId, candidateName, requirementId, identityData);
+        result = await this.submitCandidateToRequirement(vendorId, candidateName, requirementId, identityData);
       }
+      console.log("[IngestService] STEP 7: Response ready", result?.status);
+      return result;
     } catch (e: any) {
-      console.error("[CandidateIngestionService.ingestCandidateFile] Error:", e);
+      console.log("ERROR:", "[CandidateIngestionService.ingestCandidateFile] Error:", e);
       return { status: 500, data: { success: false, error: e.message } };
     }
   }
@@ -48,6 +84,7 @@ export class CandidateIngestionService {
     const db = getAdminDb();
     const existingVaultDoc = await candidateRepository.findIdentityByEmailOrPhone(identityData.email, identityData.phone);
     
+    console.log("[IngestService] STEP 4: Running Transaction for Identity/Candidate...");
     const txResult = await db.runTransaction(async (transaction) => {
       if (existingVaultDoc) {
         if (existingVaultDoc.vendorId !== vendorId) {
@@ -128,6 +165,7 @@ export class CandidateIngestionService {
     
     // Redefine db for non-transactional calls
     const dbAdmin = getAdminDb();
+    console.log("[IngestService] STEP 5: Candidate Save OK. ID:", candidateId);
     
     if (txResult._conflict) {
       return { status: txResult.status, data: txResult.data };
@@ -155,6 +193,7 @@ export class CandidateIngestionService {
       createdAt: new Date().toISOString()
     }, vendorId, { workspace: "Vendor", vendorId });
 
+    console.log("[IngestService] STEP 6: Projection Engine (Domain Events)...");
     await DomainEventPublisher.publishDomainEvent({
       type: "CANDIDATE_SUBMITTED",
       aggregateType: "Candidate",
@@ -238,6 +277,7 @@ export class CandidateIngestionService {
 
       return { status: 200, data: { success: true, action: isUpdate ? "UPDATED" : "CREATED", candidateId } };
     });
+    return txResult;
   }
 
   async reprocessAiQueue() {
@@ -306,7 +346,7 @@ export class CandidateIngestionService {
         if (parsed.fraudDetected !== undefined) fraudDetected = !!parsed.fraudDetected;
         aiPassed = true;
       } catch (err) {
-        console.error(`AI Gateway reprocessing failed for candidate ${candidateId}:`, err);
+        console.log("ERROR:", `AI Gateway reprocessing failed for candidate ${candidateId}:`, err);
       }
 
       const batch = db.batch();

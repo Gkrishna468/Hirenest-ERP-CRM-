@@ -660,8 +660,8 @@ export default function Vendors() {
             resultMessage: failMessage,
             stages: {
               ...updated[i].stages!,
-              upload: 'success',
-              parse: 'success',
+              upload: response.status === 409 ? 'success' : 'failed',
+              parse: response.status === 409 ? 'success' : 'failed',
               dupCheck: dupCheckStatus as any
             }
           };
@@ -674,7 +674,7 @@ export default function Vendors() {
           resultMessage: 'Network Error',
           stages: {
             ...updated[i].stages!,
-            upload: 'error'
+            upload: 'failed'
           }
         };
       }
@@ -2080,13 +2080,13 @@ export default function Vendors() {
                     <input
                       type="file"
                       multiple
-                      accept=".pdf,.docx,.doc"
+                      accept=".pdf,.docx"
                       onChange={handleBulkFileChange}
                       className="absolute inset-0 opacity-0 cursor-pointer"
                     />
                     <UploadCloud className="w-12 h-12 text-indigo-400 mx-auto mb-4" />
                     <p className="text-sm font-bold text-slate-700">Drag and drop resumes here, or click to browse</p>
-                    <p className="text-xs text-slate-400 mt-1">Supports PDF, DOC, DOCX • Multiple uploads allowed</p>
+                    <p className="text-xs text-slate-400 mt-1">Supports PDF, DOCX • Multiple uploads allowed</p>
                   </div>
 
                   {/* List of files selected */}

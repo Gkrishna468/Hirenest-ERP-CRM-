@@ -140,10 +140,13 @@ export const BulkRequirementForm: React.FC<BulkRequirementFormProps> = ({
                 <input
                   type="file"
                   multiple
-                  accept=".zip,.pdf,.docx"
+                  accept=".pdf,.docx"
                   onChange={(e) => {
                     if (e.target.files) {
-                      const filesArr = Array.from(e.target.files);
+                      const filesArr = Array.from(e.target.files).filter(f => {
+                        const name = f.name.toLowerCase();
+                        return name.endsWith('.pdf') || name.endsWith('.docx');
+                      });
                       setBulkFiles(prev => [...prev, ...filesArr]);
                     }
                   }}
@@ -152,7 +155,7 @@ export const BulkRequirementForm: React.FC<BulkRequirementFormProps> = ({
                 <div className="space-y-2">
                   <UploadCloud className="w-8 h-8 text-slate-500 mx-auto group-hover:text-amber-400 transition-colors" />
                   <p className="text-xs text-slate-300 font-bold">Drag and drop files here, or click to browse</p>
-                  <p className="text-[10px] text-slate-500 font-mono">Supports multiple PDFs, DOCX, or ZIP files</p>
+                  <p className="text-[10px] text-slate-500 font-mono">Supports multiple PDFs or DOCX files</p>
                 </div>
               </div>
             </div>
