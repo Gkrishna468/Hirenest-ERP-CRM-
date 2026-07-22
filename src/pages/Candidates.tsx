@@ -69,15 +69,33 @@ export default function Candidates() {
     }
   };
 
+  const getPageTitle = () => {
+    const path = location.pathname;
+    if (path.includes("submissions")) return "Submissions";
+    if (path.includes("interviews")) return "Interviews";
+    if (path.includes("offers")) return "Offers";
+    if (path.includes("placements")) return "Placements";
+    return "Candidates";
+  };
+
+  const getPageDescription = () => {
+    const path = location.pathname;
+    if (path.includes("submissions")) return "Manage candidate submissions across all client requirements.";
+    if (path.includes("interviews")) return "Track and manage ongoing candidate interviews.";
+    if (path.includes("offers")) return "Manage pending and accepted candidate offers.";
+    if (path.includes("placements")) return "Track successful placements and billing details.";
+    return "Unified view of all talent across CRM, Vendors, and MailOS.";
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-            Candidates
+            {getPageTitle()}
           </h1>
           <p className="text-slate-500 mt-1">
-            Unified view of all talent across CRM, Vendors, and MailOS.
+            {getPageDescription()}
           </p>
         </div>
       </div>

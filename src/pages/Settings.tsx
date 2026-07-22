@@ -1472,7 +1472,7 @@ System Administrator`}
                                     )}
                                   </div>
                                   <div>
-                                    <h4 className="font-bold text-slate-900">{member.name || 'Invited User'}</h4>
+                                    <h4 className="font-bold text-slate-900">{member.name || (member.email ? member.email.split('@')[0] : 'Invited User')}</h4>
                                     <p className="text-[10px] text-slate-400 font-mono flex items-center flex-wrap gap-x-2 gap-y-0.5">
                                       <span>{member.email}</span>
                                       <span className="text-slate-200">|</span>

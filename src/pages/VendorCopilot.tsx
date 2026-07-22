@@ -79,7 +79,7 @@ export default function VendorCopilot({
         );
         if (javas.length > 0) {
           responseText = `### Idle Java Candidates Analysis
-I scanned **${selectedVendor.company}**'s talent vault and found **${javas.length} Java candidates** currently eligible for rotation:
+I scanned **${((selectedVendor?.company || selectedVendor?.name) || selectedVendor.name)}**'s talent vault and found **${javas.length} Java candidates** currently eligible for rotation:
 
 ${javas.map((j, i) => {
   const rot = getRotationDetails(j);
@@ -89,11 +89,11 @@ ${javas.map((j, i) => {
 **Recommendation**: Submit these candidates to their respective target broadcasts instantly to optimize idle asset monetization.`;
         } else {
           responseText = `### Java Candidates Analysis
-I scanned **${selectedVendor.company}**'s talent inventory and did not find any candidates matching "Java" in their active bench. Would you like me to draft a client C2C requirements broadcast to solicit Java profiles from our tier-1 staffing network?`;
+I scanned **${((selectedVendor?.company || selectedVendor?.name) || selectedVendor.name)}**'s talent inventory and did not find any candidates matching "Java" in their active bench. Would you like me to draft a client C2C requirements broadcast to solicit Java profiles from our tier-1 staffing network?`;
         }
       } else if (queryLower.includes('duplicate') || queryLower.includes('risk')) {
         responseText = `### Enterprise Duplicate & Compliance Scan
-Checking security hashes in **Candidate Identity Vault** for **${selectedVendor.company}**...
+Checking security hashes in **Candidate Identity Vault** for **${((selectedVendor?.company || selectedVendor?.name) || selectedVendor.name)}**...
 
 * **Optimistic Database Locking**: \`ACTIVE\`
 * **Resume SHA256 Verification**: \`ACTIVE (100% Verified)\`
@@ -103,7 +103,7 @@ Checking security hashes in **Candidate Identity Vault** for **${selectedVendor.
 No active poaching locks or dual-submissions found in this pool. One candidate (**Amit Kumar**) has an expired previous submission with Accenture, but the lock timer (15 days) has elapsed, making the candidate eligible for active redeployment.`;
       } else if (queryLower.includes('recruiter') || queryLower.includes('fast')) {
         responseText = `### SLA Delivery & Speed metrics
-Here is the performance ledger for **${selectedVendor.company}**'s assigned recruiting officers:
+Here is the performance ledger for **${((selectedVendor?.company || selectedVendor?.name) || selectedVendor.name)}**'s assigned recruiting officers:
 
 1. **Priya Sharma (Delivery Lead)**:
    - Average response speed: \`1.8 Hours\` (SLA target is 24 Hours)
@@ -118,7 +118,7 @@ Here is the performance ledger for **${selectedVendor.company}**'s assigned recr
       } else {
         responseText = `### Weekly Delivery & Operations Summary
 **Partner Score**: \`880/1000\` (Tier 1 Preferred)
-**Operational Ledger Summary for ${selectedVendor.company}**:
+**Operational Ledger Summary for ${((selectedVendor?.company || selectedVendor?.name) || selectedVendor.name)}**:
 
 * **Total Profiles Uploaded**: \`${activeVendorCandidates.length} Active Records\`
 * **Total Broadcast Responses**: \`14 Recieved / 12 Actioned\`

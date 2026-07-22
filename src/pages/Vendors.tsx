@@ -477,6 +477,22 @@ export default function Vendors() {
     }, 800);
   };
 
+  const handleDeleteVendor = async (e: React.MouseEvent, vendorId: string) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this vendor? This action is irreversible.")) return;
+    try {
+      const res = await apiFetch(`/api/vendors/${vendorId}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success("Vendor deleted successfully");
+        refreshData();
+      } else {
+        toast.error("Failed to delete vendor");
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   const handleSingleCandidateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!candidateForm.name || !candidateForm.email) {
@@ -1057,12 +1073,17 @@ export default function Vendors() {
                       <Handshake className="w-6 h-6 drop-shadow-sm" />
                     </div>
                     <div className="flex flex-col items-end gap-1.5">
-                      <span className={cn(
-                        "text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border",
-                        vendor.type === 'recruiter' ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-blue-50 text-blue-700 border-blue-200"
-                      )}>
-                        {vendor.type || 'vendor'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <button onClick={(e) => handleDeleteVendor(e, vendor.id)} className="p-1 hover:bg-rose-50 text-rose-400 hover:text-rose-600 rounded">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <span className={cn(
+                          "text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border",
+                          vendor.type === 'recruiter' ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-blue-50 text-blue-700 border-blue-200"
+                        )}>
+                          {vendor.type || 'vendor'}
+                        </span>
+                      </div>
                       <span className="text-[10px] font-mono font-black tracking-widest text-indigo-500">{vendor.vendorCode || 'NO_CODE'}</span>
                     </div>
                   </div>
@@ -1823,29 +1844,30 @@ export default function Vendors() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50 font-medium text-slate-700">
-                          {[
-                            { id: 'INV-2026-004', cand: 'Sneha Roy', client: 'Accenture', comm: 180000, due: 'Paid', status: 'PAID' },
-                            { id: 'INV-2026-012', cand: 'Amit Kumar', client: 'Deloitte', comm: 120000, due: 'In 12 Days', status: 'PENDING' },
-                            { id: 'INV-2026-021', cand: 'Rajesh Sen', client: 'Capgemini', comm: 165000, due: 'Overdue 5 days', status: 'RISK ALERT' }
-                          ].map((inv, i) => (
-                            <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="py-3 font-mono font-bold text-slate-800">{inv.id}</td>
-                              <td className="py-3 font-bold">{inv.cand}</td>
-                              <td className="py-3 text-slate-500">{inv.client}</td>
-                              <td className="py-3 font-mono">₹{inv.comm.toLocaleString()}</td>
-                              <td className="py-3 text-slate-500 font-mono text-[11px]">{inv.due}</td>
+                          {deals.filter(d => d.vendorId === selectedVendor.id).length > 0 ? (
+                            deals.filter(d => d.vendorId === selectedVendor.id).map((deal, i) => (
+                            <tr key={deal.id || i} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="py-3 font-mono font-bold text-slate-800">{deal.id?.substring(0, 8).toUpperCase() || `INV-${i+1}`}</td>
+                              <td className="py-3 font-bold">{deal.candidateName || 'Unknown'}</td>
+                              <td className="py-3 text-slate-500">{deal.clientName || 'Unknown'}</td>
+                              <td className="py-3 font-mono">₹{(deal.revenueAmount || deal.revenue_amount || 0).toLocaleString()}</td>
+                              <td className="py-3 text-slate-500 font-mono text-[11px]">{deal.paymentReceived ? 'Paid' : 'Pending'}</td>
                               <td className="py-3 text-right">
                                 <span className={cn(
-                                  "text-[9px] font-bold px-2.5 py-0.5 rounded-full",
-                                  inv.status === 'PAID' ? 'bg-emerald-50 text-emerald-600' :
-                                  inv.status === 'PENDING' ? 'bg-slate-100 text-slate-500' :
-                                  'bg-red-50 text-red-600'
+                                  "text-[9px] font-bold px-2.5 py-0.5 rounded-full uppercase",
+                                  deal.paymentReceived ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
                                 )}>
-                                  {inv.status}
+                                  {deal.paymentReceived ? 'PAID' : 'PENDING'}
                                 </span>
                               </td>
                             </tr>
-                          ))}
+                          ))) : (
+                            <tr>
+                              <td colSpan={6} className="py-8 text-center text-slate-500 text-sm">
+                                No commercial ledger records found.
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>

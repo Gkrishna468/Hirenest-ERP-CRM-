@@ -5,6 +5,8 @@
 
 import React, { useState } from "react";
 import { useData } from "@/contexts/DataContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import {
   TrendingUp,
   CircleDollarSign,
@@ -17,12 +19,29 @@ import {
   Building2,
   Briefcase,
   ExternalLink,
-  Target,
+  Target, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function RevenueOperations() {
-  const { clients, jobs, candidates, deals } = useData();
+  const { clients, jobs, candidates, deals, refreshData } = useData();
+  const { apiFetch } = useAuth();
+
+  const handleDeleteDeal = async (e: React.MouseEvent, dealId: string) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this deal?")) return;
+    try {
+      const res = await apiFetch(`/api/deals/${dealId}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success("Deal deleted");
+        refreshData();
+      } else {
+        toast.error("Failed to delete deal");
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
 
   // Calculate real revenue stats from deals table
   const totalPipeline = deals.reduce(
@@ -47,7 +66,7 @@ export default function RevenueOperations() {
       label: "Pipeline Value",
       value: formatCurrency(totalPipeline),
       trend: "+12.5%",
-      icon: Target,
+      icon: Target, Trash2,
       color: "text-indigo-600",
       bg: "bg-indigo-100",
     },
@@ -181,9 +200,14 @@ export default function RevenueOperations() {
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-bold text-slate-900">
-                        {formatCurrency(deal.revenue_amount)}
-                      </p>
+                      <div className="flex items-center gap-3 justify-end">
+                        <button onClick={(e) => handleDeleteDeal(e, deal.id)} className="p-1 hover:bg-rose-50 text-rose-400 hover:text-rose-600 rounded">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <p className="text-sm font-bold text-slate-900">
+                          {formatCurrency(deal.revenue_amount)}
+                        </p>
+                      </div>
                       <span
                         className={cn(
                           "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter",

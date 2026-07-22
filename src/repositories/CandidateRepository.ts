@@ -52,6 +52,8 @@ export const CandidateRepository = {
       const docs = await res.json();
       return docs.map((d: any) => ({
         ...d,
+        name: d.name ? d.name.replace(/\.(pdf|docx?|txt)$/i, '').replace(/_/g, ' ') : d.name,
+        email: d.email === 'pending@extraction.io' ? 'N/A' : d.email,
         createdAt: safeISOString(d.createdAt || d.created_at),
         updatedAt: safeISOString(d.updatedAt || d.updated_at),
       }));

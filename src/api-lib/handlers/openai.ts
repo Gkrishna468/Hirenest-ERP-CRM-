@@ -74,7 +74,7 @@ router.get("/models", (req: Request, res: Response) => {
       owned_by: "google"
     },
     {
-      id: "gemini-3.5-flash",
+      id: "gemini-2.5-flash",
       object: "model",
       created: 1710000000,
       owned_by: "google"
@@ -117,9 +117,9 @@ router.post("/chat/completions", authorizeGateway, async (req: Request, res: Res
     }
 
     // Determine target model
-    let modelName = model || process.env.GEMINI_MODEL || "gemini-3.5-flash";
+    let modelName = model || process.env.GEMINI_MODEL || "gemini-2.5-flash";
     if (modelName.startsWith("gpt-") || modelName === "openai") {
-      modelName = "gemini-3.5-flash";
+      modelName = "gemini-2.5-flash";
     }
 
     // Extract System Instructions

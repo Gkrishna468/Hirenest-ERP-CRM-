@@ -171,7 +171,7 @@ export default function VendorSlaDashboard({
 
             <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-xs font-bold text-slate-700">
               <span className="text-indigo-600 uppercase text-[9px] tracking-widest block mb-0.5">AI Score Recommendation</span>
-              "Apex Staffing maintains stellar credentials. Highly competent in React/Java delivery. Recommendation: Expand direct broadcasts to this vendor."
+              "{selectedVendor?.company || selectedVendor?.name || 'This vendor'} maintains stellar credentials. Highly competent in delivery. Recommendation: Expand direct broadcasts to this vendor."
             </div>
           </div>
 

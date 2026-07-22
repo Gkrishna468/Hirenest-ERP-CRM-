@@ -256,6 +256,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        - If "Requirement", extract properties: { client, title, location, experience, employmentType, budget, workMode, status }. 
        - If "Vendor Submission", extract properties: { candidateName, vendorName, experience, skills, noticePeriod }.
        - If "Interview", extract properties: { client, candidates, interviewType, date, status }.
+    5. SPAM/PERSONAL PREVENTION:
+       - VERY IMPORTANT: If the email is a security alert, login notification, Amazon order, promotional email, bank alert, or personal email NOT related to staffing/recruitment, classify intent STRICTLY as "Spam" or "Other". Do NOT classify as Requirement.
 
     8. CONFIDENCE: Provide a confidence score (0.0 to 1.0) for your classification based on how clear the text is.
 
@@ -789,7 +791,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           
           // AI ROI: total placement value ($12,500 avg fee) vs AI cost
           const placementRevenue = totalPlacementsCount * 12500;
-          const aiRoiRatio = finalCost > 0 ? parseFloat((placementRevenue / finalCost).toFixed(1)) : 850000;
+          const aiRoiRatio = finalCost > 0 ? parseFloat((placementRevenue / finalCost).toFixed(1)) : 0;
 
           return res.status(200).json({
             totalCalls: finalTotalCalls,

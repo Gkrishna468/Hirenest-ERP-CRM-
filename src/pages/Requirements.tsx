@@ -37,7 +37,7 @@ import {
   History,
   CheckCircle2,
   RefreshCw,
-} from "lucide-react";
+Trash2, } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { safeArray, safeString, safeDate } from "@/utils/safe";
@@ -176,20 +176,22 @@ export default function Jobs() {
 
   const formatSalaryRange = (job: any) => {
     if (job.salaryMin !== undefined && job.salaryMax !== undefined && job.salaryMin !== null) {
-      const minVal = typeof job.salaryMin === 'number' ? job.salaryMin : parseInt(job.salaryMin);
-      const maxVal = typeof job.salaryMax === 'number' ? job.salaryMax : parseInt(job.salaryMax);
+      const minVal = typeof job.salaryMin === 'number' ? job.salaryMin : (parseInt(String(job.salaryMin).replace(/[^0-9]/g, '')) || 0);
+      const maxVal = typeof job.salaryMax === 'number' ? job.salaryMax : (parseInt(String(job.salaryMax).replace(/[^0-9]/g, '')) || 0);
       const type = job.salaryType || 'Annual CTC';
       
+      if (minVal === 0 && maxVal === 0) {
+        return job.budget || 'Market Standard';
+      }
+
       if (type === 'Annual CTC') {
         const minLpa = minVal >= 100000 ? (minVal / 100000).toFixed(0) : minVal;
         const maxLpa = maxVal >= 100000 ? (maxVal / 100000).toFixed(0) : maxVal;
         return `₹${minLpa} LPA – ₹${maxLpa} LPA`;
       } else if (type === 'Monthly CTC') {
-        const minLpm = minVal >= 100000 ? (minVal / 100000).toFixed(1) : (minVal >= 1000 ? (minVal / 1000).toFixed(0) + 'k' : minVal);
-        const maxLpm = maxVal >= 100000 ? (maxVal / 100000).toFixed(1) : (maxVal >= 1000 ? (maxVal / 1000).toFixed(0) + 'k' : maxVal);
-        const formattedMin = minVal >= 100000 ? `${(minVal / 100000).toFixed(1)} LPM` : `₹${minVal}`;
-        const formattedMax = maxVal >= 100000 ? `${(maxVal / 100000).toFixed(1)} LPM` : `₹${maxVal}`;
-        return `₹${formattedMin} – ₹${formattedMax}`;
+        const formattedMin = minVal >= 100000 ? `₹${(minVal / 100000).toFixed(1)}L` : `₹${minVal.toLocaleString()}`;
+        const formattedMax = maxVal >= 100000 ? `₹${(maxVal / 100000).toFixed(1)}L` : `₹${maxVal.toLocaleString()}`;
+        return `${formattedMin} – ${formattedMax} LPM`;
       } else {
         return `₹${minVal.toLocaleString()} – ₹${maxVal.toLocaleString()} (${type})`;
       }
@@ -199,7 +201,19 @@ export default function Jobs() {
 
   const formatExperienceRange = (job: any) => {
     if (job.experienceMin !== undefined && job.experienceMax !== undefined && job.experienceMin !== null) {
-      return `${job.experienceMin} – ${job.experienceMax} Years`;
+      const min = Number(String(job.experienceMin).replace(/[^0-9.]/g, '')) || 0;
+      const max = Number(String(job.experienceMax).replace(/[^0-9.]/g, '')) || 0;
+      
+      if (max < min && max === 0) {
+        return `${min}+ Years`;
+      }
+      if (max === min) {
+        return min === 0 ? (job.experienceRequired || job.experience || 'Not specified') : `${min} Years`;
+      }
+      if (max < min) {
+        return `${max} – ${min} Years`; // order correctly
+      }
+      return `${min} – ${max} Years`;
     }
     return job.experienceRequired || '3-5 Years';
   };
@@ -477,6 +491,23 @@ Powered by Hirenest CRM AI`;
       });
     } catch (err) {
       toast.error("Failed to create requirement");
+    }
+  };
+
+  const handleDeleteJob = async (e: React.MouseEvent, jobId: string) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this requirement? This action is irreversible.")) return;
+    try {
+      const res = await apiFetch(`/api/requirements/${jobId}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success("Requirement deleted successfully");
+        if (selectedJob?.id === jobId) setSelectedJob(null);
+        refreshData();
+      } else {
+        toast.error("Failed to delete requirement");
+      }
+    } catch (err: any) {
+      toast.error(err.message);
     }
   };
 
@@ -776,12 +807,12 @@ Powered by Hirenest CRM AI`;
                       {job.clientName || "Direct Client"}
                     </span>
                   </div>
-                  <h3 className="text-sm font-bold text-slate-800">{job.title}</h3>
+                  <h3 className="text-sm font-bold text-slate-800">{job.title || 'Untitled Requirement'}</h3>
                   <div className="mt-2 text-xs text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-100 max-h-32 overflow-y-auto">
                     <div className="font-semibold text-slate-700 mb-1">Proposed Modifications:</div>
                     {job.pendingUpdates ? (
                       <div className="space-y-1 font-mono">
-                        {job.pendingUpdates.title !== job.title && <div>Title: <span className="line-through text-rose-500">{job.title}</span> ➔ <span className="text-emerald-600 font-medium">{job.pendingUpdates.title}</span></div>}
+                        {job.pendingUpdates.title !== job.title && <div>Title: <span className="line-through text-rose-500">{job.title || 'Untitled Requirement'}</span> ➔ <span className="text-emerald-600 font-medium">{job.pendingUpdates.title || 'Untitled Requirement'}</span></div>}
                         {job.pendingUpdates.location !== job.location && <div>Location: <span className="line-through text-rose-500">{job.location}</span> ➔ <span className="text-emerald-600 font-medium">{job.pendingUpdates.location}</span></div>}
                         {(job.pendingUpdates.experienceMin !== job.experienceMin || job.pendingUpdates.experienceMax !== job.experienceMax) && <div>Experience: <span className="line-through text-rose-500">{formatExperienceRange(job)}</span> ➔ <span className="text-emerald-600 font-medium">{formatExperienceRange(job.pendingUpdates)}</span></div>}
                         {(job.pendingUpdates.salaryMin !== job.salaryMin || job.pendingUpdates.salaryMax !== job.salaryMax || job.pendingUpdates.salaryType !== job.salaryType) && <div>Salary: <span className="line-through text-rose-500">{formatSalaryRange(job)}</span> ➔ <span className="text-emerald-600 font-medium">{formatSalaryRange(job.pendingUpdates)}</span></div>}
@@ -878,15 +909,20 @@ Powered by Hirenest CRM AI`;
                   >
                     {job.approvalStatus === "draft" ? "DRAFT" : (job.approvalStatus === "pending" ? "PENDING REVIEW" : job.status.toUpperCase())}
                   </div>
-                  <button className="text-slate-300 hover:text-slate-600 transition-colors">
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button onClick={(e) => handleDeleteJob(e, job.id)} className="p-1 hover:bg-rose-50 text-rose-400 hover:text-rose-600 rounded transition-colors" title="Delete Requirement">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    <button className="text-slate-300 hover:text-slate-600 transition-colors">
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mb-4">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition-colors cursor-pointer flex items-center gap-2">
-                      {job.title}
+                      {job.title || 'Untitled Requirement'}
                       {job.approvalStatus === "approved" && (
                         <BadgeCheck className="w-4 h-4 text-blue-500" />
                       )}

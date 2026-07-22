@@ -115,7 +115,7 @@ export class ModelRegistry {
       },
       executive: {
         provider: "cloud-ai",
-        model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
+        model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
         temperature: 0.2,
         maxTokens: 3000,
         timeout: 15000,
@@ -124,7 +124,7 @@ export class ModelRegistry {
       },
       fallback: {
         provider: "cloud-ai",
-        model: "gemini-3.5-flash",
+        model: "gemini-2.5-flash",
         temperature: 0.2,
         maxTokens: 2000,
         timeout: 15000,
@@ -701,7 +701,9 @@ export class HeuristicEngine {
   private static classifyHeuristic(prompt: string): string {
     const text = prompt.toLowerCase();
     let intent = "Other";
-    if (text.includes("jd") || text.includes("job description") || text.includes("requirement") || text.includes("looking for") || text.includes("need") || text.includes("position")) {
+    if (text.includes("security alert") || text.includes("password reset") || text.includes("promotional") || text.includes("order confirmed") || text.includes("unsubscribe")) {
+      intent = "Spam";
+    } else if (text.includes("jd") || text.includes("job description") || text.includes("requirement") || text.includes("looking for") || text.includes("need a ") || text.includes("open position")) {
       intent = "Requirement";
     } else if (text.includes("profile") || text.includes("cv") || text.includes("resume") || text.includes("submission") || text.includes("bench") || text.includes("candidate")) {
       intent = "Vendor Submission";
@@ -860,7 +862,7 @@ async function runCloudAi(options: AISerializedOptions): Promise<string> {
     throw new Error("Cloud AI API Key (GEMINI_API_KEY) is not configured in the environment.");
   }
 
-  const modelName = (process.env.GEMINI_MODEL || "gemini-3.5-flash").replace(/^"|"$/g, "");
+  const modelName = (process.env.GEMINI_MODEL || "gemini-2.5-flash").replace(/^"|"$/g, "");
   const aiClient = new GoogleGenAI({ apiKey });
 
   const response = await aiClient.models.generateContent({
@@ -1032,7 +1034,7 @@ export async function executeServerAITask(options: AISerializedOptions): Promise
           resultText = await runOpenAI({ ...options, prompt: finalPrompt });
           successProvider = "openai";
         } else if (provider === "gemini" || provider === "cloud-ai") {
-          successModel = (process.env.GEMINI_MODEL || "gemini-3.5-flash").replace(/^"|"$/g, "");
+          successModel = (process.env.GEMINI_MODEL || "gemini-2.5-flash").replace(/^"|"$/g, "");
           resultText = await runCloudAi({ ...options, prompt: finalPrompt });
           successProvider = "cloud-ai";
         } else {

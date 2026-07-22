@@ -44,8 +44,8 @@ import {
   Share2,
   LockKeyhole,
   CheckCircle2,
-  AlertCircle
-} from 'lucide-react';
+  AlertCircle,
+Trash2, } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { safeArray, safeString } from '@/utils/safe';
@@ -178,6 +178,23 @@ export default function Clients() {
       }
     } catch (err) {
       toast.error('Failed to add client');
+    }
+  };
+
+  const handleDeleteClient = async (e: React.MouseEvent, clientId: string) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this client? This action is irreversible.")) return;
+    try {
+      const res = await apiFetch(`/api/clients/${clientId}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success("Client deleted successfully");
+        if (selectedClient?.id === clientId) setSelectedClient(null);
+        refreshData();
+      } else {
+        toast.error("Failed to delete client");
+      }
+    } catch (err: any) {
+      toast.error(err.message);
     }
   };
 
@@ -546,16 +563,21 @@ Return your output STRICTLY as a JSON object matching this TypeScript model. Do 
                       </div>
                       
                       {/* Relationship health badge */}
-                      <span className={cn(
-                        "text-[9px] font-black px-1.5 py-0.5 rounded border font-mono tracking-wider",
-                        metrics.overallScore >= 80 
-                          ? "bg-emerald-50 text-emerald-600 border-emerald-200" 
-                          : metrics.overallScore >= 50 
-                          ? "bg-amber-50 text-amber-600 border-amber-200" 
-                          : "bg-rose-50 text-rose-600 border-rose-200"
-                      )}>
-                        HEALTH {metrics.overallScore}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <button onClick={(e) => handleDeleteClient(e, client.id)} className="p-1 hover:bg-rose-50 text-rose-400 hover:text-rose-600 rounded">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <span className={cn(
+                          "text-[9px] font-black px-1.5 py-0.5 rounded border font-mono tracking-wider",
+                          metrics.overallScore >= 80 
+                            ? "bg-emerald-50 text-emerald-600 border-emerald-200" 
+                            : metrics.overallScore >= 50 
+                            ? "bg-amber-50 text-amber-600 border-amber-200" 
+                            : "bg-rose-50 text-rose-600 border-rose-200"
+                        )}>
+                          HEALTH {metrics.overallScore}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="mt-4 grid grid-cols-3 gap-1 border-t border-slate-200/50 pt-3 text-center text-[10px] font-mono">
@@ -1227,25 +1249,28 @@ Return your output STRICTLY as a JSON object matching this TypeScript model. Do 
                       <div className="bg-white border border-slate-200 p-5 rounded-xl space-y-3">
                         <h4 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2">Client Candidate Review</h4>
                         <div className="space-y-2">
-                          {[
-                            { name: "Suresh Kumar", title: "Senior React Architect", score: 94, vendor: "VTech Staffing" },
-                            { name: "Pooja Hegde", title: "Senior UI/UX Engineer", score: 88, vendor: "RecruitCore" }
-                          ].map((c, i) => (
-                            <div key={i} className="bg-slate-50 p-3 rounded-lg flex items-center justify-between text-xs border border-slate-200/50">
-                              <div>
-                                <p className="font-bold text-slate-900">{c.name}</p>
-                                <p className="text-[10px] text-slate-500 mt-0.5">{c.title}</p>
+                          {candidates.filter(c => c.status === 'submitted' || c.status === 'pending').slice(0, 3).length > 0 ? (
+                            candidates.filter(c => c.status === 'submitted' || c.status === 'pending').slice(0, 3).map((c, i) => (
+                              <div key={c.id || i} className="bg-slate-50 p-3 rounded-lg flex items-center justify-between text-xs border border-slate-200/50">
+                                <div>
+                                  <p className="font-bold text-slate-900">{c.name || 'Unknown'}</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">{c.title || 'Candidate'}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button className="px-2.5 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded-md hover:bg-emerald-700">
+                                    Approve
+                                  </button>
+                                  <button className="px-2.5 py-1 bg-slate-200 text-slate-700 text-[10px] font-bold rounded-md hover:bg-slate-300">
+                                    Reject
+                                  </button>
+                                </div>
                               </div>
-                              <div className="flex gap-2">
-                                <button className="px-2.5 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded-md hover:bg-emerald-700">
-                                  Approve
-                                </button>
-                                <button className="px-2.5 py-1 bg-slate-200 text-slate-700 text-[10px] font-bold rounded-md hover:bg-slate-300">
-                                  Reject
-                                </button>
-                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-4 text-slate-500 text-xs">
+                              No candidates pending review.
                             </div>
-                          ))}
+                          )}
                         </div>
                       </div>
 
