@@ -28,6 +28,14 @@ export class CandidateRepository extends BaseRepository<any> {
     return null;
   }
 
+  async findByResumeHash(resumeHash: string): Promise<any> {
+    const db = getAdminDb();
+    if (!resumeHash || resumeHash === "NO_HASH") return null;
+    const hashQuery = await db.collection("candidates").where("candidateHash", "==", resumeHash).get();
+    if (!hashQuery.empty) return { id: hashQuery.docs[0].id, ...hashQuery.docs[0].data() };
+    return null;
+  }
+
   async getRequirement(reqId: string, transaction?: any): Promise<any> {
     const db = getAdminDb();
     const doc = await db.collection("requirements").doc(reqId).get();
