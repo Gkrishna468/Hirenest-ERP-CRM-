@@ -55,7 +55,24 @@ export default function RevenueOperations() {
     .filter((d) => !d.payment_received)
     .reduce((sum, d) => sum + (Number(d.payout_amount) || 0), 0);
 
-  const formatCurrency = (val: number) => {
+    // Derived, honest metrics for the Revenue Intelligence panel and Strategic Goals
+    // card below. These previously were hardcoded placeholder values that never
+    // changed regardless of real deal data.
+    const placedDeals = deals.filter((d) => d.status === "placed");
+    const avgDealSize = deals.length > 0 ? totalPipeline / deals.length : 0;
+    const successRate = deals.length > 0 ? Math.round((placedDeals.length / deals.length) * 100) : 0;
+    const dealsWithCloseTime = placedDeals.filter((d) => d.createdAt && d.updatedAt);
+    const avgTimeToCloseDays = dealsWithCloseTime.length > 0
+          ? Math.round(
+                    dealsWithCloseTime.reduce(
+                                (sum, d) => sum + (new Date(d.updatedAt).getTime() - new Date(d.createdAt).getTime()) / (1000 * 60 * 60 * 24),
+                                0,
+                              ) / dealsWithCloseTime.length,
+                  )
+          : null;
+    const pipelineRealizedPct = totalPipeline > 0 ? Math.min(100, Math.round((realizedRevenue / totalPipeline) * 100)) : 0;
+  
+    const formatCurrency = (val: number) => {
     if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)}Cr`;
     if (val >= 100000) return `₹${(val / 100000).toFixed(2)}L`;
     return `₹${val.toLocaleString()}`;
@@ -66,7 +83,7 @@ export default function RevenueOperations() {
       label: "Pipeline Value",
       value: formatCurrency(totalPipeline),
       trend: "+12.5%",
-      icon: Target, Trash2,
+            icon: Target,
       color: "text-indigo-600",
       bg: "bg-indigo-100",
     },
@@ -240,15 +257,15 @@ export default function RevenueOperations() {
             <h3 className="text-lg font-bold mb-6">Revenue Intelligence</h3>
             <div className="space-y-6">
               {[
-                {
-                  label: "Avg Deal Size",
-                  value: "₹1.15L",
-                  icon: CircleDollarSign,
-                },
-                { label: "Time to Close", value: "18 Days", icon: Clock },
-                { label: "Success Rate", value: "72%", icon: ArrowUpRight },
-              ].map((item, i) => (
-                <div
+      {
+                        label: "Avg Deal Size",
+                        value: deals.length > 0 ? formatCurrency(avgDealSize) : "No data yet",
+                        icon: CircleDollarSign,
+      },
+      { label: "Time to Close", value: avgTimeToCloseDays !== null ? `${avgTimeToCloseDays} Days` : "No data yet", icon: Clock },
+      { label: "Success Rate", value: deals.length > 0 ? `${successRate}%` : "No data yet", icon: ArrowUpRight },
+                            ].map((item, i) => (
+                              <div
                   key={i}
                   className="flex items-center justify-between border-b border-white/10 pb-4 last:border-0 last:pb-0"
                 >
@@ -274,18 +291,19 @@ export default function RevenueOperations() {
             <div className="space-y-4">
               <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
                 <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">
-                  Monthly Target
+                                Pipeline Realized
                 </p>
-                <div className="flex items-end justify-between">
-                  <span className="text-lg font-bold text-slate-900">
-                    ₹12.0L
-                  </span>
-                  <span className="text-sm font-medium text-indigo-600">
-                    70% Reached
-                  </span>
-                </div>
+                            <div className="flex items-end justify-between">
+                                          <span className="text-lg font-bold text-slate-900">
+                                            {formatCurrency(totalPipeline)}
+                                          </span>
+                                          <span className="text-sm font-medium text-indigo-600">
+                                            {pipelineRealizedPct}% Realized
+                                          </span>
+                            </div>
                 <div className="mt-2 w-full h-1.5 bg-indigo-200/50 rounded-full overflow-hidden">
-                  <div className="w-[70%] h-full bg-indigo-600 rounded-full" />
+                                        <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${pipelineRealizedPct}%` }} />
+                </div>
                 </div>
               </div>
               <button className="w-full py-2 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-100 transition-colors">
