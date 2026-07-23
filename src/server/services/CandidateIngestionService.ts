@@ -42,9 +42,11 @@ export class CandidateIngestionService {
             resumeText = result.text || result;
           } catch (pdfError) {
              console.log("ERROR:", "[IngestService] pdf-parse Failed:", pdfError.name, pdfError.message || pdfError);
-             // Always fallback to raw text for testing purposes
-             resumeText = fileBuffer.toString('utf-8');
-             console.log("[IngestService] Fallback to raw text read due to PDF error");
+             // NOTE: We intentionally do NOT fall back to reading the raw binary buffer as
+                    // UTF-8 text here. PDFs are binary, so treating them as text produces garbage
+                    // input for the AI parser, which silently corrupted candidate names/skills
+                    // downstream. Fail loudly instead so the upload can be retried or flagged.
+                    return { status: 400, data: { success: false, error: "Failed to parse PDF content. The file might be corrupted, scanned/image-only, or password protected." } };
           }
         }
       } catch (extError) {
@@ -62,7 +64,15 @@ export class CandidateIngestionService {
       console.log("[IngestService] STEP 3: Starting AI Parse");
       const identityData = await resumeParser.parse(resumeText);
       console.log("[IngestService] STEP 3: AI Parse OK. Identity:", identityData?.name);
-      const candidateName = identityData.name && identityData.name !== "Unknown Candidate" ? identityData.name : fileName;
+              // NOTE: If the AI could not confidently extract a real name, we must NOT silently
+              // substitute the raw uploaded filename as the candidate's name. That previously
+              // caused records like "Brijesh_Resume_Mobile_FLUTTER.pdf" to be stored and shown
+              // in the UI as if it were a real person's name. Instead, keep the record clearly
+              // labeled as unidentified and flag it so it can be manually reviewed or reprocessed.
+              const hasParsedName = !!(identityData.name && identityData.name.trim().length > 0 && identityData.name !== "Unknown Candidate");
+              const candidateName = hasParsedName ? identityData.name.trim() : "Unknown Candidate";
+              identityData.nameNeedsReview = !hasParsedName;
+              identityData.sourceFileName = fileName;
       
       // 3. Delegate to existing logic
       console.log("[IngestService] STEP 4: Identity & Candidate Save");
