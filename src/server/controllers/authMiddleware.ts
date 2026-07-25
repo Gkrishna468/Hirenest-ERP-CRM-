@@ -10,8 +10,18 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
   const p = req.path;
   
-  // Allow health checks, webhooks, and token endpoints
-  if (p === '/health' || p === '/health/checks' || p === '/webhooks' || p === '/firebase-token' || p === '/db' || p === '/auth/google/callback') {
+  // Public paths exempt from auth
+  const publicPaths = [
+    '/health', 
+    '/health/checks', 
+    '/webhooks', 
+    '/firebase-token', 
+    '/db', 
+    '/auth/google/callback',
+    '/candidates/requirement'
+  ];
+
+  if (publicPaths.includes(p) || p.startsWith('/vendors/public') || (req.method === 'GET' && p.startsWith('/requirements'))) {
     return next();
   }
 

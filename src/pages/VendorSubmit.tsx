@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { RequirementRepository } from '@/repositories/RequirementRepository';
 import { VendorRepository } from '@/repositories/VendorRepository';
 import { CandidateRepository } from '@/repositories/CandidateRepository';
+import { VendorAuth } from '@/components/VendorAuth';
 import { 
   Briefcase, 
   MapPin, 
@@ -45,20 +46,7 @@ export default function VendorSubmit() {
   const [vendorsList, setVendorsList] = useState<any[]>([]);
 
   // Authentication State
-  const [vendorEmailInput, setVendorEmailInput] = useState('');
-  const [vendorPasswordInput, setVendorPasswordInput] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
-  
-  const [vendorCodeInput, setVendorCodeInput] = useState('');
-  const [vendorSecretInput, setVendorSecretInput] = useState('');
-  const [otpStep, setOtpStep] = useState(false);
-  const [generatedOtp, setGeneratedOtp] = useState('');
-  const [otpCodeInput, setOtpCodeInput] = useState('');
-  
-  const [otpChecking, setOtpChecking] = useState(false);
-  const [matchingVendor, setMatchingVendor] = useState<any>(null);
   const [authenticatedVendor, setAuthenticatedVendor] = useState<any>(null);
-  const [authChecking, setAuthChecking] = useState(false);
 
   // Form State
   const [vendorForm, setVendorForm] = useState({
@@ -169,17 +157,7 @@ export default function VendorSubmit() {
           setSelectedJobId(openJobs[0].id);
         }
 
-        // Check if vendor code is already stored in sessionStorage
-        const savedCode = sessionStorage.getItem('hn_vendor_code');
-        if (savedCode && vendorsData.length > 0) {
-          const match = vendorsData.find(v => 
-            (v.vendorCode && v.vendorCode.toLowerCase() === savedCode.toLowerCase()) || 
-            (v.id && v.id.toLowerCase() === savedCode.toLowerCase())
-          );
-          if (match) {
-            setAuthenticatedVendor(match);
-          }
-        }
+        // Auth is now handled by VendorAuth and Firebase
       } catch (err: any) {
         console.error('Error loading page data:', err);
         toast.error('Details Not Found or Expired');
@@ -813,130 +791,7 @@ export default function VendorSubmit() {
 
   // 1. NOT LOGGED IN STATE
   if (!authenticatedVendor) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans">
-        <div className="w-full max-w-md bg-slate-900 border border-slate-800 p-8 rounded-3xl space-y-6 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-5">
-            <Lock className="w-32 h-32 text-indigo-500" />
-          </div>
-
-          <div className="text-center space-y-2 relative z-10">
-            <div className="w-12 h-12 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-amber-500/5">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <h1 className="text-xl font-bold text-white tracking-tight font-mono">VENDOR AUTHENTICATION</h1>
-            <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
-              {otpStep 
-                ? "A dynamic high-entropy verification code has been generated. Authorize your hardware session below." 
-                : "Access is restricted to verified recruitment partner organizations. Challenge handshake requires secure credentials."
-              }
-            </p>
-          </div>
-
-          {!otpStep ? (
-            <form onSubmit={handleVendorLoginChallenge} className="space-y-4 relative z-10 animate-in fade-in slide-in-from-bottom-3 duration-300">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono ml-1">Vendor ID / Code</label>
-                <input
-                  type="text"
-                  required
-                  value={vendorCodeInput}
-                  onChange={(e) => setVendorCodeInput(e.target.value)}
-                  placeholder="HN-VND-000001"
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none rounded-xl text-xs text-center text-white placeholder-slate-600 font-mono tracking-wider transition-all font-bold"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono ml-1">Secret Key</label>
-                <input
-                  type="password"
-                  required
-                  value={vendorSecretInput}
-                  onChange={(e) => setVendorSecretInput(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none rounded-xl text-xs text-center text-white placeholder-slate-600 font-mono tracking-wider transition-all font-bold"
-                />
-                <span className="text-[9px] text-slate-500 font-mono block text-center mt-1">If this is your first login, input your chosen 12-char key to register it.</span>
-              </div>
-
-              <button
-                type="submit"
-                disabled={authChecking}
-                className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 text-slate-950 py-3.5 rounded-xl font-bold transition-all text-xs uppercase tracking-wider font-mono flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10 active:scale-95"
-              >
-                {authChecking ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Verifying Credentials...</span>
-                  </>
-                ) : (
-                  <>
-                    <Unlock className="w-4 h-4" />
-                    <span>Authenticate Session</span>
-                  </>
-                )}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-4 relative z-10 animate-in fade-in slide-in-from-bottom-3 duration-300">
-              <div className="space-y-2">
-                <div className="flex justify-between items-center px-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">Simulated OTP Code</label>
-                  <span className="text-[9px] text-emerald-400 font-mono animate-pulse">Email Sent ✓</span>
-                </div>
-                <input
-                  type="text"
-                  required
-                  maxLength={6}
-                  value={otpCodeInput}
-                  onChange={(e) => setOtpCodeInput(e.target.value)}
-                  placeholder="******"
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none rounded-xl text-lg text-center font-mono tracking-[0.5em] text-white placeholder-slate-600 transition-all font-bold"
-                />
-                <p className="text-[9px] text-slate-400 text-center font-sans mt-2">
-                  Check your registered email for your verification OTP.
-                </p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={otpChecking}
-                className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/50 text-slate-950 py-3.5 rounded-xl font-bold transition-all text-xs uppercase tracking-wider font-mono flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10 active:scale-95"
-              >
-                {otpChecking ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Verifying OTP Handshake...</span>
-                  </>
-                ) : (
-                  <>
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Verify Code & Enter</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setOtpStep(false);
-                  setMatchingVendor(null);
-                  setOtpCodeInput('');
-                }}
-                className="w-full text-center text-slate-500 hover:text-slate-300 text-[10px] font-mono hover:underline uppercase tracking-wider block"
-              >
-                ← Back to Credentials
-              </button>
-            </form>
-          )}
-
-          <div className="border-t border-slate-800/80 pt-4 text-center">
-            <span className="text-[10px] text-slate-500 font-mono">AUTHORIZED PARTNERS ONLY • IP_LOGGED</span>
-          </div>
-        </div>
-      </div>
-    );
+    return <VendorAuth onAuthSuccess={setAuthenticatedVendor} />;
   }
 
   // 2. CHECK IF THERE IS A REQUISITION
@@ -959,9 +814,49 @@ export default function VendorSubmit() {
   const skillsArr = Array.isArray(job.skills) ? job.skills : (job.skills ? job.skills.split(',') : []);
 
   // 2. LOGGED IN STATE
+
+  const signupDate = authenticatedVendor?.signupDate ? new Date(authenticatedVendor.signupDate) : null;
+  const daysSinceSignup = signupDate ? Math.floor((new Date().getTime() - signupDate.getTime()) / (1000 * 3600 * 24)) : 0;
+  
+  const needsNda = authenticatedVendor?.ndaStatus !== 'signed';
+  const isNdaBlocked = needsNda && daysSinceSignup >= 5;
+
+  if (isNdaBlocked) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+        <div className="text-center max-w-md bg-slate-900 border border-red-900/50 p-8 rounded-2xl space-y-4">
+          <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-bold text-white">Action Required: NDA Missing</h2>
+          <p className="text-sm text-slate-400">
+            It has been 5 days since you registered. You must sign and upload your NDA to continue submitting profiles. Please contact the team to verify your account.
+          </p>
+          <button onClick={handleLogout} className="mt-4 px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors">
+            Sign Out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 py-12 px-4 md:px-8 font-sans">
+
       <div className="max-w-7xl mx-auto space-y-8">
+        
+        {needsNda && (
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-4">
+            <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-amber-500">Non-Disclosure Agreement Required</h3>
+              <p className="text-xs text-amber-500/80 mt-1">
+                Please remember to sign and submit your NDA. {daysSinceSignup >= 3 ? "You have less than 2 days left before your account is restricted." : "It must be completed within 5 days of registration."}
+              </p>
+            </div>
+          </div>
+        )}
+
         
         {/* TOP COMMAND BAR: APP TITLE & IDENTITY */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">

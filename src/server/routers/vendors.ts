@@ -1,8 +1,70 @@
 import { Router } from 'express';
 import { vendorOnboardingService } from '../services/VendorOnboardingService';
 import { vendorService } from '../services/VendorService';
+import { getAdminDb } from '../utils/firebaseAdmin';
 
 const router = Router();
+
+router.post('/public/signup', async (req: any, res: any) => {
+  const { email, companyName, contactName, phone, password } = req.body;
+  if (!email || !companyName || !password) {
+    return res.status(400).json({ error: 'Missing fields' });
+  }
+  
+  try {
+    const db = getAdminDb();
+    const vendorId = "VND-" + Date.now();
+    
+    // Create the vendor in Auth
+    const result = await vendorOnboardingService.provisionVendorCredentials(
+      email,
+      companyName,
+      vendorId,
+      password,
+      'self-signup'
+    );
+    
+    // Create the Vendor document
+    const vendorRef = db.collection('vendors').doc(vendorId);
+    await vendorRef.set({
+      id: vendorId,
+      name: companyName,
+      company: companyName,
+      email,
+      phone,
+      contactPerson: contactName,
+      type: 'agency',
+      tier: 'tier-3',
+      source: 'public_signup',
+      status: 'active',
+      vendorCode: vendorId,
+      secretKey: password,
+      ndaStatus: 'pending',
+      ndaDay1Reminder: false,
+      ndaDay3Reminder: false,
+      ndaDay5Reminder: false,
+      signupDate: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      organizationId: vendorId,
+      deleted: false
+    });
+    
+    // Optionally create an event
+    const eventRef = db.collection('system_events').doc();
+    await eventRef.set({
+      type: 'VENDOR_SIGNUP',
+      message: `New vendor ${companyName} registered.`,
+      timestamp: new Date().toISOString(),
+      actor: email,
+      data: { vendorId, companyName, email }
+    });
+
+    return res.status(200).json({ success: true, vendorId, userId: result.userId });
+  } catch(e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
 
 router.post('/provision', async (req: any, res: any) => {
   const requesterId = req.user?.id;
