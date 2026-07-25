@@ -49,6 +49,11 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
     );
   if (!user) return <Navigate to="/login" />;
 
+  // Redirect vendors away from internal CRM routes
+  if (user.role === "vendor") {
+    return <Navigate to="/vendor" />;
+  }
+
   return (
     <div className="flex min-h-screen skeuo-container flex-col md:flex-row pb-16 md:pb-0">
       <div className="hidden md:block shrink-0">
