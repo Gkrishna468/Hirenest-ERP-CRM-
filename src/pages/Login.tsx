@@ -5,6 +5,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "@/services/firebase/config";
 import { useNavigate } from "react-router-dom";
 import { Zap, Eye, EyeOff, Mail, Lock, User as UserIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -130,11 +132,18 @@ export default function Login() {
                 {!isRegister && (
                   <button
                     type="button"
-                    onClick={() =>
-                      toast.info(
-                        "Please contact your administrator to reset password",
-                      )
-                    }
+                    onClick={async () => {
+                      if (!email) {
+                        toast.error("Please enter your email address first");
+                        return;
+                      }
+                      try {
+                        await sendPasswordResetEmail(auth, email);
+                        toast.success("Password reset email sent! Please check your inbox.");
+                      } catch (err: any) {
+                        toast.error(err.message || "Failed to send reset email");
+                      }
+                    }}
                     className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
                   >
                     Forgot password?

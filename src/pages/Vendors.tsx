@@ -7,6 +7,8 @@ import { safeJson } from '@/utils/safeJson';
 import React, { useState, useEffect } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '@/services/firebase/config';
 import { 
   Plus, 
   Search, 
@@ -486,7 +488,7 @@ export default function Vendors() {
       const res = await apiFetch(`/api/vendors/${vendorId}`, { method: 'DELETE' });
       if (res.ok) {
         toast.success("Vendor deleted successfully");
-        refreshData();
+        refreshAll();
       } else {
         toast.error("Failed to delete vendor");
       }
@@ -1076,7 +1078,24 @@ export default function Vendors() {
                     </div>
                     <div className="flex flex-col items-end gap-1.5">
                       <div className="flex items-center gap-2">
-                        <button onClick={(e) => handleDeleteVendor(e, vendor.id)} className="p-1 hover:bg-rose-50 text-rose-400 hover:text-rose-600 rounded">
+                        <button 
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Send password reset email to ${vendor.email}?`)) {
+                              try {
+                                await sendPasswordResetEmail(auth, vendor.email);
+                                toast.success(`Password reset email sent to ${vendor.email}`);
+                              } catch(err: any) {
+                                toast.error(err.message || "Failed to send reset email");
+                              }
+                            }
+                          }}
+                          className="p-1 hover:bg-amber-50 text-amber-400 hover:text-amber-600 rounded"
+                          title="Reset Password"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        </button>
+                        <button onClick={(e) => handleDeleteVendor(e, vendor.id)} className="p-1 hover:bg-rose-50 text-rose-400 hover:text-rose-600 rounded" title="Delete Vendor">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                         <span className={cn(

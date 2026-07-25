@@ -34,7 +34,7 @@ export default function RevenueOperations() {
       const res = await apiFetch(`/api/deals/${dealId}`, { method: 'DELETE' });
       if (res.ok) {
         toast.success("Deal deleted");
-        refreshData();
+        refreshAll();
       } else {
         toast.error("Failed to delete deal");
       }

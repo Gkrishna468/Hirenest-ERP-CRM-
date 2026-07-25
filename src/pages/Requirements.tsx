@@ -45,7 +45,7 @@ import { broadcastJob } from "@/services/marketplaceService";
 import { SourceBadge } from "@/components/SourceBadge";
 
 export default function Jobs() {
-  const { jobs, loading, approveJobWithBudget, addJob, updateJob, candidates, deals, clients } =
+  const { jobs, loading, approveJobWithBudget, addJob, updateJob, candidates, deals, clients, refreshAll } =
     useData();
   const { user, apiFetch } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
@@ -502,7 +502,7 @@ Powered by Hirenest CRM AI`;
       if (res.ok) {
         toast.success("Requirement deleted successfully");
         if (selectedJob?.id === jobId) setSelectedJob(null);
-        refreshData();
+        refreshAll();
       } else {
         toast.error("Failed to delete requirement");
       }
@@ -928,7 +928,7 @@ Powered by Hirenest CRM AI`;
                               body: JSON.stringify({ status: newStatus })
                             });
                             if (res.ok) {
-                              refreshData();
+                              refreshAll();
                               toast.success(`Requirement marked as ${newStatus}`);
                             } else {
                               toast.error("Failed to update status");

@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          const isExecRoot = firebaseUser.uid === 'me995j91dmNkwfXXfaCyrDo8oa03' || firebaseUser.email === 'admin@hirenestworkforce.com';
+          const isExecRoot = firebaseUser.uid === 'me995j91dmNkwfXXfaCyrDo8oa03' || firebaseUser.email === 'admin@hirenestworkforce.com' || firebaseUser.email === 'gopal@hirenestworkforce.com';
           
           // Force refresh claims for admin if needed
           const idTokenResult = await firebaseUser.getIdTokenResult();
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             }
           } else {
-            const isExecRoot = firebaseUser.uid === 'me995j91dmNkwfXXfaCyrDo8oa03' || firebaseUser.email === 'admin@hirenestworkforce.com';
+            const isExecRoot = firebaseUser.uid === 'me995j91dmNkwfXXfaCyrDo8oa03' || firebaseUser.email === 'admin@hirenestworkforce.com' || firebaseUser.email === 'gopal@hirenestworkforce.com';
             setUser({
               id: firebaseUser.uid,
               email: firebaseUser.email || '',
@@ -134,7 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (err) {
           console.error('Error resolving user profile:', err);
-          const isExecRoot = firebaseUser.uid === 'me995j91dmNkwfXXfaCyrDo8oa03' || firebaseUser.email === 'admin@hirenestworkforce.com';
+          const isExecRoot = firebaseUser.uid === 'me995j91dmNkwfXXfaCyrDo8oa03' || firebaseUser.email === 'admin@hirenestworkforce.com' || firebaseUser.email === 'gopal@hirenestworkforce.com';
           setUser({
             id: firebaseUser.uid,
             email: firebaseUser.email || '',

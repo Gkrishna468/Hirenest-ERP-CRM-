@@ -70,7 +70,7 @@ const PIPELINE_STAGES = [
 ];
 
 export default function Clients() {
-  const { clients, loading, addClient, jobs, candidates } = useData();
+  const { clients, loading, addClient, jobs, candidates, refreshAll } = useData();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -189,7 +189,7 @@ export default function Clients() {
       if (res.ok) {
         toast.success("Client deleted successfully");
         if (selectedClient?.id === clientId) setSelectedClient(null);
-        refreshData();
+        refreshAll();
       } else {
         toast.error("Failed to delete client");
       }
