@@ -1,9 +1,7 @@
 const fs = require('fs');
 let content = fs.readFileSync('src/pages/Vendors.tsx', 'utf8');
-
 content = content.replace(
-  /<\/div>\s*\}\)\s*<\/div>\s*\}\)\s*<\/div>\s*<\/div>\s*<\/div>\s*\)\}/,
-  '</div>\n              )}\n            </div>\n          </div>\n        </div>\n      )}'
+  'temporaryPassword: partnerForm.temporaryPassword',
+  'temporaryPassword: Math.random().toString(36).slice(-10) + "A1!"'
 );
-
 fs.writeFileSync('src/pages/Vendors.tsx', content);

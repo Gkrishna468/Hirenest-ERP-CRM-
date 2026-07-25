@@ -26,6 +26,11 @@ export class VendorOnboardingService {
       }
     }
 
+    let resetLink = "";
+    try {
+      resetLink = await adminAuth.generatePasswordResetLink(email);
+    } catch(e) { console.warn("Failed to generate password reset link", e); }
+
     // Set Custom Claims for organization mapping and role mapping
     await adminAuth.setCustomUserClaims(userRecord.uid, {
       role: 'vendor',
@@ -57,7 +62,8 @@ export class VendorOnboardingService {
       message: `Secure Firebase Auth credentials provisioned for Delivery Partner ${companyName} (${email}).`,
       timestamp: new Date().toISOString(),
       actor: requesterEmail,
-      data: { userId: userRecord.uid, email, vendorId, companyName }
+      data: { userId: userRecord.uid,
+      resetLink, email, vendorId, companyName }
     });
 
     await batch.commit();

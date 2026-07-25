@@ -227,14 +227,7 @@ export default function App() {
                   </PrivateRoute>
                 }
               />
-              <Route
-                path="/migration"
-                element={
-                  <PrivateRoute>
-                    <MigrationDashboard />
-                  </PrivateRoute>
-                }
-              />
+
               <Route
                 path="/settings"
                 element={

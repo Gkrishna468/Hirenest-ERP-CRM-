@@ -174,7 +174,7 @@ export default function Vendors() {
     if (isModalOpen) {
       setPartnerForm(prev => ({
         ...prev,
-        temporaryPassword: generateRandomPassword()
+        temporaryPassword: ""
       }));
     }
   }, [isModalOpen]);
@@ -391,7 +391,7 @@ export default function Vendors() {
         }
       });
 
-      if (partnerForm.createLogin && partnerForm.temporaryPassword) {
+      if (partnerForm.createLogin) {
         try {
           const authRes = await apiFetch('/api/vendors/provision', {
             method: 'POST',
@@ -400,13 +400,21 @@ export default function Vendors() {
               email: emailLower,
               companyName: partnerForm.companyName,
               vendorId,
-              temporaryPassword: partnerForm.temporaryPassword
+              temporaryPassword: Math.random().toString(36).slice(-10) + "A1!"
             })
           });
           if (!authRes.ok) {
             const authErr = await safeJson(authRes);
             throw new Error(authErr.error || 'Failed to provision credentials');
           }
+          const authData = await safeJson(authRes);
+          setCreatedCredentials({
+            companyName: partnerForm.companyName,
+            vendorCode,
+            email: emailLower,
+            resetLink: authData.resetLink,
+            createLogin: partnerForm.createLogin
+          });
           toast.success('Secure Firebase Auth account & Custom Claims successfully provisioned.');
         } catch (authErr: any) {
           console.error('[Onboarding Auth Provisioning Failed]', authErr);
@@ -414,13 +422,7 @@ export default function Vendors() {
         }
       }
 
-      setCreatedCredentials({
-        companyName: partnerForm.companyName,
-        vendorCode,
-        email: emailLower,
-        password: partnerForm.temporaryPassword,
-        createLogin: partnerForm.createLogin
-      });
+      
 
       toast.success('Onboarding complete! Corporate Organization SSOT mapped.');
       setIsModalOpen(false);
@@ -1335,18 +1337,9 @@ export default function Vendors() {
 
                 {partnerForm.createLogin && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Temporary Password</label>
-                      <input
-                        type="text"
-                        value={partnerForm.temporaryPassword}
-                        onChange={e => setPartnerForm({...partnerForm, temporaryPassword: e.target.value})}
-                        className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none font-mono"
-                      />
-                    </div>
-                    <div className="text-[10px] text-slate-400 flex flex-col justify-center space-y-1">
-                      <p>✔ Password temporary token is valid for 24 hours.</p>
-                      <p>✔ Mandates force password reset on 3rd portal login.</p>
+                    <div className="col-span-2 text-[10px] text-slate-400 flex flex-col justify-center space-y-1">
+                      <p>✔ A secure password reset link will be generated.</p>
+                      <p>✔ The vendor will be prompted to set their own password.</p>
                     </div>
                   </div>
                 )}
@@ -1403,8 +1396,8 @@ export default function Vendors() {
                     <span className="font-bold text-white">{createdCredentials.email}</span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-slate-800">
-                    <span className="text-slate-500">Temp Password:</span>
-                    <span className="font-bold text-amber-400">{createdCredentials.password}</span>
+                    <span className="text-slate-500">Invite Link:</span>
+                    <span className="font-bold text-amber-400 break-all cursor-pointer hover:text-amber-300" onClick={() => { if(createdCredentials.resetLink) { navigator.clipboard.writeText(createdCredentials.resetLink); toast.success("Copied to clipboard!"); } }}>{createdCredentials.resetLink ? "Copy Invite Link" : "No reset link"}</span>
                   </div>
                 </>
               )}
@@ -1464,15 +1457,13 @@ export default function Vendors() {
             {/* Workspace Tab Bar (10 sub-tabs!) */}
             <div className="bg-white border-b border-slate-200 px-6 md:px-8 flex gap-1 overflow-x-auto shrink-0 custom-scrollbar">
               {[
-                { id: 'overview', label: 'Overview & Copilot', icon: BarChart3 },
+                { id: 'overview', label: 'Overview', icon: BarChart3 },
                 { id: 'requirements', label: 'Broadcast & Sourcing', icon: Briefcase },
                 { id: 'inventory', label: 'Talent Inventory', icon: Layers },
                 { id: 'submissions', label: 'Funnel Pipeline', icon: Activity },
-                { id: 'feedback', label: 'SLA Dashboard', icon: CheckSquare },
+                { id: 'feedback', label: 'SLA Activity', icon: CheckSquare },
                 { id: 'commercials', label: 'Commercial Ledger', icon: DollarSign },
-                { id: 'identity', label: 'Corporate Identity', icon: Fingerprint },
-                { id: 'documents', label: 'Legal & Contracts', icon: FileText },
-                { id: 'timeline', label: 'Immutable Ledger', icon: Clock }
+                { id: 'documents', label: 'Legal & Contracts', icon: FileText }
               ].map(tab => {
                 const Icon = tab.icon || Activity;
                 return (
@@ -1499,27 +1490,16 @@ export default function Vendors() {
               {/* TAB: OVERVIEW & AI COPILOT */}
               {vendorTab === 'overview' && (
                 <div className="space-y-6">
-                  {/* Dynamic Relationship Score */}
+                  {/* Basic Vendor Info */}
                   <div className="bg-white p-6 rounded-[2rem] border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
                     <div className="flex-1 space-y-1">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-black uppercase tracking-widest text-slate-400">Vendor Relationship Score</span>
-                        <span className="text-sm font-extrabold text-indigo-600">88% (Tier 1 Preferred)</span>
+                        <span className="text-xs font-black uppercase tracking-widest text-slate-400">Vendor Relationship Tier</span>
+                        <span className="text-sm font-extrabold text-indigo-600">{selectedVendor.tier || 'Tier 3 Basic'}</span>
                       </div>
-                      <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden border">
-                        <div className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 w-[88%] rounded-full relative animate-pulse" />
-                      </div>
-                      <p className="text-[10px] text-slate-400 mt-1">Recalculates based on SLA speed, profile duplication risk, selection conversion ratios and financial timelines.</p>
+                      <p className="text-[10px] text-slate-400 mt-1">Vendor classification and status overview.</p>
                     </div>
                   </div>
-
-                  {/* Render Copilot component */}
-                  <VendorCopilot
-                    selectedVendor={selectedVendor}
-                    activeVendorCandidates={activeVendorCandidates}
-                    openRequirementList={openRequirementList}
-                    onRotateCandidate={handleRotateCandidate}
-                  />
                 </div>
               )}
 
@@ -1638,7 +1618,7 @@ export default function Vendors() {
                             <th className="pb-3">Candidate Name</th>
                             <th className="pb-3">Skills Taxonomy</th>
                             <th className="pb-3">Notice Period</th>
-                            <th className="pb-3 text-center">Health Score</th>
+                            
                             <th className="pb-3 text-right">Action</th>
                           </tr>
                         </thead>
@@ -1653,11 +1633,7 @@ export default function Vendors() {
                               </td>
                               <td className="py-3 font-mono text-[10px]">{safeArray(c.skills).join(', ') || 'React, SQL, Node'}</td>
                               <td className="py-3 text-slate-500">{c.noticePeriod || 'Immediate'}</td>
-                              <td className="py-3 text-center">
-                                <span className="inline-block px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-lg text-[10px] font-bold font-mono">
-                                  91%
-                                </span>
-                              </td>
+                              
                               <td className="py-3 text-right">
                                 <button 
                                   onClick={() => triggerCandidateDetail(c)}
@@ -1689,25 +1665,9 @@ export default function Vendors() {
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         
-                        {/* Column 1: Circular Health Scores */}
-                        <div className="space-y-4">
-                          <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Candidate Health Scorecard</h5>
-                          <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 text-center space-y-3">
-                            <span className="text-3xl font-black text-indigo-600 font-mono">91%</span>
-                            <p className="text-[10px] font-black uppercase text-slate-500">Overall Health Score</p>
-                            
-                            <div className="border-t border-indigo-100/60 pt-3 text-[10px] space-y-1 text-left text-slate-600 font-medium">
-                              <p className="flex justify-between"><span>Completeness:</span> <b className="text-slate-800">94%</b></p>
-                              <p className="flex justify-between"><span>Skill Confidence:</span> <b className="text-slate-800">89%</b></p>
-                              <p className="flex justify-between"><span>AI Parse Accuracy:</span> <b className="text-slate-800">97%</b></p>
-                              <p className="flex justify-between"><span>Duplicate Lock:</span> <b className="text-emerald-600">PASSED (Unique)</b></p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Column 2: Resume versioning (V1, V2, V3) */}
+                        {/* Column 1: Resume versioning (V1, V2, V3) */}
                         <div className="space-y-4">
                           <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Resume Versions History</h5>
                           <div className="space-y-2">
@@ -1809,25 +1769,16 @@ export default function Vendors() {
                 <div className="space-y-6">
                   
                   {/* Ledger scorecard */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm text-center space-y-1">
                       <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Total gross revenue</span>
-                      <h4 className="text-xl font-black text-slate-800">₹{totalRevenue.toLocaleString() || '12,45,000'}</h4>
+                      <h4 className="text-xl font-black text-slate-800">₹{totalRevenue.toLocaleString()}</h4>
                     </div>
                     <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm text-center space-y-1">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Expected billing (MSA)</span>
-                      <h4 className="text-xl font-black text-slate-800">₹14,50,000</h4>
-                    </div>
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm text-center space-y-1">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">outstanding commissions</span>
-                      <h4 className="text-xl font-black text-indigo-600">₹{totalOutstanding.toLocaleString() || '1,86,750'}</h4>
-                    </div>
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm text-center space-y-1">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">collection risk index</span>
-                      <h4 className="text-xl font-black text-emerald-600">Low Risk (0.8%)</h4>
+                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Outstanding commissions</span>
+                      <h4 className="text-xl font-black text-indigo-600">₹{totalOutstanding.toLocaleString()}</h4>
                     </div>
                   </div>
-
                   {/* Billings Table */}
                   <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
                     <h4 className="text-xs font-black uppercase tracking-widest text-slate-600">Recent Corporate Billings</h4>
@@ -1875,10 +1826,7 @@ export default function Vendors() {
                 </div>
               )}
 
-              {/* TAB: CORPORATE IDENTITY & ORG MANAGEMENT */}
-              {vendorTab === 'identity' && (
-                <VendorIdentityEngine selectedVendor={selectedVendor} />
-              )}
+              
 
               {/* TAB: DOCUMENTS & MSA */}
               {vendorTab === 'documents' && (
@@ -1907,38 +1855,7 @@ export default function Vendors() {
                 </div>
               )}
 
-              {/* TAB: IMMUTABLE LEDGER TIMELINE (Chronological timeline of 12 distinct milestones) */}
-              {vendorTab === 'timeline' && (
-                <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm space-y-6">
-                  <div>
-                    <h4 className="text-sm font-black text-slate-900">Immutable Ledger Timeline (Law 1 compliance)</h4>
-                    <p className="text-xs text-slate-400 mt-0.5">Auditable, role-protected, append-only visual trail tracking the complete candidate-to-placement lifecycle.</p>
-                  </div>
-
-                  {eventsLoading ? (
-                    <p className="text-xs text-slate-500 animate-pulse italic">Scanning ledger blocks...</p>
-                  ) : (
-                    <div className="space-y-6 border-l-2 border-indigo-100 pl-6 ml-4">
-                      {systemEvents.length === 0 ? (
-                        <p className="text-xs text-slate-500 italic py-10 text-center">No audit events found in the ledger for this organization.</p>
-                      ) : (
-                        systemEvents.map((evt, i) => (
-                          <div key={i} className="relative space-y-1">
-                            <div className="absolute -left-[31px] top-1.5 w-3 h-3 rounded-full bg-indigo-600 border-4 border-white shadow-sm" />
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-mono font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border">
-                                {evt.type || 'SYSTEM_EVENT'}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono">{evt.timestamp}</span>
-                            </div>
-                            <p className="text-xs text-slate-650 font-medium leading-relaxed">{evt.message}</p>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+              
 
             </div>
 

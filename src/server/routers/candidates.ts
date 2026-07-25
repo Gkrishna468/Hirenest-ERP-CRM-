@@ -6,11 +6,34 @@ import { candidateIngestionService } from '../services/CandidateIngestionService
 
 
 
+
+const rateLimits = new Map<string, { count: number; resetTime: number }>();
+
+const rateLimiterMiddleware = (req: any, res: any, next: any) => {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 minute
+  const maxRequests = 5;
+
+  let record = rateLimits.get(ip);
+  if (!record || now > record.resetTime) {
+    record = { count: 1, resetTime: now + windowMs };
+  } else {
+    record.count++;
+  }
+  rateLimits.set(ip, record);
+
+  if (record.count > maxRequests) {
+    return res.status(429).json({ error: "Too many requests. Please try again later." });
+  }
+  next();
+};
+
 const router = Router();
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.post('/ingest', (req, res, next) => {
+router.post('/ingest', rateLimiterMiddleware, (req, res, next) => {
     console.log("[Router] /ingest called. Content-Type:", req.headers['content-type']);
     next();
   }, upload.single('resume'), async (req: any, res: any) => {

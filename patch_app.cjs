@@ -1,9 +1,7 @@
 const fs = require('fs');
 let content = fs.readFileSync('src/App.tsx', 'utf8');
-
 content = content.replace(
-  'return <Navigate to="/vendor-portal" />;',
-  'return <Navigate to="/vendor" />;'
+  '              <Route\n                path="/migration"\n                element={\n                  <PrivateRoute>\n                    <MigrationDashboard />\n                  </PrivateRoute>\n                }\n              />',
+  ''
 );
-
 fs.writeFileSync('src/App.tsx', content);

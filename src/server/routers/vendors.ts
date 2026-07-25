@@ -5,7 +5,16 @@ import { getAdminDb } from '../utils/firebaseAdmin';
 
 const router = Router();
 
-router.post('/public/signup', async (req: any, res: any) => {
+
+import { rateLimit } from 'express-rate-limit';
+
+const signupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Limit each IP to 10 requests per windowMs
+  message: { error: 'Too many signup requests from this IP, please try again after 15 minutes' }
+});
+
+router.post('/public/signup', signupLimiter, async (req: any, res: any) => {
   const { email, companyName, contactName, phone, password } = req.body;
   if (!email || !companyName || !password) {
     return res.status(400).json({ error: 'Missing fields' });

@@ -55,7 +55,23 @@ export default function RevenueOperations() {
     .filter((d) => !d.payment_received)
     .reduce((sum, d) => sum + (Number(d.payout_amount) || 0), 0);
 
-  const formatCurrency = (val: number) => {
+  
+  const wonDeals = deals.filter(d => d.stage === 'Won' || d.stage === 'Closed Won' || d.status === 'Won' || d.payment_received);
+  const lostDeals = deals.filter(d => d.stage === 'Lost' || d.stage === 'Closed Lost' || d.status === 'Lost');
+  const closedDealsCount = wonDeals.length + lostDeals.length;
+  
+  const avgDealSize = wonDeals.length > 0 
+    ? formatCurrency(wonDeals.reduce((sum, d) => sum + (Number(d.revenue_amount) || 0), 0) / wonDeals.length)
+    : "N/A";
+    
+  const successRate = closedDealsCount > 0 
+    ? Math.round((wonDeals.length / closedDealsCount) * 100) + "%"
+    : (deals.length > 0 ? "0%" : "N/A");
+
+  // Mock time to close as we might not have timestamps for all stage changes
+  const timeToClose = "N/A";
+
+const formatCurrency = (val: number) => {
     if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)}Cr`;
     if (val >= 100000) return `₹${(val / 100000).toFixed(2)}L`;
     return `₹${val.toLocaleString()}`;
@@ -65,15 +81,15 @@ export default function RevenueOperations() {
     {
       label: "Pipeline Value",
       value: formatCurrency(totalPipeline),
-      trend: "+12.5%",
-      icon: Target, Trash2,
+      trend: "",
+      icon: Target,
       color: "text-indigo-600",
       bg: "bg-indigo-100",
     },
     {
       label: "Projected Monthly",
-      value: formatCurrency(totalPipeline * 0.4),
-      trend: "+4.2%",
+      value: formatCurrency(0),
+      trend: "",
       icon: TrendingUp,
       color: "text-emerald-600",
       bg: "bg-emerald-100",
@@ -81,7 +97,7 @@ export default function RevenueOperations() {
     {
       label: "Pending Payouts",
       value: formatCurrency(pendingPayouts),
-      trend: "-2.1%",
+      trend: "",
       icon: Clock,
       color: "text-orange-600",
       bg: "bg-orange-100",
@@ -89,7 +105,7 @@ export default function RevenueOperations() {
     {
       label: "Realized Revenue",
       value: formatCurrency(realizedRevenue),
-      trend: "+18.1%",
+      trend: "",
       icon: CheckCircle2,
       color: "text-blue-600",
       bg: "bg-blue-100",
@@ -129,16 +145,7 @@ export default function RevenueOperations() {
               >
                 <stat.icon className={cn(stat.color, "w-6 h-6")} />
               </div>
-              <span
-                className={cn(
-                  "text-xs font-bold px-2 py-1 rounded-lg",
-                  stat.trend.startsWith("+")
-                    ? "bg-green-50 text-green-600"
-                    : "bg-red-50 text-red-600",
-                )}
-              >
-                {stat.trend}
-              </span>
+              {stat.trend && <span className={cn("text-xs font-bold px-2 py-1 rounded-lg", stat.trend.startsWith("+") ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600")}>{stat.trend}</span>}
             </div>
             <p className="text-slate-500 text-sm font-medium">{stat.label}</p>
             <h2 className="text-2xl font-bold text-slate-900 mt-1">
@@ -242,11 +249,11 @@ export default function RevenueOperations() {
               {[
                 {
                   label: "Avg Deal Size",
-                  value: "₹1.15L",
+                  value: avgDealSize,
                   icon: CircleDollarSign,
                 },
-                { label: "Time to Close", value: "18 Days", icon: Clock },
-                { label: "Success Rate", value: "72%", icon: ArrowUpRight },
+                { label: "Time to Close", value: timeToClose, icon: Clock },
+                { label: "Success Rate", value: successRate, icon: ArrowUpRight },
               ].map((item, i) => (
                 <div
                   key={i}

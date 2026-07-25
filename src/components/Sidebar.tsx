@@ -75,7 +75,7 @@ const navGroups = [
     items: [
        { icon: Zap, label: 'Financials', path: '/revenue' },
        { icon: TrendingUp, label: 'AI Operations', path: '/ai-accuracy' },
-       { icon: ShieldCheck, label: 'Governance', path: '/migration' },
+       // { icon: ShieldCheck, label: 'Governance', path: '/migration' },
        { icon: Settings, label: 'Settings', path: '/settings' },
     ]
   }

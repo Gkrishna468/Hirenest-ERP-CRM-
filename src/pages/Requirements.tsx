@@ -901,18 +901,52 @@ Powered by Hirenest CRM AI`;
             >
               <div className="p-6 flex-1">
                 <div className="flex items-start justify-between mb-4">
-                  <div
-                    className={cn(
-                       "px-2.5 py-1 text-xs font-bold rounded-full border",
-                       getStatusColor(job.status, job.approvalStatus),
-                    )}
-                  >
-                    {job.approvalStatus === "draft" ? "DRAFT" : (job.approvalStatus === "pending" ? "PENDING REVIEW" : job.status.toUpperCase())}
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={cn(
+                        "px-2.5 py-1 text-xs font-bold rounded-full border",
+                        getStatusColor(job.status, job.approvalStatus),
+                      )}
+                    >
+                      {job.approvalStatus === "draft" ? "DRAFT" : (job.approvalStatus === "pending" ? "PENDING REVIEW" : job.status.toUpperCase())}
+                    </div>
+                    <label 
+                      className="relative inline-flex items-center cursor-pointer ml-1" 
+                      title={job.status === 'open' ? 'Mark as Closed' : 'Mark as Open'}
+                    >
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        checked={job.status === 'open'} 
+                        onChange={async (e) => {
+                          e.stopPropagation();
+                          const newStatus = e.target.checked ? "open" : "closed";
+                          try {
+                            const res = await apiFetch(`/api/requirements/${job.id}`, {
+                              method: 'PUT',
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ status: newStatus })
+                            });
+                            if (res.ok) {
+                              refreshData();
+                              toast.success(`Requirement marked as ${newStatus}`);
+                            } else {
+                              toast.error("Failed to update status");
+                            }
+                          } catch(err: any) {
+                            toast.error(err.message || "Failed to update status");
+                          }
+                        }} 
+                      />
+                      <div className="w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={(e) => handleDeleteJob(e, job.id)} className="p-1 hover:bg-rose-50 text-rose-400 hover:text-rose-600 rounded transition-colors" title="Delete Requirement">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {(user?.role === 'admin' || user?.role === 'founder') && (
+                      <button onClick={(e) => handleDeleteJob(e, job.id)} className="p-1 hover:bg-rose-50 text-rose-400 hover:text-rose-600 rounded transition-colors" title="Delete Requirement">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                     <button className="text-slate-300 hover:text-slate-600 transition-colors">
                       <MoreVertical className="w-5 h-5" />
                     </button>
@@ -2930,7 +2964,12 @@ ${window.location.origin}/#/vendor-submit/${selectedJob.id}
                     </button>
                   </div>
                 </div>
-                <div className="w-full md:w-auto flex flex-col items-center bg-white p-6 rounded-2xl border border-emerald-100 shadow-lg relative overflow-hidden group hover:border-emerald-300 transition-colors">
+                <div className="w-full md:w-auto flex flex-col items-center bg-white p-6 rounded-2xl border border-emerald-100 shadow-lg relative overflow-hidden group hover:border-emerald-300 transition-colors cursor-pointer"
+    onClick={() => {
+      const inviteUrl = `${window.location.origin}/vendor-submit/${selectedRequirement.id}`;
+      navigator.clipboard.writeText(inviteUrl);
+      toast.success("Network Invite Link copied to clipboard!");
+    }}>
                   <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                   <div className="w-36 h-36 bg-white border-2 border-dashed border-emerald-300 rounded-xl flex items-center justify-center mb-4 relative z-10 transition-transform group-hover:scale-105">
                     <div className="absolute inset-2 bg-slate-50 flex items-center justify-center rounded-lg">
