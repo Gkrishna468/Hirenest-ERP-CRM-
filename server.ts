@@ -19,6 +19,7 @@ import systemEventsRouter from "./src/server/routers/system_events";
 import systemRouter from "./src/server/routers/system";
 import healthHandler from "./src/server/controllers/health";
 import webhooksHandler from "./src/server/controllers/webhooks";
+import docusignWebhookHandler from "./src/server/controllers/docusign";
 import authRouter from "./src/server/routers/auth";
 import authHandler from "./src/server/controllers/auth";
 import gmailRouter from "./src/server/routers/gmail";
@@ -67,6 +68,7 @@ app.use("/api/system", systemRouter);
 app.use("/api/health", healthRouter);
 
 // 2. Webhooks
+app.post("/api/webhooks/docusign", docusignWebhookHandler);
 app.all("/api/webhooks", async (req, res) => {
   try {
     await webhooksHandler(req as any, res as any);

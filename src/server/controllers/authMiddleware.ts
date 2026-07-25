@@ -15,6 +15,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     '/health', 
     '/health/checks', 
     '/webhooks', 
+    '/webhooks/docusign',
     '/firebase-token', 
     '/db', 
     '/auth/google/callback',
