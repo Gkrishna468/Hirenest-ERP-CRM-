@@ -32,6 +32,18 @@ import agentsHandler from "./src/server/controllers/agents";
 import firebaseTokenHandler from "./src/server/controllers/firebase-token";
 import { setupAgentRuntime } from "./src/server/controllers/setupRuntime";
 
+
+import { agentRuntime } from './src/server/agents/AgentRuntime';
+import { communicationAgent } from './src/server/agents/CommunicationAgent';
+import { recruiterAgent } from './src/server/agents/RecruiterAgent';
+import { communicationGateway } from './src/server/communication/CommunicationGateway';
+import { GmailProvider } from './src/server/communication/gmail/GmailProvider';
+
+agentRuntime.registerAgent(communicationAgent);
+agentRuntime.registerAgent(recruiterAgent);
+communicationGateway.registerProvider('gmail', new GmailProvider());
+communicationGateway.initializeAll();
+
 const app = express();
 const PORT = 3000;
 

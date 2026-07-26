@@ -657,3 +657,73 @@ To prove the architectural integrity of the platform, the following end-to-end w
 
 
 
+
+---
+
+# HireNestOS v2 — AI Staffing Operating System
+
+Based on the strategic vision, HireNestOS is evolving from a traditional CRM into a comprehensive **AI Staffing Operating System**. The CRM is now just one module within a broader, autonomous enterprise architecture.
+
+## 1. Communication-First Foundation
+The architecture is fundamentally shifted away from direct, hard-coded integrations (e.g. Gmail as a standalone feature) to a provider-agnostic **Communication Gateway**:
+* **Providers:** Gmail, Outlook, LinkedIn, WhatsApp, SMS, Voice, Telegram all implement a common `CommunicationProvider` interface.
+* **Unified Conversation Model:** All interactions land in a normalized `conversations` and `messages` collection (Unified Inbox).
+* **AI Memory:** The AI agent analyzes every thread to construct context, updating memory with intent, entities, sentiment, urgency, preferred channels, and next actions.
+* **Event Bus:** All message events (e.g., `MESSAGE_RECEIVED`, `MESSAGE_SENT`) flow into `system_events` where autonomous agents subscribe and act.
+
+## 2. Autonomous Agent Runtime
+Hard-coded workflows are replaced by specialized AI Agents executing in a central Orchestration layer:
+* **Business Development Agent:** Outreaches on LinkedIn/Email, enriches contacts, sets up meetings.
+* **AI Email Agent (Outreach Engine):** Crafts highly personalized emails based on prompt templates, company history, available bench, etc. Wait-states use an autonomous Sequence Engine instead of fixed campaigns.
+* **Recruiter Agent:** Reads incoming requirements, searches across Internal/Bench/LinkedIn, ranks candidates, and coordinates submissions.
+* **Vendor Agent:** Parses inbound bench emails, checks duplicates, extracts skills/availability/rate, and auto-matches to active requirements.
+* **Client Agent:** Generates intelligent briefing documents before meetings, aggregating company history, news, past submissions, and revenue details.
+* **CEO/Founder Agent:** Summarizes the enterprise’s pulse each morning—highlighting revenue pipeline, critical blockages, at-risk clients, and key metrics.
+
+## 3. Communication OS Integration
+No action is triggered manually unless necessary. If a client emails "Need 4 Java Developers", the **AI Intent Engine**:
+1. Classifies the intent as `Need Candidates`.
+2. Extracts entities (Java, 4).
+3. Emits `RequirementCreated` event to the Event Bus.
+4. The Recruiter and Vendor Agents wake up to fulfill the demand.
+5. All operations are strictly audited via the immutable `system_events` ledger and persisted centrally in Firestore (SSOT).
+
+## 4. Platform Intelligence & Orchestration (HireNestOS Phase 3)
+HireNestOS is transitioning from reactive agent workflows to a deeply orchestrated platform model. Rather than hard-coded interactions, the system relies on dynamic planning and orchestration.
+
+*   **Workflow Engine:** Every business process is modeled as an event-driven state machine. When an intent is detected (e.g., "Need Candidates"), the Workflow Engine drives a configurable sequence of actions (Search -> Match -> Create Submission -> Email -> Wait -> Schedule).
+*   **Outreach OS:** The communication layer extends into an autonomous sales execution engine. Outreach consists of multi-channel sequences, dynamic delays, automatic reply detection, and AI-driven personalization, pausing instantly upon engagement.
+*   **AI Planner:** For complex requests, the AI Planner breaks down high-level intents (e.g., "Need 6 React Developers") into achievable goals and discrete tasks, distributing work among specialized agents rather than relying on a single monolithic prompt.
+*   **Agent Registry:** Agents are registered dynamically with explicit manifests outlining their capabilities, permissions, subscribed events, and health status. The Planner dynamically discovers the right agent to execute a task.
+*   **Knowledge Graph (Future):** Isolated entity records are linked into a global graph, mapping relationships between companies, hiring managers, vendors, candidates, and financial outcomes, unlocking deep relational intelligence (e.g. "Which vendor closes the most Java roles?").
+*   **Multi-Model Router:** AI requests are intelligently routed based on cost, latency, and capability constraints—favoring fast/local models for simple tasks (parsing, intent) and reasoning-heavy models (Gemini Pro/GPT-5.5) for complex planning and generation.
+
+## 5. Platform Hardening & Governance (HireNestOS Phase 4)
+As the architecture shifts to a platform model, the focus moves from adding features to hardening the **AI Operating System Kernel**.
+
+*   **OS SDK:** Internal services, plugins, and modules interact with the platform through a unified `@hirenest/os-sdk` (Events, Messaging, Memory, Workflow, Agents, Observability) rather than raw Firestore or Pub/Sub clients. This abstracts the data layer.
+*   **AI Control Plane:** An observability layer tracking Agent execution, Planner decisions, Workflow states, failed tasks, token usage, model latency, and human overrides. Provides visibility into the autonomous engine.
+*   **Task Queue & Scheduler:** Agents do not execute work synchronously. The Planner distributes work into a Task Queue (supporting retries, back-pressure, concurrency control, and rate limiting).
+*   **Memory Hierarchy:** Context is separated into Global, Tenant, Company, Contact, Conversation, Workflow, Agent, and Session memory layers to prevent context pollution.
+*   **AI Skills Framework:** Instead of monolithic agents, agents compose reusable *Skills* (e.g., Search Candidates, Extract Skills, Generate Proposal).
+*   **Policy-Based Governance:** All actions are gated by enterprise policies (e.g., Approval thresholds, PII restrictions, Maximum outreach limits) ensuring human-in-the-loop compliance where required.
+
+## 6. Enterprise Extensions & Platform Kernel (HireNestOS Phase 5)
+HireNestOS is fundamentally shifting from a service-oriented architecture to a **Platform-Centric** ecosystem. The system is divided into a stable, hardened OS Kernel and an extensible Marketplace.
+
+*   **Platform Manifest:** Every deployment exposes a configuration manifest detailing the version, active modules, installed extensions, registered skills, and enabled policies.
+*   **Extension Framework:** Everything outside the kernel (CRM, ATS, Vendor Portal) registers as an Extension via the `ExtensionRegistry`. Extensions declare capabilities rather than explicit implementations.
+*   **Enterprise Search:** A unified search layer aggregates Candidates, Requirements, Companies, Communications, and Knowledge, decoupling the search intent from the underlying vector/database implementation.
+*   **Digital Twin & State:** Every business object (Requirement, Candidate) has an AI-aware 'Digital Twin' representation computing risk, recommendations, and operational health in real-time.
+*   **Asset Versioning:** Prompts, Skills, Workflows, and Policies are versioned as deployable assets, ensuring reproducible AI behavior and auditability.
+*   **Metrics Engine:** Comprehensive telemetry captures not just AI usage (tokens, cost, human overrides), but operational KPIs (placements, response times, quality ratios).
+
+## 7. Universal Digital Twin & Decision Engine (HireNestOS Phase 6)
+HireNestOS evolves from "AI in every screen" to "AI running the business."
+
+*   **Universal Digital Twin Framework:** Replaces separate AI representations with a unified interface for every entity (Candidate, Requirement, Company, Vendor, Recruiter, Client, Placement). Every twin exposes: Executive Summary, Health Score, Risks, Opportunities, Predictions, Recommended Actions, Timeline, and AI Memory.
+*   **Decision Engine:** AI shifts from providing insights to recommending actionable decisions (e.g., "Health: 62% -> Risk: No submissions in 48hrs -> Action: Assign Vendor X"). Humans approve recommendations rather than assembling them manually.
+*   **AI Command Center:** A single role-aware 'HireNest AI' replaces fragmented copilots. The same underlying reasoning engine serves the Recruiter, Vendor, Client, and Founder based on RBAC.
+*   **Predictive Intelligence:** Digital Twins calculate forward-looking metrics (e.g., Offer Probability, Fill Probability, Churn Probability) to turn the platform from reactive to predictive.
+*   **AI Work Queue:** An operational, role-based queue surfaces priority tasks (e.g., "Client waiting 18 hours") instead of generic notifications.
+*   **Enterprise APIs & Plugin Ecosystem:** Stable APIs (Candidate API, Workflow API, Search API) enable a rich ecosystem of external integrations (Teams, SAP, Workday) without modifying the OS Kernel.

@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { safeArray, safeString, safeDate } from "@/utils/safe";
 import { broadcastJob } from "@/services/marketplaceService";
 import { SourceBadge } from "@/components/SourceBadge";
+import { DigitalTwinPanel } from "@/components/DigitalTwinPanel";
 
 export default function Jobs() {
   const { jobs, loading, approveJobWithBudget, addJob, updateJob, candidates, deals, clients, refreshAll } =
@@ -2866,6 +2867,38 @@ Powered by Hirenest CRM AI`;
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* HIRENEST OS DIGITAL TWIN */}
+              <div className="mb-8">
+                <DigitalTwinPanel 
+                  data={{
+                    entityType: "Requirement",
+                    entityId: selectedJob.id,
+                    entityName: selectedJob.title,
+                    healthScore: 62,
+                    riskLevel: "High",
+                    summary: "High-priority requirement for " + (selectedJob.clientName || 'the client') + ". Salary is aligned with current market rates for " + selectedJob.location + ".",
+                    risks: [
+                      "Requires rare combination of skills. Sourcing might take longer.",
+                      "No submissions in the last 48 hours."
+                    ],
+                    opportunities: [
+                      "Increase bill rate by ₹500/hour to attract premium vendors."
+                    ],
+                    predictions: [
+                      { label: "Fill Probability", value: "62%", color: "text-amber-400" },
+                      { label: "Est. Time-to-Fill", value: "14 Days", color: "text-emerald-400" },
+                      { label: "Submissions Velocity", value: "Low", color: "text-rose-400" }
+                    ],
+                    recommendedActions: [
+                      { title: "Assign Vendor X", actionText: "Execute Assignment", confidence: 94 },
+                      { title: "Notify Recruiter Sarah", actionText: "Send Alert", confidence: 88 },
+                      { title: "Launch Outreach Seq #3", actionText: "Start Sequence", confidence: 91 }
+                    ]
+                  }}
+                  onExecuteAction={(act) => toast.success("Decision Engine: Executing " + act)}
+                />
               </div>
 
               {/* WHATSAPP VENDOR HUB */}

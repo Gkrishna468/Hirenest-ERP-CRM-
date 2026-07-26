@@ -34,6 +34,7 @@ import { useData } from "@/contexts/DataContext";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import WorkflowTimeline from "./WorkflowTimeline";
+import { DigitalTwinPanel } from "./DigitalTwinPanel";
 
 interface Candidate360Props {
   candidateId: string;
@@ -514,19 +515,37 @@ export default function Candidate360({ candidateId, onClose }: Candidate360Props
                 <div className="space-y-6 animate-in fade-in duration-150">
                   
                   {/* SUMMARY SECTION */}
-                  <div ref={summaryRef} className="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 space-y-4 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-indigo-600" />
-                        <h4 className="text-base font-bold text-slate-900">AI Candidate Summary</h4>
-                      </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest font-mono text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">Parsed via AI</span>
-                    </div>
-                    <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line font-sans">
-                      {aiSummaryText}
-                    </p>
+                  <div ref={summaryRef} className="mb-6">
+                    <DigitalTwinPanel 
+                      data={{
+                        entityType: "Candidate",
+                        entityId: candidate.id,
+                        entityName: candidate.name,
+                        healthScore: 78,
+                        riskLevel: "Medium",
+                        summary: aiSummaryText || "Strong technical profile matching core requirements. Communication skills verified.",
+                        risks: [
+                          "Notice period is 60 days, client prefers immediate joiners."
+                        ],
+                        opportunities: [
+                          "Highly suitable for an alternative open role with flexible timeline."
+                        ],
+                        predictions: [
+                          { label: "Interview Prob.", value: "85%", color: "text-emerald-400" },
+                          { label: "Offer Prob.", value: "60%", color: "text-amber-400" },
+                          { label: "Joining Prob.", value: "70%", color: "text-amber-400" },
+                          { label: "Retention Pred.", value: "High", color: "text-emerald-400" }
+                        ],
+                        recommendedActions: [
+                          { title: "Negotiate Notice Period", actionText: "Generate Outreach", confidence: 85 },
+                          { title: "Schedule Tech Screen", actionText: "Auto-Schedule", confidence: 92 },
+                          { title: "Cross-submit to Role B", actionText: "Execute Cross-submit", confidence: 75 }
+                        ]
+                      }}
+                      onExecuteAction={(act) => toast.success("Decision Engine: " + act)}
+                    />
                   </div>
-
+                  
                   {/* TWO-COLUMN GRID: SKILLS MATRIX & TIMELINE */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     

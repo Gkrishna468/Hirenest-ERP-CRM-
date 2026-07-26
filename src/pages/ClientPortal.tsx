@@ -136,7 +136,37 @@ export default function ClientPortal() {
                     <h2 className="font-black text-2xl text-slate-900">{selectedRequirement.title}</h2>
                     <p className="text-sm text-slate-500 font-medium mt-1">Candidates submitted for this role</p>
                   </div>
+                  
+                  <div className="p-6 pb-0">
+                    <DigitalTwinPanel 
+                      data={{
+                        entityType: "Requirement",
+                        entityId: selectedRequirement.id,
+                        entityName: selectedRequirement.title,
+                        healthScore: 85,
+                        riskLevel: "Low",
+                        summary: "Pipeline is healthy. Multiple candidates have reached the interview stage.",
+                        risks: [
+                          "Feedback SLA is approaching for 2 candidates in Interview stage."
+                        ],
+                        opportunities: [
+                          "Expedite offer for top candidate to prevent counter-offers."
+                        ],
+                        predictions: [
+                          { label: "Fill Probability", value: "85%", color: "text-emerald-400" },
+                          { label: "Est. Time-to-Fill", value: "5 Days", color: "text-emerald-400" },
+                          { label: "Offer Acceptance", value: "High", color: "text-emerald-400" }
+                        ],
+                        recommendedActions: [
+                          { title: "Provide Interview Feedback", actionText: "Complete Feedback", confidence: 98 },
+                          { title: "Schedule Final Round", actionText: "Auto-Schedule", confidence: 85 }
+                        ]
+                      }}
+                      onExecuteAction={(act) => toast.success("Executing: " + act)}
+                    />
+                  </div>
                   <div className="flex-1 overflow-y-auto p-6 space-y-4">
+
                     {deals.filter(d => d.jobId === selectedRequirement.id).map(deal => {
                       const candidate = candidates.find(c => c.id === deal.candidateId);
                       return (

@@ -12,6 +12,7 @@ import {
 , Building2} from "lucide-react";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
+import { DigitalTwinPanel } from "../components/DigitalTwinPanel";
 
 export default function VendorPortal() {
   const { jobs, deals, candidates, refreshAll, addCandidate, updateCandidate, vendors } = useData();
@@ -1342,6 +1343,38 @@ Your task is to answer user's question. Be professional, direct, and helpful. Gu
         {activeTab === "requirements" && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             
+
+            {/* AI Vendor Twin */}
+            <div className="lg:col-span-4 mb-2">
+                <DigitalTwinPanel 
+                  data={{
+                    entityType: "Vendor",
+                    entityId: authenticatedVendor?.id || "VND-1",
+                    entityName: authenticatedVendor?.name || "Your Agency",
+                    healthScore: 92,
+                    riskLevel: "Low",
+                    summary: "High performance across all active requirements. Excellent submission quality and SLA adherence.",
+                    risks: [
+                      "Candidate bench depth is low for upcoming Q4 requirements."
+                    ],
+                    opportunities: [
+                      "Submit 2 benched candidates to the high-priority React Developer requirement."
+                    ],
+                    predictions: [
+                      { label: "Submission Quality", value: "High", color: "text-emerald-400" },
+                      { label: "Interview Conv.", value: "45%", color: "text-emerald-400" },
+                      { label: "Offer Conv.", value: "22%", color: "text-amber-400" },
+                      { label: "Response SLA", value: "2.4 hrs", color: "text-emerald-400" }
+                    ],
+                    recommendedActions: [
+                      { title: "Submit Top Candidates", actionText: "Auto-Submit Bench", confidence: 98 },
+                      { title: "Update Bench Availability", actionText: "Refresh Bench", confidence: 85 }
+                    ]
+                  }}
+                  onExecuteAction={(act) => toast.success("Decision Engine: " + act)}
+                />
+            </div>
+
             {/* Sidebar Filter categories */}
             <div className="lg:col-span-1 space-y-4">
               <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-4">

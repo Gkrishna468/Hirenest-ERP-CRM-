@@ -24,7 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export default function RevenueOperations() {
-  const { clients, jobs, candidates, deals, refreshData } = useData();
+  const { clients, jobs, candidates, deals, refreshAll } = useData();
   const { apiFetch } = useAuth();
 
   const handleDeleteDeal = async (e: React.MouseEvent, dealId: string) => {

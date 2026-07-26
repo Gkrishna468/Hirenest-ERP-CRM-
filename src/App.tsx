@@ -36,6 +36,7 @@ import VendorPortal from "./pages/VendorPortal";
 import MigrationDashboard from "./pages/MigrationDashboard";
 import AIAccuracy from "./pages/AIAccuracy";
 import Agents from "./pages/Agents";
+import AIControlCenter from "./pages/AIControlCenter";
 import KnowledgeVault from "./pages/KnowledgeVault";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -106,6 +107,14 @@ export default function App() {
                 element={
                   <PrivateRoute>
                     <Workspaces />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/ai-control"
+                element={
+                  <PrivateRoute>
+                    <AIControlCenter />
                   </PrivateRoute>
                 }
               />

@@ -1,3 +1,4 @@
+import { agentRuntime } from '../agents/AgentRuntime';
 import { Transaction } from "firebase-admin/firestore";
 import { getAdminDb } from "../utils/firebaseAdmin";
 import * as crypto from "crypto";
@@ -109,6 +110,9 @@ export class DomainEventPublisher {
     } else {
       await ref.set(fullEvent);
     }
+    
+    // Dispatch to AgentRuntime
+    agentRuntime.processEvent(fullEvent).catch(e => console.error("AgentRuntime err", e));
 
     return fullEvent;
   }
