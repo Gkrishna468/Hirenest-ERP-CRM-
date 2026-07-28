@@ -56,217 +56,216 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen skeuo-container flex-col md:flex-row pb-16 md:pb-0">
-      <div className="hidden md:block shrink-0">
-        <Sidebar />
+    <ProductionIntegrityCheck>
+      <div className="flex min-h-screen skeuo-container flex-col md:flex-row pb-16 md:pb-0">
+        <div className="hidden md:block shrink-0">
+          <Sidebar />
+        </div>
+        <main className="flex-1 overflow-y-auto">
+          <div className="w-full h-full p-4 md:p-8">{children}</div>
+        </main>
+        <MobileNavBar />
       </div>
-      <main className="flex-1 overflow-y-auto">
-        <div className="w-full h-full p-4 md:p-8">{children}</div>
-      </main>
-      <MobileNavBar />
-    </div>
+    </ProductionIntegrityCheck>
   );
 }
-
 
 function VendorRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="flex items-center justify-center h-screen bg-slate-100 text-slate-500 font-medium">Loading Delivery OS...</div>;
   if (!user) return <Navigate to="/login" />;
-  return <>{children}</>;
+  return <ProductionIntegrityCheck>{children}</ProductionIntegrityCheck>;
 }
 
 function ClientRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="flex items-center justify-center h-screen bg-slate-100 text-slate-500 font-medium">Loading Client Portal...</div>;
   if (!user) return <Navigate to="/login" />;
-  return <>{children}</>;
+  return <ProductionIntegrityCheck>{children}</ProductionIntegrityCheck>;
 }
 
 export default function App() {
   return (
     <AuthProvider>
       <DataProvider>
-        <ProductionIntegrityCheck>
-          <Router>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/apply/:jobId" element={<PublicApply />} />
-              <Route path="/vendor-submit/:jobId" element={<VendorSubmit />} />
-              <Route path="/vendor-submit" element={<VendorSubmit />} />
-              <Route
-                path="/"
-                element={
-                  <PrivateRoute>
-                    <Dashboard />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/workspaces"
-                element={
-                  <PrivateRoute>
-                    <Workspaces />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/ai-control"
-                element={
-                  <PrivateRoute>
-                    <AIControlCenter />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/agents"
-                element={
-                  <PrivateRoute>
-                    <Agents />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/knowledge-vault"
-                element={
-                  <PrivateRoute>
-                    <KnowledgeVault />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/accounts"
-                element={
-                  <PrivateRoute>
-                    <Accounts />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/contacts"
-                element={
-                  <PrivateRoute>
-                    <Contacts />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/requirements"
-                element={
-                  <PrivateRoute>
-                    <Requirements />
-                  </PrivateRoute>
-                }
-              />
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/apply/:jobId" element={<PublicApply />} />
+            <Route path="/vendor-submit/:jobId" element={<VendorSubmit />} />
+            <Route path="/vendor-submit" element={<VendorSubmit />} />
+            <Route
+              path="/"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/workspaces"
+              element={
+                <PrivateRoute>
+                  <Workspaces />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/ai-control"
+              element={
+                <PrivateRoute>
+                  <AIControlCenter />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/agents"
+              element={
+                <PrivateRoute>
+                  <Agents />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/knowledge-vault"
+              element={
+                <PrivateRoute>
+                  <KnowledgeVault />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/accounts"
+              element={
+                <PrivateRoute>
+                  <Accounts />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/contacts"
+              element={
+                <PrivateRoute>
+                  <Contacts />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/requirements"
+              element={
+                <PrivateRoute>
+                  <Requirements />
+                </PrivateRoute>
+              }
+            />
 
-              {/* New Staffing Routes */}
-              <Route
-                path="/candidates"
-                element={
-                  <PrivateRoute>
-                    <Candidates />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/submissions"
-                element={
-                  <PrivateRoute>
-                    <Candidates />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/interviews"
-                element={
-                  <PrivateRoute>
-                    <Candidates />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/offers"
-                element={
-                  <PrivateRoute>
-                    <Candidates />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/placements"
-                element={
-                  <PrivateRoute>
-                    <Candidates />
-                  </PrivateRoute>
-                }
-              />
+            {/* New Staffing Routes */}
+            <Route
+              path="/candidates"
+              element={
+                <PrivateRoute>
+                  <Candidates />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/submissions"
+              element={
+                <PrivateRoute>
+                  <Candidates />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/interviews"
+              element={
+                <PrivateRoute>
+                  <Candidates />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/offers"
+              element={
+                <PrivateRoute>
+                  <Candidates />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/placements"
+              element={
+                <PrivateRoute>
+                  <Candidates />
+                </PrivateRoute>
+              }
+            />
 
-              <Route
-                path="/vendors"
-                element={
-                  <PrivateRoute>
-                    <Vendors />
-                  </PrivateRoute>
-                }
-              />
+            <Route
+              path="/vendors"
+              element={
+                <PrivateRoute>
+                  <Vendors />
+                </PrivateRoute>
+              }
+            />
 
-              <Route
-                path="/revenue"
-                element={
-                  <PrivateRoute>
-                    <Revenue />
-                  </PrivateRoute>
-                }
-              />
+            <Route
+              path="/revenue"
+              element={
+                <PrivateRoute>
+                  <Revenue />
+                </PrivateRoute>
+              }
+            />
 
-              <Route
-                path="/mail"
-                element={
-                  <PrivateRoute>
-                    <CommunicationCenter />
-                  </PrivateRoute>
-                }
-              />
+            <Route
+              path="/mail"
+              element={
+                <PrivateRoute>
+                  <CommunicationCenter />
+                </PrivateRoute>
+              }
+            />
 
-              <Route
-                path="/ai-accuracy"
-                element={
-                  <PrivateRoute>
-                    <AIAccuracy />
-                  </PrivateRoute>
-                }
-              />
+            <Route
+              path="/ai-accuracy"
+              element={
+                <PrivateRoute>
+                  <AIAccuracy />
+                </PrivateRoute>
+              }
+            />
 
-              <Route
-                path="/settings"
-                element={
-                  <PrivateRoute>
-                    <Settings />
-                  </PrivateRoute>
-                }
-              />
-              
-              <Route
-                path="/client"
-                element={
-                  <ClientRoute>
-                    <ClientPortal />
-                  </ClientRoute>
-                }
-              />
-                            <Route
-                path="/vendor"
-                element={
-                  <VendorRoute>
-                    <VendorPortal />
-                  </VendorRoute>
-                }
-              />
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
-            <Toaster position="top-right" richColors />
-          </Router>
-        </ProductionIntegrityCheck>
+            <Route
+              path="/settings"
+              element={
+                <PrivateRoute>
+                  <Settings />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/client"
+              element={
+                <ClientRoute>
+                  <ClientPortal />
+                </ClientRoute>
+              }
+            />
+            <Route
+              path="/vendor"
+              element={
+                <VendorRoute>
+                  <VendorPortal />
+                </VendorRoute>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+          <Toaster position="top-right" richColors />
+        </Router>
       </DataProvider>
     </AuthProvider>
   );
