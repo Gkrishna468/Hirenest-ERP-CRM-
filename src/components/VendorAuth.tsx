@@ -123,7 +123,7 @@ export function VendorAuth({ onAuthSuccess }: { onAuthSuccess: (vendor: any) => 
             <div className="space-y-2">
               <div className="flex items-center justify-between ml-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">Password</label>
-                {mode === 'login' && (
+                {!isRegistering && (
                   <button
                     type="button"
                     onClick={async () => {
@@ -187,7 +187,7 @@ export function VendorAuth({ onAuthSuccess }: { onAuthSuccess: (vendor: any) => 
             <div className="space-y-2">
               <div className="flex items-center justify-between ml-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">Password</label>
-                {mode === 'login' && (
+                {!isRegistering && (
                   <button
                     type="button"
                     onClick={async () => {
