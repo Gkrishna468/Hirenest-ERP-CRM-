@@ -75,11 +75,7 @@ export default function Agents() {
   const [isSavingAgent, setIsSavingAgent] = useState<boolean>(false);
 
   // Memory & Knowledge state
-  const [memories, setMemories] = useState<Array<{ id: string; content: string; scope: string; date: string }>>([
-    { id: "mem_1", content: "Client TechCorp rejects candidates with notice periods > 60 days.", scope: "TechCorp Inc.", date: "Today, 10:15 AM" },
-    { id: "mem_2", content: "Vendor CodeCraft specializes in senior Node/React engineers.", scope: "CodeCraft Network", date: "Today, 11:30 AM" },
-    { id: "mem_3", content: "BDM Sarah prefers warm, friendly, non-jargon outreach style.", scope: "Global outreach", date: "Yesterday" }
-  ]);
+  const [memories, setMemories] = useState<Array<{ id: string; content: string; scope: string; date: string }>>([]);
   const [newMemoryContent, setNewMemoryContent] = useState<string>("");
   const [newMemoryScope, setNewMemoryScope] = useState<string>("Global");
   const [isFileDragging, setIsFileDragging] = useState<boolean>(false);
@@ -851,7 +847,11 @@ ${customPromptInstruction}
 
               {/* Memory List */}
               <div className="space-y-3">
-                {memories.map((m) => (
+                {memories.length === 0 ? (
+  <div className="text-center py-8">
+    <p className="text-xs text-slate-400 font-medium">No long-term memories have been logged yet. The AI is learning from context.</p>
+  </div>
+) : memories.map((m) => (
                   <div key={m.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-between items-start gap-4 hover:border-indigo-300 transition-all">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">

@@ -94,10 +94,10 @@ export default function VendorSubmit() {
   const [triggeringRotation, setTriggeringRotation] = useState(false);
   const [rotationMatches, setRotationMatches] = useState<any[]>([]);
   const [complianceStats, setComplianceStats] = useState({
-    performanceScore: 85,
-    responseRate: 90,
-    lastRotation: 'Never',
-    lastValidation: 'Never'
+    performanceScore: 0,
+    responseRate: 0,
+    lastRotation: 'N/A',
+    lastValidation: 'N/A'
   });
 
   const fetchPoolData = async () => {

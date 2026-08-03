@@ -727,3 +727,60 @@ HireNestOS evolves from "AI in every screen" to "AI running the business."
 *   **Predictive Intelligence:** Digital Twins calculate forward-looking metrics (e.g., Offer Probability, Fill Probability, Churn Probability) to turn the platform from reactive to predictive.
 *   **AI Work Queue:** An operational, role-based queue surfaces priority tasks (e.g., "Client waiting 18 hours") instead of generic notifications.
 *   **Enterprise APIs & Plugin Ecosystem:** Stable APIs (Candidate API, Workflow API, Search API) enable a rich ecosystem of external integrations (Teams, SAP, Workday) without modifying the OS Kernel.
+
+## 8. Platform Constitution & End-to-End Workflows (HireNestOS Phase 7)
+HireNestOS operates under a strict Platform Constitution to ensure enterprise readiness and scalable architecture:
+
+**The Platform Constitution**
+*   **Law 1 — Single Source of Truth:** No duplicate business data.
+*   **Law 2 — Event First:** Every state change emits a domain event.
+*   **Law 3 — SDK Only:** Modules never access infrastructure directly.
+*   **Law 4 — AI is Advisory by Default:** High-impact actions require configurable approval unless explicitly permitted by policy.
+*   **Law 5 — Every Entity Has a Digital Twin:** All core business entities expose the same AI contract.
+*   **Law 6 — Workflow Before Code:** Business processes are modelled as workflows rather than embedded in application logic.
+*   **Law 7 — Everything is Observable:** Every AI decision, workflow, and business event is measurable and auditable.
+*   **Law 8 — Capability over Implementation:** The planner requests capabilities; agents, skills, and extensions provide them.
+*   **Law 9 — Multi-tenant by Design:** Every service, event, workflow, and memory operation executes within tenant boundaries.
+*   **Law 10 — Business Outcomes First:** Success is measured by placements, revenue, time-to-fill, client satisfaction, and recruiter productivity—not by the number of AI actions.
+
+**Core IT Staffing Workflows**
+1. **Client Acquisition:** Lead Gen -> Cold Outreach -> Discovery -> MSA -> Onboarding.
+2. **Requirement Intake:** Validation -> Skill Taxonomy -> Assignment.
+3. **Requirement Distribution:** Internal + Vendors + Bench based on SLA and load balancing.
+4. **Candidate Sourcing:** Internal, Bench, Boards, Referrals into Talent Pool.
+5. **Resume Processing:** AI Parse -> Skill Extract -> Twin Generation -> Embedding -> Deduplication.
+6. **AI Matching Engine:** Multi-factor scoring (Skill, Experience, Domain, Budget, Availability).
+7. **Recruiter Screening:** Availability, CTC, Rate, Communication verification.
+8. **Candidate Submission:** AI-generated Submission Packets with consent tracking.
+9. **Interview Management:** Scheduling, Feedback, AI Transcript Summaries.
+10. **Offer Management:** Negotiation, BGV, joining confirmation.
+11. **Onboarding & Joining:** Document collection, Timesheet generation, Invoicing.
+12. **Post Placement:** SLA Checks, Satisfaction, Retention Prediction.
+
+These workflows are mapped explicitly to the dedicated internal Personas: Account Managers, Recruiters, Vendors, Finance, and the unified HireNestOS AI.
+
+## 9. Enterprise Execution & Integration (HireNestOS Phase 7)
+The final architectural shift moves HireNestOS from an application to a comprehensive Workforce Intelligence Operating System governed by strict execution paths:
+
+*   **Phase 7.1 - Workflow Engine (Execution Core):** Every business process executes through a state machine supporting SLA timers, human/AI tasks, retry logic, and audit trails. UI components do not bypass the engine.
+*   **Phase 7.2 - Enterprise API Gateway:** A versioned API layer (`/api/v1/crm`, `/api/v1/requirements`, etc.) supporting REST, Webhooks, and OAuth.
+*   **Phase 7.3 - Event Bus:** Standardization of all domain events (`LeadCreated`, `CandidateMatched`) containing Correlation ID, Tenant ID, and version metadata.
+*   **Phase 7.4 - Knowledge Graph:** Entity relationship modeling for predictive intelligence.
+*   **Phase 7.5 - Automation Studio:** No-code triggers and actions.
+*   **Phase 7.6 - AI Orchestrator:** Dynamic coordination of specialized agents rather than independent execution.
+*   **Phase 7.7 - Billing & Finance:** Operational lifecycle completion (Timesheets, Invoices, Incentives).
+*   **Phase 7.8 - Integration Hub:** Connectors for third-party systems (Workday, Bullhorn, SAP).
+*   **Phase 7.9 - Observability:** Enterprise telemetry (Workflow duration, Token usage, SLA compliance).
+*   **Phase 7.10 - Multi-Tenant Hardening:** RBAC, Tenant isolation, Branch hierarchy.
+
+## 10. Marketing & Content Intelligence (HireNestOS)
+The platform includes an AI-driven Marketing Studio to attract IT staffing clients and vendors:
+*   **AI Campaign Architect:** Generates professional, high-converting copy targeting clients (e.g. for requirement acquisition) and vendors (for onboarding).
+*   **Revenue Attribution:** Tracks the entire funnel from content views and leads captured down to opportunities and closed revenue. 
+*   **Data-Driven Strategies:** Identifies which audience groups (Enterprise Clients vs Staffing Vendors) generate the most pipeline value, ensuring marketing efforts align with business outcomes.
+
+## 11. AI Orchestration Layer (Ruflo)
+The HireNest OS intelligence layer uses **Ruflo** (https://github.com/ruvnet/ruflo) as its primary Agent Meta-Harness.
+*   **Agent Meta-Harness:** Rather than running isolated agents, Ruflo provisions multi-player swarms for complex staffing workflows.
+*   **Integration Point:** The `RufloOrchestrator` listens to the HireNest `system_events` stream (via EventBus) and dynamically allocates agents from the Ruflo Swarm (e.g., Client Agent, Vendor Agent, Orchestrator Agent).
+*   **Self-Learning Memory:** Ruflo's adaptive memory captures successful matches and candidate feedback, continually optimizing the matching engine without altering the core database schema.

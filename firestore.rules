@@ -44,6 +44,26 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (isAdmin() || resource.data.vendorId == request.auth.uid);
     }
     
+    match /agent_tasks/{taskId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /agent_executions/{execId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /agent_activities/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    match /agent_logs/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    match /outreach_logs/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    match /system_events/{id} {
+      allow read, write: if isAuthenticated();
+    }
     match /clients/{clientId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();

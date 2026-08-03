@@ -196,8 +196,8 @@ router.get('/validation_checks', async (req: any, res: any) => {
 
         // Let's set default fallback mock connections if not explicitly created
         if (integrationSnap.size === 0) {
-          whatsappConnected = true; // RC-1 default mock
-          linkedinConnected = true;  // RC-1 default mock
+          whatsappConnected = false;
+          linkedinConnected = false;
         }
 
         // Background Workers status (runtime checks)

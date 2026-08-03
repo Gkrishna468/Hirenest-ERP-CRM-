@@ -340,8 +340,8 @@ async function handleSync(req: VercelRequest, res: VercelResponse) {
     console.log("[Sync Debug] Fetching messages from Gmail API...");
     const listRes = await gmail.users.messages.list({
       userId: 'me',
-      q: `newer_than:30d`, // Broad scan to avoid keyword misses
-      maxResults: 40 // Broad search range
+      q: `newer_than:30d category:primary in:inbox -in:spam -in:trash`, // Fetch only Primary inbox, exclude spam/trash
+      maxResults: 40 
     });
 
     const messages = listRes.data.messages || [];

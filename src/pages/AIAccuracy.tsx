@@ -218,14 +218,7 @@ export default function AIAccuracy() {
   const [costFilterOrg, setCostFilterOrg] = useState<string>('all');
   const [selectedRbacRole, setSelectedRbacRole] = useState<string>('recruiter');
   const [isTriggeringMockJob, setIsTriggeringMockJob] = useState<boolean>(false);
-  const [mockJobsList, setMockJobsList] = useState<any[]>([
-    { id: "JOB-7718", capability: "resume_parser", model: "Gemini 2.5 Flash", status: "COMPLETED", latency: 2450, cost: 0.00018, duration: "2.45s", timestamp: "Just now", org: "Summit Staffing" },
-    { id: "JOB-7717", capability: "crawl4ai", model: "GPT-4o", status: "COMPLETED", latency: 4820, cost: 0.00125, duration: "4.82s", timestamp: "3 min ago", org: "Apex Global" },
-    { id: "JOB-7716", capability: "browser_use", model: "Claude 3.5 Sonnet", status: "PENDING_APPROVAL", latency: 0, cost: 0, duration: "Awaiting approval", timestamp: "5 min ago", org: "Nexus Tech" },
-    { id: "JOB-7715", capability: "openhands", model: "Claude 3.5 Sonnet", status: "COMPLETED", latency: 12400, cost: 0.00540, duration: "12.4s", timestamp: "12 min ago", org: "Summit Staffing" },
-    { id: "JOB-7714", capability: "stirling_pdf", model: "Deterministic OCR", status: "COMPLETED", latency: 1890, cost: 0.00000, duration: "1.89s", timestamp: "20 min ago", org: "Apex Global" },
-    { id: "JOB-7713", capability: "email_draft", model: "Ollama Llama 3", status: "FAILED", latency: 8200, cost: 0.00000, duration: "8.20s", timestamp: "45 min ago", org: "Nexus Tech" }
-  ]);
+  const [mockJobsList, setMockJobsList] = useState<any[]>([]);
 
   // --- PLACEMENT INTELLIGENCE STATES ---
   const [placementSlideFee, setPlacementSlideFee] = useState<number>(12500);
@@ -3795,7 +3788,11 @@ export default function AIAccuracy() {
                   <div className="bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm">
                     <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-4">Background Processing History</h4>
                     <div className="space-y-3.5">
-                      {mockJobsList.map((job) => (
+                      {mockJobsList.length === 0 ? (
+  <div className="text-center py-8">
+    <p className="text-xs text-slate-400 font-medium">No background jobs executed yet. Trigger a background task above.</p>
+  </div>
+) : mockJobsList.map((job) => (
                         <div key={job.id} className="flex justify-between items-center border-b border-slate-50 pb-3 last:border-0 last:pb-0">
                           <div>
                             <div className="flex items-center gap-2">

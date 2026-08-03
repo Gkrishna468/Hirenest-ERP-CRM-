@@ -3,11 +3,12 @@ import {
   Activity, Play, Pause, Zap, CheckCircle2, XCircle, Clock, Search, 
   Workflow, GitBranch, ListTodo, BrainCircuit, Globe, Server, Code2 
 } from "lucide-react";
+import { ShieldCheck, Network, Cpu } from 'lucide-react';
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 export default function AIControlCenter() {
-  const [activeTab, setActiveTab] = useState<'workflows' | 'queue' | 'policies'>('workflows');
+  const [activeTab, setActiveTab] = useState<'workflows' | 'queue' | 'policies' | 'ruflo'>('ruflo');
   
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -25,6 +26,7 @@ export default function AIControlCenter() {
 
       <div className="flex gap-4 border-b border-slate-200">
         {[
+          { id: 'ruflo', label: 'Ruflo Meta-Harness', icon: Network },
           { id: 'workflows', label: 'Workflows & Orchestration', icon: Workflow },
           { id: 'queue', label: 'Task Queue (Live)', icon: ListTodo },
           { id: 'policies', label: 'Platform Policies', icon: ShieldCheck }
@@ -43,6 +45,121 @@ export default function AIControlCenter() {
           </button>
         ))}
       </div>
+
+      
+      {activeTab === 'ruflo' && (
+        <div className="space-y-6">
+          <div className="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10">
+              <Network className="w-64 h-64" />
+            </div>
+            <div className="relative z-10 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 text-indigo-200 text-xs font-black uppercase tracking-widest mb-6 border border-white/10">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                Ruflo Engine Active
+              </div>
+              <h2 className="text-3xl font-black mb-4 flex items-center gap-3">
+                Agent Swarm Orchestration
+              </h2>
+              <p className="text-indigo-200 text-lg leading-relaxed mb-8">
+                HireNest OS uses <strong>Ruflo</strong> to coordinate multi-player swarms, adaptive memory, and federated communications. The Meta-Harness translates System Events into coordinated Agentic actions.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { label: "Active Swarms", value: "2", icon: Network },
+                  { label: "Idle Agents", value: "3", icon: Cpu },
+                  { label: "Total Tasks", value: "1,432", icon: CheckCircle2 }
+                ].map((stat, i) => (
+                  <div key={i} className="bg-white/10 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+                    <div className="flex items-center gap-3 text-indigo-300 mb-2">
+                      <stat.icon className="w-4 h-4" />
+                      <span className="text-xs font-black uppercase tracking-wider">{stat.label}</span>
+                    </div>
+                    <div className="text-2xl font-black text-white">{stat.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          <h3 className="text-lg font-black text-slate-800 mt-8 mb-4">Provisioned Swarms</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                    <Network className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-slate-900">Recruitment Swarm</h4>
+                    <p className="text-xs font-medium text-slate-500">Subscribed to: REQUIREMENT_CREATED</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-black uppercase px-2 py-1 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200">Online</span>
+              </div>
+              <div className="space-y-3 mt-6">
+                {[
+                  { name: "Alpha Matcher", role: "CV Analysis", load: 12 },
+                  { name: "Vendor Comm", role: "Outreach", load: 4 }
+                ].map((agent, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <Cpu className="w-4 h-4 text-slate-400" />
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">{agent.name}</p>
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{agent.role}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-bold text-slate-600">{agent.load}% Load</p>
+                      <div className="w-16 h-1.5 bg-slate-200 rounded-full mt-1 overflow-hidden">
+                        <div className="h-full bg-indigo-500" style={{width: `${agent.load}%`}} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                    <Network className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-slate-900">Client Intelligence Swarm</h4>
+                    <p className="text-xs font-medium text-slate-500">Subscribed to: FEEDBACK_DELAYED</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-black uppercase px-2 py-1 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200">Online</span>
+              </div>
+              <div className="space-y-3 mt-6">
+                {[
+                  { name: "SLA Monitor", role: "Feedback Tracking", load: 24 }
+                ].map((agent, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <Cpu className="w-4 h-4 text-slate-400" />
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">{agent.name}</p>
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{agent.role}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-bold text-slate-600">{agent.load}% Load</p>
+                      <div className="w-16 h-1.5 bg-slate-200 rounded-full mt-1 overflow-hidden">
+                        <div className="h-full bg-indigo-500" style={{width: `${agent.load}%`}} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'workflows' && (
         <div className="space-y-6">

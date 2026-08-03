@@ -24,7 +24,9 @@ import {
   Database,
   Trophy,
   CheckCircle2,
-  Layers, Server
+  Layers, Server,
+  Megaphone,
+  GitBranch
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -74,9 +76,11 @@ const navGroups = [
     title: "Intelligence & Ops",
     adminOnly: true,
     items: [
+       { icon: Megaphone, label: 'Marketing Studio', path: '/marketing' },
        { icon: Zap, label: 'Financials', path: '/revenue' },
        { icon: TrendingUp, label: 'AI Operations', path: '/ai-accuracy' },
        // { icon: ShieldCheck, label: 'Governance', path: '/migration' },
+       { icon: GitBranch, label: 'Automation Studio', path: '/automation' },
        { icon: Settings, label: 'Settings', path: '/settings' },
     ]
   }
