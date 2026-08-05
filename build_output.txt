@@ -1,0 +1,26 @@
+
+> react-example@0.0.0 build
+> vite build && esbuild server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server.mjs
+
+vite v6.4.2 building for production...
+transforming...
+✓ 1937 modules transformed.
+[plugin vite:reporter] 
+(!) /app/applet/node_modules/firebase/auth/dist/esm/index.esm.js is dynamically imported by /app/applet/src/contexts/AuthContext.tsx, /app/applet/src/contexts/AuthContext.tsx but also statically imported by /app/applet/src/components/VendorAuth.tsx, /app/applet/src/contexts/AuthContext.tsx, /app/applet/src/pages/Login.tsx, /app/applet/src/pages/Settings.tsx, /app/applet/src/pages/Vendors.tsx, /app/applet/src/services/firebase/config.ts, dynamic import will not move module into another chunk.
+
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.43 kB │ gzip:   0.29 kB
+dist/assets/index-Dw-1GhLN.css    143.36 kB │ gzip:  20.85 kB
+dist/assets/index-RCz8hpdV.js   3,184.61 kB │ gzip: 654.64 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 10.68s
+
+  dist/server.mjs      359.8kb
+  dist/server.mjs.map  646.4kb
+
+⚡ Done in 84ms

@@ -1,0 +1,1 @@
+sh: 1: ./node_modules/.bin/tsc: not found
