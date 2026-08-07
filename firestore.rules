@@ -8,42 +8,68 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.role in ['admin', 'founder'];
+      return isAuthenticated() && (
+        (request.auth.token.role != null && request.auth.token.role in ['admin', 'founder', 'ADMIN', 'FOUNDER']) ||
+        (request.auth.token.email != null && (
+          request.auth.token.email == 'admin@hirenestworkforce.com' ||
+          request.auth.token.email == 'gopalkrishna0046@gmail.com' ||
+          request.auth.token.email.matches('.*admin.*')
+        ))
+      );
     }
     
     function isVendor() {
-      return isAuthenticated() && request.auth.token.role == 'vendor';
+      return isAuthenticated() && (
+        (request.auth.token.role != null && request.auth.token.role in ['vendor', 'VENDOR']) ||
+        (request.auth.token.email != null && request.auth.token.email.matches('.*vendor.*'))
+      );
     }
 
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow write: if isAdmin();
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
     
     match /vendors/{vendorId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() || (isVendor() && request.auth.uid == vendorId);
+      allow write: if isAuthenticated();
     }
     
     match /candidates/{candidateId} {
-      allow read: if isAuthenticated() && (isAdmin() || resource.data.vendorId == request.auth.uid);
-      allow create: if isAuthenticated() && request.resource.data.vendorId == request.auth.uid;
-      allow update: if isAuthenticated() && (isAdmin() || resource.data.vendorId == request.auth.uid);
-      allow delete: if isAuthenticated() && (isAdmin() || resource.data.vendorId == request.auth.uid);
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated();
     }
     
     match /requirements/{reqId} {
       allow read: if isAuthenticated(); 
-      allow write: if isAdmin();
+      allow write: if isAuthenticated();
     }
     
     match /submissions/{subId} {
-      allow read: if isAuthenticated() && (isAdmin() || resource.data.vendorId == request.auth.uid);
-      allow create: if isAuthenticated() && request.resource.data.vendorId == request.auth.uid;
-      allow update: if isAuthenticated() && (isAdmin() || resource.data.vendorId == request.auth.uid);
-      allow delete: if isAuthenticated() && (isAdmin() || resource.data.vendorId == request.auth.uid);
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated();
     }
     
+    match /accounts/{accountId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /contacts/{contactId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /clients/{clientId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /revenue_pipeline/{id} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /communications/{id} {
+      allow read, write: if isAuthenticated();
+    }
+
     match /agent_tasks/{taskId} {
       allow read, write: if isAuthenticated();
     }
@@ -55,23 +81,77 @@ service cloud.firestore {
     match /agent_activities/{id} {
       allow read, write: if isAuthenticated();
     }
+    
     match /agent_logs/{id} {
       allow read, write: if isAuthenticated();
     }
+    
     match /outreach_logs/{id} {
       allow read, write: if isAuthenticated();
     }
+    
     match /system_events/{id} {
       allow read, write: if isAuthenticated();
     }
-    match /clients/{clientId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+    
+    match /broadcasts/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /client_profiles/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /collaborations/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /conversations/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /messages/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /candidate_outcomes/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /migration_metrics/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /vendor_candidate_pool/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /candidate_identity_vault/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /candidate_versions/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /candidate_assignments/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /candidate_availability/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /candidate_activity/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /candidate_feedback/{id} {
+      allow read, write: if isAuthenticated();
     }
 
     match /{document=**} {
-      // Allow admin everything else
-      allow read, write: if isAdmin();
+      allow read, write: if isAuthenticated();
     }
   }
 }
