@@ -4,6 +4,25 @@ import { DomainEventPublisher } from "../events/DomainEventPublisher";
 import { UnitOfWork } from "../utils/UnitOfWork";
 import * as crypto from "crypto";
 
+export function stripUndefined<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => stripUndefined(item)) as unknown as T;
+  }
+  if (typeof obj === "object" && !(obj instanceof Date)) {
+    const clean: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        clean[key] = stripUndefined(value);
+      }
+    }
+    return clean as T;
+  }
+  return obj;
+}
+
 export abstract class BaseRepository<T extends { id: string; organizationId?: string; deleted?: boolean; version?: number }> {
   protected abstract collectionName: string;
   protected abstract entityType: string;
@@ -18,7 +37,7 @@ export abstract class BaseRepository<T extends { id: string; organizationId?: st
     }
 
     const id = data.id || crypto.randomUUID();
-    const docData = { ...data, id, version: 1 };
+    const docData = stripUndefined({ ...data, id, version: 1 });
     
     const docRef = this.db.collection(this.collectionName).doc(id);
     transaction.set(docRef, docData);
@@ -53,7 +72,7 @@ export abstract class BaseRepository<T extends { id: string; organizationId?: st
     }
 
     const newVersion = currentVersion + 1;
-    const finalUpdates = { ...updates, version: newVersion, updatedAt: new Date().toISOString() };
+    const finalUpdates = stripUndefined({ ...updates, version: newVersion, updatedAt: new Date().toISOString() });
     
     transaction.update(docRef, finalUpdates);
     
