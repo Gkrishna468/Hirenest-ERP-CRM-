@@ -305,8 +305,14 @@ export default function VendorPortal() {
 
   // Job filtering based on Marketplace tab state
   const openRequirements = jobs.filter(j => {
-    if (j.status !== "open") return false;
-    const isBroadcast = j.broadcastToVendors === true || j.publishToVendorPortal === true || (j as any).publish?.vendorPortal === true;
+    if (j.status?.toLowerCase() !== "open") return false;
+    if ((j as any).masterEnabled === false || (j as any).broadcastStatus === 'stopped') return false;
+    
+    const isBroadcast = j.broadcastToVendors === true || 
+                        j.publishToVendorPortal === true || 
+                        (j as any).broadcasted === true || 
+                        j.publishTo?.vendorPortal === true || 
+                        (j as any).publish?.vendorPortal === true;
     if (!isBroadcast) return false;
     
     // Search filter

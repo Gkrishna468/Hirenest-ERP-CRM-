@@ -11,6 +11,7 @@ export const RequirementRepository = {
       const data = await res.json();
       if (!data || data.error) return null;
       return {
+        ...data,
         id: id,
         companyId: data.companyId || data.company_id || '',
         title: data.title || '',
@@ -33,7 +34,12 @@ export const RequirementRepository = {
         createdAt: safeISOString(data.createdAt || data.created_at),
         updatedAt: safeISOString(data.updatedAt || data.updated_at),
         pricing_data: data.pricing_data || null,
-        broadcast_to_vendors: data.broadcast_to_vendors || false,
+        broadcast_to_vendors: data.broadcast_to_vendors || data.broadcastToVendors || false,
+        broadcastToVendors: data.broadcastToVendors ?? data.broadcast_to_vendors ?? data.publishToVendorPortal ?? true,
+        publishToVendorPortal: data.publishToVendorPortal !== undefined ? data.publishToVendorPortal : (data.publishTo?.vendorPortal ?? true),
+        broadcasted: data.broadcasted ?? data.broadcastToVendors ?? false,
+        masterEnabled: data.masterEnabled ?? true,
+        broadcastStatus: data.broadcastStatus || 'active',
         experienceMin: data.experienceMin !== undefined ? data.experienceMin : null,
         experienceMax: data.experienceMax !== undefined ? data.experienceMax : null,
         salaryMin: data.salaryMin !== undefined ? data.salaryMin : null,
@@ -69,6 +75,7 @@ export const RequirementRepository = {
       if (!Array.isArray(docs)) return [];
       const firebaseJobs = docs.map((data: any) => {
         return {
+          ...data,
           id: data.id,
           companyId: data.companyId || data.company_id || '',
           title: data.title || '',
@@ -91,7 +98,12 @@ export const RequirementRepository = {
           createdAt: safeISOString(data.createdAt || data.created_at),
           updatedAt: safeISOString(data.updatedAt || data.updated_at),
           pricing_data: data.pricing_data || null,
-          broadcast_to_vendors: data.broadcast_to_vendors || false,
+          broadcast_to_vendors: data.broadcast_to_vendors || data.broadcastToVendors || false,
+          broadcastToVendors: data.broadcastToVendors ?? data.broadcast_to_vendors ?? data.publishToVendorPortal ?? true,
+          publishToVendorPortal: data.publishToVendorPortal !== undefined ? data.publishToVendorPortal : (data.publishTo?.vendorPortal ?? true),
+          broadcasted: data.broadcasted ?? data.broadcastToVendors ?? false,
+          masterEnabled: data.masterEnabled ?? true,
+          broadcastStatus: data.broadcastStatus || 'active',
           experienceMin: data.experienceMin !== undefined ? data.experienceMin : null,
           experienceMax: data.experienceMax !== undefined ? data.experienceMax : null,
           salaryMin: data.salaryMin !== undefined ? data.salaryMin : null,

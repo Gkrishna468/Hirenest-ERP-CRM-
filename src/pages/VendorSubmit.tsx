@@ -143,7 +143,9 @@ export default function VendorSubmit() {
         // filter open requirements with vendor broadcast enabled
         const openJobs = allJobs.filter(j => 
           j.status?.toLowerCase() === 'open' && 
-          (j.broadcastToVendors === true || j.publishToVendorPortal === true || (j as any).publish?.vendorPortal === true)
+          (j as any).masterEnabled !== false &&
+          (j as any).broadcastStatus !== 'stopped' &&
+          (j.broadcastToVendors === true || j.publishToVendorPortal === true || (j as any).broadcasted === true || j.publishTo?.vendorPortal === true || (j as any).publish?.vendorPortal === true)
         );
         setOpenJobsList(openJobs);
 
