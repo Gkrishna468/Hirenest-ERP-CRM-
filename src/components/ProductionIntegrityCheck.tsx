@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
-import { ShieldAlert, RefreshCw, Lock, Database } from 'lucide-react';
+import { ShieldAlert, RefreshCw, Lock, Database, ShieldCheck } from 'lucide-react';
+import { HireNestLogo } from './HireNestLogo';
 
 interface ProductionIntegrityCheckProps {
   children: React.ReactNode;
@@ -52,13 +53,56 @@ export const ProductionIntegrityCheck: React.FC<ProductionIntegrityCheckProps> =
 
   if (integrityStatus === 'checking' || authLoading || dataLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-        <div className="w-16 h-16 relative mb-6">
-          <div className="absolute inset-0 border-t-2 border-indigo-500 rounded-full animate-spin" />
-          <div className="absolute inset-2 border-r-2 border-amber-500 rounded-full animate-spin [animation-duration:1.5s]" />
-          <div className="absolute inset-4 border-b-2 border-emerald-500 rounded-full animate-spin [animation-duration:2s]" />
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 relative overflow-hidden select-none">
+        {/* Ambient background glow */}
+        <div className="absolute w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl animate-pulse pointer-events-none" />
+        <div className="absolute w-64 h-64 bg-amber-500/10 rounded-full blur-2xl animate-pulse [animation-delay:1s] pointer-events-none" />
+
+        <div className="relative flex flex-col items-center z-10 text-center">
+          {/* Outer Orbiting Ring Container holding the Logo */}
+          <div className="relative mb-6 p-4 flex items-center justify-center">
+            {/* Outer Spinning Ring */}
+            <div className="absolute inset-0 border-2 border-cyan-500/30 border-t-cyan-400 border-r-blue-500 rounded-full animate-spin [animation-duration:4s]" />
+            
+            {/* Counter-spinning Inner Ring */}
+            <div className="absolute inset-2 border-2 border-emerald-500/30 border-b-emerald-400 border-l-cyan-400 rounded-full animate-spin [animation-duration:2.5s] [animation-direction:reverse]" />
+
+            {/* Glowing Backdrop */}
+            <div className="absolute inset-4 bg-gradient-to-tr from-cyan-600/30 via-blue-600/30 to-emerald-600/30 rounded-full blur-md opacity-80 animate-pulse" />
+
+            {/* Central HireNest Hummingbird & Circuit Nest Logo Emblem */}
+            <div className="relative z-10 animate-spin [animation-duration:12s] p-2">
+              <HireNestLogo size={90} animated />
+            </div>
+          </div>
+
+          {/* Brand Name Typography */}
+          <div className="mb-4">
+            <h1 className="text-2xl font-black text-white tracking-tight uppercase font-sans">
+              HIRENEST <span className="text-cyan-400 font-extrabold">WORKFORCE</span>
+            </h1>
+            <p className="text-xs font-semibold text-slate-400 tracking-wider">
+              IT Staffing & Vendor Network
+            </p>
+            <p className="text-[11px] font-bold text-indigo-400 tracking-widest mt-1">
+              Hire Faster. Scale Smarter.
+            </p>
+          </div>
+
+          {/* System Integrity Verification Label */}
+          <div className="flex items-center gap-2.5 bg-slate-900/90 border border-slate-800 px-5 py-2.5 rounded-full shadow-inner shadow-black/50">
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+            <p className="text-slate-200 font-mono text-xs tracking-widest uppercase font-semibold">
+              Verifying System Integrity...
+            </p>
+          </div>
+
+          {/* Security & SSOT Badge */}
+          <div className="mt-8 flex items-center gap-2 text-[10px] font-mono text-slate-500 uppercase tracking-widest">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Firebase SSOT & Role Claims Validation</span>
+          </div>
         </div>
-        <p className="text-slate-400 font-mono text-xs tracking-widest uppercase">Verifying System Integrity...</p>
       </div>
     );
   }
