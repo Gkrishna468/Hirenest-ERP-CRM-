@@ -71,7 +71,7 @@ const PIPELINE_STAGES = [
 
 export default function Clients() {
   const { clients, loading, addClient, jobs, candidates, refreshAll } = useData();
-  const { user } = useAuth();
+  const { user, apiFetch } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setForm] = useState({
@@ -1254,7 +1254,7 @@ Return your output STRICTLY as a JSON object matching this TypeScript model. Do 
                               <div key={c.id || i} className="bg-slate-50 p-3 rounded-lg flex items-center justify-between text-xs border border-slate-200/50">
                                 <div>
                                   <p className="font-bold text-slate-900">{c.name || 'Unknown'}</p>
-                                  <p className="text-[10px] text-slate-500 mt-0.5">{c.title || 'Candidate'}</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">{c.currentTitle || 'Candidate'}</p>
                                 </div>
                                 <div className="flex gap-2">
                                   <button className="px-2.5 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded-md hover:bg-emerald-700">

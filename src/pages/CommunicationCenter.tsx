@@ -17,6 +17,7 @@ import {
   Briefcase,
   AlertCircle,
   FileText,
+  Paperclip,
   Database,
   CheckCircle2,
   Play

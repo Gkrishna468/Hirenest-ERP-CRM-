@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/services/firebase/config';
 import { VendorRepository } from '@/repositories/VendorRepository';
-import { HireNestLogo } from './HireNestLogo';
 
 export function VendorAuth({ onAuthSuccess }: { onAuthSuccess: (vendor: any) => void }) {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -83,21 +82,13 @@ export function VendorAuth({ onAuthSuccess }: { onAuthSuccess: (vendor: any) => 
           <Lock className="w-32 h-32 text-indigo-500" />
         </div>
 
-        <div className="text-center space-y-3 relative z-10">
-          <div className="flex justify-center mb-1">
-            <HireNestLogo size={72} animated />
+        <div className="text-center space-y-2 relative z-10">
+          <div className="w-12 h-12 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-amber-500/5">
+            <ShieldCheck className="w-6 h-6" />
           </div>
-          <div>
-            <h1 className="text-lg font-black text-white tracking-tight uppercase font-sans">
-              HIRENEST <span className="text-cyan-400">WORKFORCE</span>
-            </h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              IT Staffing & Vendor Network
-            </p>
-          </div>
-          <h2 className="text-xs font-mono font-bold text-amber-400 uppercase tracking-widest pt-1">
+          <h1 className="text-xl font-bold text-white tracking-tight font-mono">
             {isRegistering ? "VENDOR REGISTRATION" : "VENDOR AUTHENTICATION"}
-          </h2>
+          </h1>
           <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
             {isRegistering 
               ? "Register your agency to start submitting talent."

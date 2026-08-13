@@ -1,40 +1,15 @@
-import { auth } from '@/services/firebase/config';
+import { apiFetch } from '@/lib/api';
 import type { Job } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString, safeBudget } from '@/utils/safe';
-
-async function apiFetch(url: string, options?: RequestInit) {
-  let token = '';
-  const execSession = localStorage.getItem('hirenest_exec_session');
-  if (execSession) {
-    token = 'executive-bypass-token';
-  } else if (auth.currentUser) {
-    token = await auth.currentUser.getIdToken();
-  } else {
-    token = localStorage.getItem('fb_token') || '';
-  }
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options?.headers,
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-  };
-  
-  const res = await fetch(url, { ...options, headers });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || err.message || "API request failed");
-  }
-  return res;
-}
 
 export const RequirementRepository = {
   async getById(id: string): Promise<Job | null> {
     try {
       const res = await apiFetch(`/api/requirements/${id}`);
-      if (!res.ok) return null;
+      if (res.status === 404) return null;
       const data = await res.json();
-      if (!data) return null;
+      if (!data || data.error) return null;
       return {
         id: id,
         companyId: data.companyId || data.company_id || '',
@@ -81,7 +56,7 @@ export const RequirementRepository = {
         pendingUpdates: data.pendingUpdates || null,
       } as any;
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `requirements/${id}`);
+      console.warn(`[RequirementRepository.getById] Could not fetch requirement ${id}:`, error);
       return null;
     }
   },
@@ -89,7 +64,9 @@ export const RequirementRepository = {
   async list(): Promise<Job[]> {
     try {
       const res = await apiFetch('/api/requirements');
+      if (res.status === 404) return [];
       const docs = await res.json();
+      if (!Array.isArray(docs)) return [];
       const firebaseJobs = docs.map((data: any) => {
         return {
           id: data.id,
@@ -140,7 +117,7 @@ export const RequirementRepository = {
       });
       return firebaseJobs;
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'requirements');
+      console.warn("[RequirementRepository.list] Unable to list requirements:", error);
       return [];
     }
   },

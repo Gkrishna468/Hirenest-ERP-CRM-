@@ -4,6 +4,7 @@ import { safeJson } from '@/utils/safeJson';
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { apiFetch } from '@/lib/api';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User, Role, WorkspaceContext } from '@/types';
 import { toast } from 'sonner';
@@ -34,24 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [workspaceContext, setWorkspaceContext] = useState<WorkspaceContext | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const apiFetch = async (url: string, options?: RequestInit) => {
-    let token = '';
-    const execSession = localStorage.getItem('hirenest_exec_session');
-    if (execSession) {
-      token = 'executive-bypass-token';
-    } else if (auth.currentUser) {
-      token = await auth.currentUser.getIdToken();
-    }
-    
-    const headers = {
-      ...options?.headers,
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-    };
-    
-    const baseUrl = window.location.origin;
-    const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
-    return fetch(fullUrl, { ...options, headers });
-  };
+  const contextApiFetch = (url: string, options?: RequestInit) => apiFetch(url, options);
 
   useEffect(() => {
     if (!auth) {
@@ -274,7 +258,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, workspaceContext, loading, signIn, signUp, signOut, apiFetch, signInWithGoogle }}>
+    <AuthContext.Provider value={{ user, workspaceContext, loading, signIn, signUp, signOut, apiFetch: contextApiFetch, signInWithGoogle }}>
       {children}
     </AuthContext.Provider>
   );

@@ -862,20 +862,48 @@ async function runCloudAi(options: AISerializedOptions): Promise<string> {
     throw new Error("Cloud AI API Key (GEMINI_API_KEY) is not configured in the environment.");
   }
 
-  const modelName = (process.env.GEMINI_MODEL || "gemini-2.5-flash").replace(/^"|"$/g, "");
+  const configuredModel = (process.env.GEMINI_MODEL || "gemini-2.5-flash").replace(/^"|"$/g, "").trim();
   const aiClient = new GoogleGenAI({ apiKey });
 
-  const response = await aiClient.models.generateContent({
-    model: modelName,
-    contents: options.prompt,
-    config: {
-      systemInstruction: options.systemInstruction || undefined,
-      temperature: 0.2,
-      ...(options.responseFormatJson ? { responseMimeType: "application/json" } : {}),
-    },
-  });
+  // Candidate models fallback chain
+  const candidateModels = Array.from(
+    new Set([configuredModel, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-pro"])
+  ).filter(Boolean);
 
-  return response.text || "";
+  let lastError: any = null;
+
+  for (const model of candidateModels) {
+    try {
+      const config: any = {
+        temperature: 0.2,
+      };
+
+      if (options.systemInstruction && options.systemInstruction.trim()) {
+        config.systemInstruction = options.systemInstruction.trim();
+      }
+
+      if (options.responseFormatJson) {
+        config.responseMimeType = "application/json";
+      }
+
+      const cleanPrompt = (options.prompt || "").replace(/\0/g, "").trim();
+
+      const response = await aiClient.models.generateContent({
+        model: model,
+        contents: cleanPrompt,
+        config,
+      });
+
+      if (response && response.text) {
+        return response.text;
+      }
+    } catch (err: any) {
+      console.warn(`[runCloudAi] Gemini call failed for model '${model}': ${err?.message || err}`);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error("Cloud AI execution failed across all candidate Gemini models.");
 }
 
 async function checkCostCapAndEnforce(): Promise<boolean> {

@@ -1,3 +1,4 @@
+import { dbProxy } from '@/services/firebase/dbProxy';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 
 export const AgentRepository = {
@@ -9,9 +10,9 @@ export const AgentRepository = {
   async listTasks(): Promise<any[]> {
     try {
       const docs = await dbProxy.getDocs('agent_tasks');
-      return docs;
+      return Array.isArray(docs) ? docs : [];
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'agent_tasks');
+      console.warn("[AgentRepository.listTasks] Unable to list tasks:", error);
       return [];
     }
   },
@@ -26,9 +27,9 @@ export const AgentRepository = {
       const execs = await dbProxy.getDocs('agent_executions', {
         orderBy: [{ field: 'startedAt', direction: 'desc' }]
       });
-      return execs;
+      return Array.isArray(execs) ? execs : [];
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'agent_executions');
+      console.warn("[AgentRepository.listExecutions] Unable to list executions:", error);
       return [];
     }
   },
@@ -39,9 +40,9 @@ export const AgentRepository = {
         where: [{ field: 'taskId', op: '==', value: taskId }],
         orderBy: [{ field: 'timestamp', direction: 'asc' }]
       });
-      return logs;
+      return Array.isArray(logs) ? logs : [];
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'agent_logs');
+      console.warn(`[AgentRepository.getExecutionLogs] Unable to list logs for ${taskId}:`, error);
       return [];
     }
   },
@@ -49,9 +50,9 @@ export const AgentRepository = {
   async listLogs(): Promise<any[]> {
     try {
       const docs = await dbProxy.getDocs('agent_logs');
-      return docs;
+      return Array.isArray(docs) ? docs : [];
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'agent_logs');
+      console.warn("[AgentRepository.listLogs] Unable to list logs:", error);
       return [];
     }
   }

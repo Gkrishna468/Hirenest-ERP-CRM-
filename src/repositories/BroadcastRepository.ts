@@ -1,4 +1,5 @@
 import type { VendorBroadcast } from '@/types';
+import { dbProxy } from '@/services/firebase/dbProxy';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString } from '@/utils/safe';
 
@@ -20,7 +21,7 @@ export const BroadcastRepository = {
         source: data.source || '',
       };
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `broadcasts/${id}`);
+      console.warn(`[BroadcastRepository.getById] Could not fetch broadcast ${id}:`, error);
       return null;
     }
   },
@@ -28,6 +29,7 @@ export const BroadcastRepository = {
   async list(): Promise<VendorBroadcast[]> {
     try {
       const docs = await dbProxy.getDocs('broadcasts');
+      if (!Array.isArray(docs)) return [];
       return docs.map((data: any) => {
         return {
           id: data.id,
@@ -43,7 +45,7 @@ export const BroadcastRepository = {
         };
       }).sort((a: any, b: any) => b.sentAt.localeCompare(a.sentAt));
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'broadcasts');
+      console.warn("[BroadcastRepository.list] Unable to list broadcasts:", error);
       return [];
     }
   },

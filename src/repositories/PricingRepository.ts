@@ -1,26 +1,4 @@
-import { auth } from '@/services/firebase/config';
-async function apiFetch(url: string, options?: RequestInit) {
-  let token = '';
-  const execSession = localStorage.getItem('hirenest_exec_session');
-  if (execSession) {
-    token = 'executive-bypass-token';
-  } else if (auth.currentUser) {
-    token = await auth.currentUser.getIdToken();
-  } else {
-    token = localStorage.getItem('fb_token') || '';
-  }
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options?.headers,
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-  };
-  const res = await fetch(url, { ...options, headers });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || err.message || "API request failed");
-  }
-  return res;
-}
+import { apiFetch } from '@/lib/api';
 import type { Deal } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString } from '@/utils/safe';
@@ -29,9 +7,9 @@ export const PricingRepository = {
   async getDealById(id: string): Promise<Deal | null> {
     try {
       const res = await apiFetch(`/api/deals/${id}`);
-      if (!res.ok) return null;
+      if (res.status === 404) return null;
       const data = await res.json();
-      if (!data) return null;
+      if (!data || data.error) return null;
       return {
         id: id,
         jobId: data.jobId || data.job_id || '',
@@ -56,14 +34,16 @@ export const PricingRepository = {
         revenue_amount: data.revenueAmount || data.revenue_amount || 0,
       };
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `deals/${id}`);
+      console.warn(`[PricingRepository.getDealById] Could not fetch deal ${id}:`, error);
       return null;
     }
   },
   async listDeals(): Promise<Deal[]> {
     try {
       const res = await apiFetch('/api/deals');
+      if (res.status === 404) return [];
       const docs = await res.json();
+      if (!Array.isArray(docs)) return [];
       return docs.map((data: any) => {
         return {
           id: data.id,
@@ -90,7 +70,7 @@ export const PricingRepository = {
         };
       }).sort((a: Deal, b: Deal) => b.createdAt.localeCompare(a.createdAt));
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'deals');
+      console.warn("[PricingRepository.listDeals] Unable to list deals:", error);
       return [];
     }
   },

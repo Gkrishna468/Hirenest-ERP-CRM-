@@ -56,6 +56,12 @@ export default function RevenueOperations() {
     .reduce((sum, d) => sum + (Number(d.payout_amount) || 0), 0);
 
   
+  const formatCurrency = (val: number) => {
+    if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)}Cr`;
+    if (val >= 100000) return `₹${(val / 100000).toFixed(2)}L`;
+    return `₹${val.toLocaleString()}`;
+  };
+
   const wonDeals = deals.filter(d => d.stage === 'Won' || d.stage === 'Closed Won' || d.status === 'Won' || d.payment_received);
   const lostDeals = deals.filter(d => d.stage === 'Lost' || d.stage === 'Closed Lost' || d.status === 'Lost');
   const closedDealsCount = wonDeals.length + lostDeals.length;
@@ -70,12 +76,6 @@ export default function RevenueOperations() {
 
   // Mock time to close as we might not have timestamps for all stage changes
   const timeToClose = "N/A";
-
-const formatCurrency = (val: number) => {
-    if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)}Cr`;
-    if (val >= 100000) return `₹${(val / 100000).toFixed(2)}L`;
-    return `₹${val.toLocaleString()}`;
-  };
 
   const revenueStats = [
     {

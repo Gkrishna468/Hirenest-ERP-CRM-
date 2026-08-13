@@ -54,6 +54,16 @@ requirementsRouter.post("/:id/broadcast", async (req, res) => {
       return res.status(404).json({ success: false, error: "Requirement not found" });
     }
 
+    // Check if requirement is closed or inactive
+    const statusLower = (requirement.status || '').toString().toLowerCase();
+    const statusUpper = requirement.status_upper || requirement.statusUpper || '';
+    if (['closed', 'closed / fulfilled', 'fulfilled', 'filled', 'inactive'].includes(statusLower) || statusUpper === 'CLOSED' || statusUpper === 'FILLED') {
+      return res.status(400).json({
+        success: false,
+        error: "Cannot broadcast a closed requirement. All broadcasting is stopped when a requirement is closed. Please reopen the requirement first."
+      });
+    }
+
     // 2. Apply business rules (e.g. C2C -> disable public link & linkedin, FTE/C2H -> enable public link)
     const finalSettings = { ...(settings || {}) };
     const reqType = requirement.pricing_data?.requirementType || requirement.type || "";

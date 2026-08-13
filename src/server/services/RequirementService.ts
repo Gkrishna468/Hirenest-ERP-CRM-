@@ -74,15 +74,41 @@ export function normalizeRequirementData(data: any, userContext?: any): any {
     emailCampaign: data.publishToEmailCampaign !== undefined ? data.publishToEmailCampaign : true,
   };
 
-  const visibility = data.visibility || {
+  let visibilityObj = {
     vendors: publishTo.vendorPortal ?? true,
     clients: publishTo.clientPortal ?? true,
     public: publishTo.linkedIn ?? false
   };
 
-  publishTo.vendorPortal = visibility.vendors;
-  publishTo.clientPortal = visibility.clients;
-  publishTo.linkedIn = visibility.public;
+  if (typeof data.visibility === 'object' && data.visibility !== null) {
+    visibilityObj = {
+      vendors: data.visibility.vendors ?? publishTo.vendorPortal ?? true,
+      clients: data.visibility.clients ?? publishTo.clientPortal ?? true,
+      public: data.visibility.public ?? publishTo.linkedIn ?? false
+    };
+  } else if (typeof data.visibility === 'string') {
+    const visStr = data.visibility.toUpperCase();
+    visibilityObj = {
+      vendors: visStr.includes('VENDOR') || visStr === 'ALL' || visStr === 'PUBLIC',
+      clients: visStr.includes('CLIENT') || visStr === 'ALL' || visStr === 'PUBLIC',
+      public: visStr === 'PUBLIC' || visStr === 'ALL'
+    };
+  }
+
+  publishTo.vendorPortal = visibilityObj.vendors;
+  publishTo.clientPortal = visibilityObj.clients;
+  publishTo.linkedIn = visibilityObj.public;
+
+  // If status is CLOSED or FILLED, force all broadcasting channels to FALSE / STOPPED
+  const isClosedOrFilled = canonicalStatus === 'CLOSED' || canonicalStatus === 'FILLED';
+  if (isClosedOrFilled) {
+    publishTo.vendorPortal = false;
+    publishTo.whatsApp = false;
+    publishTo.linkedIn = false;
+    publishTo.emailCampaign = false;
+    visibilityObj.vendors = false;
+    visibilityObj.public = false;
+  }
 
   // 8. Financials / Budget / pricing_data
   const budget = data.budget || {};
@@ -136,7 +162,7 @@ export function normalizeRequirementData(data: any, userContext?: any): any {
     experienceRequired: experienceRequiredCompat,
     experience_required: experienceRequiredCompat,
 
-    visibility,
+    visibility: visibilityObj,
     publishTo,
     publishToVendorPortal: publishTo.vendorPortal,
     publishToClientPortal: publishTo.clientPortal,
@@ -144,6 +170,9 @@ export function normalizeRequirementData(data: any, userContext?: any): any {
     publishToLinkedIn: publishTo.linkedIn,
     publishToInternalRecruiters: publishTo.internalRecruiters,
     publishToEmailCampaign: publishTo.emailCampaign,
+    broadcasted: isClosedOrFilled ? false : (data.broadcasted ?? false),
+    broadcastStatus: isClosedOrFilled ? 'stopped' : (data.broadcastStatus || 'active'),
+    masterEnabled: isClosedOrFilled ? false : (data.masterEnabled ?? true),
 
     budget,
     financials,

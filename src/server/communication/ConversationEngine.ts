@@ -84,7 +84,7 @@ export class ConversationEngine {
       organizationId: 'default',
       actorId: message.sender.id || 'unknown',
       actorRole: message.sender.role || 'unknown',
-      sourceApp: 'CommunicationGateway',
+      sourceApp: 'OS',
       sourceWorkspace: message.provider,
       payload: message
     });

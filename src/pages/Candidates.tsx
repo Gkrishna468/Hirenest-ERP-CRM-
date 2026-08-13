@@ -16,6 +16,7 @@ import { SourceBadge } from "@/components/SourceBadge";
 import { cn } from "@/lib/utils";
 import { safeArray } from "@/utils/safe";
 import Candidate360 from "@/components/Candidate360";
+import { SubmissionsTable } from "@/components/SubmissionsTable";
 
 export default function Candidates() {
   const { candidates, jobs, vendors, clients } = useData();
@@ -23,6 +24,8 @@ export default function Candidates() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStage, setFilterStage] = useState<string>("all");
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
+
+  const isSubmissionsPage = location.pathname.includes("submissions");
 
   useEffect(() => {
     const path = location.pathname;
@@ -100,7 +103,11 @@ export default function Candidates() {
         </div>
       </div>
 
-      <div className="skeuo-card p-4 flex flex-col md:flex-row gap-4">
+      {isSubmissionsPage ? (
+        <SubmissionsTable />
+      ) : (
+        <>
+          <div className="skeuo-card p-4 flex flex-col md:flex-row gap-4">
         <div className="relative flex-1 group">
           <Search className="absolute left-3 top-2.5 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors drop-shadow-sm" />
           <input
@@ -244,6 +251,8 @@ export default function Candidates() {
           candidateId={selectedCandidateId}
           onClose={() => setSelectedCandidateId(null)}
         />
+      )}
+        </>
       )}
     </div>
   );

@@ -39,9 +39,9 @@ export class OpenAIProvider implements AIProvider {
       phone: result.phone || "",
       location: result.location || "",
       skills: result.skills || [],
-      experienceYears: result.experienceYears || 0,
-      education: result.education || "",
-      summary: result.summary || ""
+      experience: result.experienceYears || result.experience || 0,
+      currentTitle: result.currentTitle || "",
+      currentCompany: result.currentCompany || "",
     };
   }
 
@@ -50,7 +50,7 @@ export class OpenAIProvider implements AIProvider {
     const completion = await this.client.chat.completions.create({
       model: this.model,
       messages: [
-        { role: "system", content: "Summarize the candidate's profile based on the provided JSON data. Return a JSON object with a single field 'summary'." },
+        { role: "system", content: "Summarize the candidate's profile based on the provided JSON data. Return a JSON object with 'summary', 'strengths' array, 'recommendation', and 'reason'." },
         { role: "user", content: JSON.stringify(data) }
       ],
       response_format: { type: "json_object" }
@@ -59,7 +59,12 @@ export class OpenAIProvider implements AIProvider {
     const content = completion.choices[0].message.content;
     if (!content) throw new Error("Failed to summarize candidate");
     const result = JSON.parse(content);
-    return { summary: result.summary || "" };
+    return { 
+      summary: result.summary || "",
+      strengths: result.strengths || [],
+      recommendation: result.recommendation || "Consider",
+      reason: result.reason || result.summary || ""
+    };
   }
 
   async matchRequirement(candidate: any, requirement: any): Promise<RequirementMatchResult> {

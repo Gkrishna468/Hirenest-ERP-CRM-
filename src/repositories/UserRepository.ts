@@ -1,32 +1,4 @@
-import { auth } from '@/services/firebase/config';
-
-async function apiFetch(url: string, options?: RequestInit) {
-  let token = '';
-  const execSession = localStorage.getItem('hirenest_exec_session');
-  if (execSession) {
-    token = 'executive-bypass-token';
-  } else if (auth.currentUser) {
-    token = await auth.currentUser.getIdToken();
-  } else {
-    token = localStorage.getItem('fb_token') || '';
-  }
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options?.headers,
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-  };
-  const baseUrl = window.location.origin;
-  const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
-  const res = await fetch(fullUrl, { ...options, headers });
-  if (!res.ok) {
-    if (res.status === 404) {
-      return res; // Graceful 404
-    }
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || err.message || "API request failed");
-  }
-  return res;
-}
+import { apiFetch } from '@/lib/api';
 import type { User, Role } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 
@@ -36,7 +8,7 @@ export const UserRepository = {
       const res = await apiFetch(`/api/users/${id}`);
       if (res.status === 404) return null;
       const data = await res.json();
-      if (!data) return null;
+      if (!data || data.error) return null;
       return {
         id: id,
         email: data.email || '',
@@ -61,7 +33,7 @@ export const UserRepository = {
         lastLogin: data.lastLogin,
       };
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `users/${id}`);
+      console.warn(`[UserRepository.getById] Unable to fetch user ${id}:`, error);
       return null;
     }
   },
@@ -70,7 +42,9 @@ export const UserRepository = {
     try {
       const res = await apiFetch(`/api/users/email/${encodeURIComponent(email.toLowerCase().trim())}`);
       if (res.status === 404) return null;
-      const docs = [await res.json()];
+      const raw = await res.json();
+      if (!raw || raw.error) return null;
+      const docs = Array.isArray(raw) ? raw : [raw];
       if (!docs || docs.length === 0) return null;
       const data = docs[0];
       return {
@@ -97,7 +71,7 @@ export const UserRepository = {
         lastLogin: data.lastLogin,
       };
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, `users/email/${email}`);
+      console.warn(`[UserRepository.getByEmail] Unable to fetch user by email ${email}:`, error);
       return null;
     }
   },
@@ -193,7 +167,7 @@ export const UserRepository = {
         };
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'users');
+      console.warn("[UserRepository.list] Error listing users:", error);
       return [];
     }
   }

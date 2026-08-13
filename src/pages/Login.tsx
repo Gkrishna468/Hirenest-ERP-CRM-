@@ -8,8 +8,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/services/firebase/config";
 import { useNavigate } from "react-router-dom";
-import { Zap, Eye, EyeOff, Mail, Lock, User as UserIcon } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User as UserIcon } from "lucide-react";
 import { toast } from "sonner";
+import { HireNestLogo } from "@/components/HireNestLogo";
 
 export default function Login() {
   const { signIn, signUp, signInWithGoogle, user } = useAuth();
@@ -72,18 +73,8 @@ export default function Login() {
   return (
     <div className="min-h-screen skeuo-container flex items-center justify-center p-4">
       <div className="w-full max-w-md skeuo-card overflow-hidden">
-        <div className="p-8 skeuo-bg flex flex-col items-center gap-4">
-          <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-inner border border-indigo-700">
-            <Zap className="text-white w-7 h-7 fill-current drop-shadow" />
-          </div>
-          <div className="text-center">
-            <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight" style={{textShadow: '0 1px 1px white'}}>
-              Hirenest CRM
-            </h1>
-            <p className="text-slate-600 font-medium text-sm mt-1">
-              AI-Native Staffing Operating System
-            </p>
-          </div>
+        <div className="p-8 skeuo-bg flex flex-col items-center gap-3">
+          <HireNestLogo size="md" theme="light" showTagline={true} />
         </div>
 
         <div className="p-8">

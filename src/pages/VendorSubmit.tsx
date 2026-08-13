@@ -140,8 +140,11 @@ export default function VendorSubmit() {
 
         // Load requirements/jobs list
         const allJobs = await RequirementRepository.list();
-        // filter open requirements or broadcasted ones
-        const openJobs = allJobs.filter(j => j.status?.toLowerCase() === 'open' || j.broadcastToVendors);
+        // filter open requirements with vendor broadcast enabled
+        const openJobs = allJobs.filter(j => 
+          j.status?.toLowerCase() === 'open' && 
+          (j.broadcastToVendors === true || j.publishToVendorPortal === true || (j as any).publish?.vendorPortal === true)
+        );
         setOpenJobsList(openJobs);
 
         if (jobId) {
@@ -168,82 +171,10 @@ export default function VendorSubmit() {
     loadPageData();
   }, [jobId]);
 
-  // Handle Vendor ID + Secret Key Challenge Handshake
-  const handleVendorLoginChallenge = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!vendorCodeInput.trim()) {
-      toast.error('Please enter your unique Vendor ID');
-      return;
-    }
-    if (!vendorSecretInput.trim()) {
-      toast.error('Please enter your Secret Key');
-      return;
-    }
-
-    setAuthChecking(true);
-    setTimeout(() => {
-      const match = vendorsList.find(v => 
-        (v.vendorCode && v.vendorCode.toLowerCase() === vendorCodeInput.trim().toLowerCase()) || 
-        (v.id && v.id.toLowerCase() === vendorCodeInput.trim().toLowerCase())
-      );
-
-      setAuthChecking(false);
-      if (!match) {
-        toast.error('Invalid Vendor ID. Access Denied.');
-        return;
-      }
-
-      // If they have a stored secretKey, we check it. If they don't, we assign it for secure support
-      const storedKey = match.secretKey || '';
-      if (storedKey && storedKey.toLowerCase() !== vendorSecretInput.trim().toLowerCase()) {
-        toast.error('Invalid Secret Key. Access Denied.');
-        return;
-      }
-
-      if (!storedKey) {
-        match.secretKey = vendorSecretInput.trim();
-        VendorRepository.update(match.id, { secretKey: vendorSecretInput.trim() }).catch(console.error);
-        toast.info('Initial authentication registered. Secret Key locked.');
-      }
-
-      setMatchingVendor(match);
-      const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedOtp(randomOtp);
-      setOtpStep(true);
-      
-      toast.success(`Security Verification Code Dispatched!`, {
-        description: `Please check your registered email for the 6-digit verification code.`,
-        duration: 12000,
-      });
-    }, 1200);
-  };
-
-  const handleVerifyOtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otpCodeInput.trim() !== generatedOtp) {
-      toast.error('Invalid OTP Verification Code.');
-      return;
-    }
-
-    setOtpChecking(true);
-    setTimeout(() => {
-      setOtpChecking(false);
-      if (matchingVendor) {
-        setAuthenticatedVendor(matchingVendor);
-        sessionStorage.setItem('hn_vendor_code', matchingVendor.vendorCode || matchingVendor.id);
-        toast.success(`Secure Session Established. Welcome, ${matchingVendor.name}!`);
-      }
-    }, 1000);
-  };
-
   const handleLogout = () => {
     setAuthenticatedVendor(null);
-    setOtpStep(false);
-    setMatchingVendor(null);
-    setVendorSecretInput('');
-    setOtpCodeInput('');
     sessionStorage.removeItem('hn_vendor_code');
-    setVendorCodeInput('');
+    sessionStorage.removeItem('hn_vendor_id');
     toast.info('Logged out from Vendor Session');
   };
 

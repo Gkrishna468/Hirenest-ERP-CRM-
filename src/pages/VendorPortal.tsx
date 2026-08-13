@@ -16,7 +16,7 @@ import { DigitalTwinPanel } from "../components/DigitalTwinPanel";
 
 export default function VendorPortal() {
   const { jobs, deals, candidates, refreshAll, addCandidate, updateCandidate, vendors } = useData();
-  const { apiFetch, user } = useAuth();
+  const { apiFetch, user, signOut } = useAuth();
   
   // Navigation & View Tabs
   const [activeTab, setActiveTab] = useState<"dashboard" | "bench" | "requirements" | "feedback" | "documents" | "copilot">("dashboard");
@@ -266,12 +266,21 @@ export default function VendorPortal() {
 
   const handleLogout = () => {
     sessionStorage.removeItem("hn_vendor_code");
+    sessionStorage.removeItem("impersonated_vendor_id");
+    localStorage.removeItem("vendor_session");
+    localStorage.removeItem("hn_vendor_code");
+    localStorage.removeItem("hirenest_exec_session");
+    localStorage.removeItem("fb_token");
     setAuthenticatedVendor(null);
     setOtpStep(false);
     setVendorCodeInput("");
     setVendorSecretInput("");
     setOtpCodeInput("");
-    toast.info("Logged out of Delivery OS context.");
+    if (signOut) {
+      signOut();
+    }
+    toast.info("Logged out of Vendor Portal context.");
+    window.location.hash = "#/";
   };
 
   // Derived Data for Authenticated Context
@@ -297,6 +306,8 @@ export default function VendorPortal() {
   // Job filtering based on Marketplace tab state
   const openRequirements = jobs.filter(j => {
     if (j.status !== "open") return false;
+    const isBroadcast = j.broadcastToVendors === true || j.publishToVendorPortal === true || (j as any).publish?.vendorPortal === true;
+    if (!isBroadcast) return false;
     
     // Search filter
     if (marketSearch) {

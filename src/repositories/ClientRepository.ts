@@ -1,40 +1,15 @@
-import { auth } from '@/services/firebase/config';
+import { apiFetch } from '@/lib/api';
 import type { Client } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString, safeBudget } from '@/utils/safe';
-
-async function apiFetch(url: string, options?: RequestInit) {
-  let token = '';
-  const execSession = localStorage.getItem('hirenest_exec_session');
-  if (execSession) {
-    token = 'executive-bypass-token';
-  } else if (auth.currentUser) {
-    token = await auth.currentUser.getIdToken();
-  } else {
-    token = localStorage.getItem('fb_token') || '';
-  }
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options?.headers,
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-  };
-  
-  const res = await fetch(url, { ...options, headers });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || err.message || "API request failed");
-  }
-  return res;
-}
 
 export const ClientRepository = {
   async getById(id: string): Promise<Client | null> {
     try {
       const res = await apiFetch(`/api/clients/${id}`);
-      if (!res.ok) return null;
+      if (res.status === 404) return null;
       const data = await res.json();
-      if (!data) return null;
+      if (!data || data.error) return null;
       return {
         id: id,
         company: data.company || '',
@@ -54,7 +29,7 @@ export const ClientRepository = {
         updatedAt: safeISOString(data.updatedAt || data.updated_at),
       };
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `clients/${id}`);
+      console.warn(`[ClientRepository.getById] Could not fetch client ${id}:`, error);
       return null;
     }
   },
@@ -62,10 +37,12 @@ export const ClientRepository = {
   async list(): Promise<Client[]> {
     try {
       const res = await apiFetch('/api/clients');
+      if (res.status === 404) return [];
       const docs = await res.json();
+      if (!Array.isArray(docs)) return [];
       return docs;
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'clients');
+      console.warn("[ClientRepository.list] Unable to list clients:", error);
       return [];
     }
   },

@@ -67,14 +67,7 @@ async function classifyEmailWithAI(subject: string, from: string, bodySnippet: s
 
   try {
     const { GoogleGenAI, Type } = await import("@google/genai");
-    const ai = new GoogleGenAI({
-      apiKey: apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build'
-        }
-      }
-    });
+    const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `You are an AI Recruitment & Staffing CRM classification engine.
 Analyze the following email metadata and content snippet, and categorize it accurately.

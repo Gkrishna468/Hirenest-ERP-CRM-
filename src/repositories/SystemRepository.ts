@@ -1,27 +1,4 @@
-import { auth } from '@/services/firebase/config';
-
-async function apiFetch(url: string, options?: RequestInit) {
-  let token = '';
-  const execSession = localStorage.getItem('hirenest_exec_session');
-  if (execSession) {
-    token = 'executive-bypass-token';
-  } else if (auth.currentUser) {
-    token = await auth.currentUser.getIdToken();
-  } else {
-    token = localStorage.getItem('fb_token') || '';
-  }
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options?.headers,
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-  };
-  const res = await fetch(url, { ...options, headers });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || err.message || "API request failed");
-  }
-  return res;
-}
+import { apiFetch } from '@/lib/api';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString } from '@/utils/safe';
 
@@ -48,7 +25,7 @@ export const SystemRepository = {
     try {
       await apiFetch('/api/system_events', { method: 'POST', body: JSON.stringify(event) });
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `system_events/${id}`);
+      console.warn(`[SystemRepository.logEvent] Failed to log event ${id}:`, error);
     }
     return event;
   },
@@ -59,14 +36,16 @@ export const SystemRepository = {
   },
 
   subscribeToCollectionSize(collectionName: string, callback: (size: number) => void, onError?: (err: any) => void) {
-    apiFetch(`/api/system_events/count/${collectionName}`).then(res => res.json()).then(data => callback(data.count)).catch(onError);
+    apiFetch(`/api/system_events/count/${collectionName}`).then(res => res.json()).then(data => callback(data?.count || 0)).catch(onError);
     return () => {}; // No-op unsubscribe
   },
 
   async listSystemEvents(): Promise<SystemEvent[]> {
     try {
       const res = await apiFetch('/api/system_events');
+      if (res.status === 404) return [];
       const docs = await res.json();
+      if (!Array.isArray(docs)) return [];
       const events = docs.map((data: any) => {
         return {
           id: data.id,
@@ -78,7 +57,7 @@ export const SystemRepository = {
       });
       return events.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'system_events');
+      console.warn("[SystemRepository.listSystemEvents] Unable to list system events:", error);
       return [];
     }
   }

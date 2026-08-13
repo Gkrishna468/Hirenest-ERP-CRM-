@@ -5,6 +5,7 @@ import { Briefcase, Users, Calendar, CheckCircle, Clock, DollarSign } from "luci
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
+import { DigitalTwinPanel } from "../components/DigitalTwinPanel";
 
 export default function ClientPortal() {
   const { jobs, deals, candidates, refreshAll } = useData();

@@ -37,7 +37,11 @@ import {
   History,
   CheckCircle2,
   RefreshCw,
-Trash2, } from "lucide-react";
+Trash2,
+  Power,
+  Sliders,
+  Mail,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { safeArray, safeString, safeDate } from "@/utils/safe";
@@ -61,15 +65,46 @@ export default function Jobs() {
   const [broadcastTargetJob, setBroadcastTargetJob] = useState<any>(null);
   
   // Advanced Broadcast Engine State
+  const [broadcastTab, setBroadcastTab] = useState<'control' | 'channels' | 'targets' | 'history'>('control');
   const [broadcastSettings, setBroadcastSettings] = useState({
+    masterEnabled: true,
     vendorPortal: true,
     email: true,
     whatsapp: true,
     linkedin: true,
+    targetAll: true,
+    targetAi: true,
+    targetSap: false,
+    targetSalesforce: false,
     target: "all"
   });
   const [isBroadcastRunning, setIsBroadcastRunning] = useState(false);
   const [broadcastProgress, setBroadcastProgress] = useState<{ total: number; portal: number; email: number; wa: number; done: boolean } | null>(null);
+
+  const handleToggleMasterBroadcast = (enable: boolean) => {
+    const isTargetClosed = broadcastTargetJob ? ['closed', 'closed / fulfilled', 'fulfilled', 'filled', 'inactive'].includes((broadcastTargetJob.status || '').toString().toLowerCase()) : false;
+    if (isTargetClosed && enable) {
+      toast.error("Cannot enable broadcasting on a closed requirement. Please reopen the requirement first.");
+      return;
+    }
+    setBroadcastSettings({
+      masterEnabled: isTargetClosed ? false : enable,
+      vendorPortal: isTargetClosed ? false : enable,
+      email: isTargetClosed ? false : enable,
+      whatsapp: isTargetClosed ? false : enable,
+      linkedin: isTargetClosed ? false : enable,
+      targetAll: isTargetClosed ? false : enable,
+      targetAi: isTargetClosed ? false : enable,
+      targetSap: false,
+      targetSalesforce: false,
+      target: isTargetClosed ? "none" : (enable ? "all" : "none")
+    });
+    if (enable && !isTargetClosed) {
+      toast.success("All broadcasting channels & target vendor groups ENABLED!");
+    } else {
+      toast.info("All broadcasting channels & target vendor groups TURNED OFF!");
+    }
+  };
 
   const [detailTab, setDetailTab] = useState<'pipeline' | 'audit'>('pipeline');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -926,11 +961,21 @@ Powered by Hirenest CRM AI`;
                             const res = await apiFetch(`/api/requirements/${job.id}`, {
                               method: 'PUT',
                               headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ status: newStatus })
+                              body: JSON.stringify({
+                                status: newStatus,
+                                publishToVendorPortal: newStatus === "open",
+                                broadcasted: newStatus === "open" ? job.broadcasted : false,
+                                masterEnabled: newStatus === "open",
+                                broadcastStatus: newStatus === "closed" ? "stopped" : "active"
+                              })
                             });
                             if (res.ok) {
                               refreshAll();
-                              toast.success(`Requirement marked as ${newStatus}`);
+                              if (newStatus === "closed") {
+                                toast.success("Requirement marked as Closed. All active broadcasts stopped automatically.");
+                              } else {
+                                toast.success("Requirement marked as Open.");
+                              }
                             } else {
                               toast.error("Failed to update status");
                             }
@@ -1074,12 +1119,36 @@ Powered by Hirenest CRM AI`;
                   ) : (
                     <button
                       onClick={() => {
+                        const isJobClosed = ['closed', 'closed / fulfilled', 'fulfilled', 'filled', 'inactive'].includes((job.status || '').toString().toLowerCase());
                         setBroadcastTargetJob(job);
-                        setBroadcastSettings(prev => ({
-                          ...prev,
-                          target: "ai",
-                          linkedin: job.pricing_data?.requirementType !== "C2C"
-                        }));
+                        if (isJobClosed) {
+                          setBroadcastSettings({
+                            masterEnabled: false,
+                            vendorPortal: false,
+                            email: false,
+                            whatsapp: false,
+                            linkedin: false,
+                            targetAll: false,
+                            targetAi: false,
+                            targetSap: false,
+                            targetSalesforce: false,
+                            target: "none"
+                          });
+                          toast.info("This requirement is CLOSED. Broadcasting is halted.");
+                        } else {
+                          setBroadcastSettings({
+                            masterEnabled: true,
+                            vendorPortal: true,
+                            email: true,
+                            whatsapp: true,
+                            linkedin: job.pricing_data?.requirementType !== "C2C",
+                            targetAll: true,
+                            targetAi: true,
+                            targetSap: false,
+                            targetSalesforce: false,
+                            target: "ai"
+                          });
+                        }
                         setIsBroadcastOpen(true);
                       }}
                       className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors shadow-sm flex items-center gap-1"
@@ -2494,17 +2563,25 @@ Powered by Hirenest CRM AI`;
       {/* One-Click Broadcast Engine Modal */}
       {isBroadcastOpen && broadcastTargetJob && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
-            <div className="p-6 bg-slate-900 text-white flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold flex items-center gap-2">
+          <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+            
+            {/* Header */}
+            <div className="p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
                   <Globe className="w-5 h-5 text-emerald-400" />
-                  One-Click Broadcast Center
-                </h2>
-                <p className="text-slate-400 text-xs mt-1">
-                  Requisition: {broadcastTargetJob.title} ({broadcastTargetJob.clientName || (broadcastTargetJob.clientId ? clients.find(c => c.id === broadcastTargetJob.clientId)?.name : null)})
+                  <h2 className="text-xl font-bold">One-Click Broadcast Center</h2>
+                  <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider",
+                    broadcastSettings.masterEnabled ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                  )}>
+                    {broadcastSettings.masterEnabled ? "● Broadcasting Active" : "○ Broadcasting Stopped"}
+                  </span>
+                </div>
+                <p className="text-slate-400 text-xs font-medium">
+                  Requisition: <span className="text-white font-bold">{broadcastTargetJob.title}</span> ({broadcastTargetJob.clientName || (broadcastTargetJob.clientId ? clients.find(c => c.id === broadcastTargetJob.clientId)?.name : null) || "Direct Client"})
                 </p>
               </div>
+
               {!isBroadcastRunning && (
                 <button
                   onClick={() => {
@@ -2512,73 +2589,382 @@ Powered by Hirenest CRM AI`;
                     setBroadcastTargetJob(null);
                     setBroadcastProgress(null);
                   }}
-                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors"
                 >
                   <XCircle className="w-6 h-6" />
                 </button>
               )}
             </div>
 
-            <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
+            {/* MASTER CONTROL TOGGLE BANNER */}
+            <div className={cn("px-6 py-3 flex items-center justify-between border-b text-xs font-bold transition-colors shrink-0",
+              broadcastSettings.masterEnabled ? "bg-emerald-50 border-emerald-100 text-emerald-900" : "bg-rose-50 border-rose-100 text-rose-900"
+            )}>
+              <div className="flex items-center gap-2">
+                <Power className={cn("w-4 h-4", broadcastSettings.masterEnabled ? "text-emerald-600" : "text-rose-600")} />
+                <span>
+                  {broadcastSettings.masterEnabled 
+                    ? "Broadcasting is currently ENABLED across selected channels and vendor groups."
+                    : "ALL BROADCASTING IS TURNED OFF. No notifications will be dispatched."}
+                </span>
+              </div>
+              <button
+                onClick={() => handleToggleMasterBroadcast(!broadcastSettings.masterEnabled)}
+                className={cn("px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all shadow-xs flex items-center gap-1.5",
+                  broadcastSettings.masterEnabled 
+                    ? "bg-rose-600 hover:bg-rose-700 text-white" 
+                    : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                )}
+              >
+                <Power className="w-3.5 h-3.5" />
+                {broadcastSettings.masterEnabled ? "Turn Off All Broadcasting" : "Turn On All Broadcasting"}
+              </button>
+            </div>
+
+            {/* NAV BAR / TABS */}
+            <div className="flex border-b border-slate-200 bg-slate-50 px-6 gap-2 pt-2 shrink-0">
+              <button
+                onClick={() => setBroadcastTab('control')}
+                className={cn("py-2.5 px-4 text-xs font-extrabold rounded-t-xl transition-all border-b-2 flex items-center gap-2",
+                  broadcastTab === 'control'
+                    ? "bg-white border-indigo-600 text-indigo-600 shadow-xs"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                )}
+              >
+                <Sliders className="w-3.5 h-3.5" /> Control & Summary
+              </button>
+              <button
+                onClick={() => setBroadcastTab('channels')}
+                className={cn("py-2.5 px-4 text-xs font-extrabold rounded-t-xl transition-all border-b-2 flex items-center gap-2",
+                  broadcastTab === 'channels'
+                    ? "bg-white border-indigo-600 text-indigo-600 shadow-xs"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                )}
+              >
+                <Globe className="w-3.5 h-3.5" /> Broadcast Channels (4)
+              </button>
+              <button
+                onClick={() => setBroadcastTab('targets')}
+                className={cn("py-2.5 px-4 text-xs font-extrabold rounded-t-xl transition-all border-b-2 flex items-center gap-2",
+                  broadcastTab === 'targets'
+                    ? "bg-white border-indigo-600 text-indigo-600 shadow-xs"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                )}
+              >
+                <Users className="w-3.5 h-3.5" /> Target Vendors (4)
+              </button>
+              <button
+                onClick={() => setBroadcastTab('history')}
+                className={cn("py-2.5 px-4 text-xs font-extrabold rounded-t-xl transition-all border-b-2 flex items-center gap-2",
+                  broadcastTab === 'history'
+                    ? "bg-white border-indigo-600 text-indigo-600 shadow-xs"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                )}
+              >
+                <History className="w-3.5 h-3.5" /> History & Sessions
+              </button>
+            </div>
+
+            {/* TAB CONTENTS */}
+            <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 bg-white">
               {!isBroadcastRunning && !broadcastProgress ? (
                 <>
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-800">Broadcast Channels</h3>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors">
-                        <input type="checkbox" checked={broadcastSettings.vendorPortal} onChange={(e) => setBroadcastSettings({...broadcastSettings, vendorPortal: e.target.checked})} className="w-4 h-4 text-indigo-600 rounded" />
-                        <span className="text-sm font-bold text-slate-700">Publish to Vendor Portal</span>
-                      </label>
-                      <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors">
-                        <input type="checkbox" checked={broadcastSettings.email} onChange={(e) => setBroadcastSettings({...broadcastSettings, email: e.target.checked})} className="w-4 h-4 text-indigo-600 rounded" />
-                        <span className="text-sm font-bold text-slate-700">Send Email</span>
-                      </label>
-                      <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors">
-                        <input type="checkbox" checked={broadcastSettings.whatsapp} onChange={(e) => setBroadcastSettings({...broadcastSettings, whatsapp: e.target.checked})} className="w-4 h-4 text-indigo-600 rounded" />
-                        <span className="text-sm font-bold text-slate-700">Send WhatsApp</span>
-                      </label>
-                      <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors">
-                        <input type="checkbox" checked={broadcastSettings.linkedin} onChange={(e) => setBroadcastSettings({...broadcastSettings, linkedin: e.target.checked})} className="w-4 h-4 text-indigo-600 rounded" />
-                        <span className="text-sm font-bold text-slate-700">Share on LinkedIn</span>
-                      </label>
-                    </div>
-                  </div>
+                  {/* TAB 1: CONTROL & SUMMARY */}
+                  {broadcastTab === 'control' && (
+                    <div className="space-y-6 animate-in fade-in duration-200">
+                      {/* Channels Section */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                            <Globe className="w-4 h-4 text-indigo-600" /> Broadcast Channels
+                          </h3>
+                          <span className="text-[11px] font-bold text-slate-500">
+                            {[broadcastSettings.vendorPortal, broadcastSettings.email, broadcastSettings.whatsapp, broadcastSettings.linkedin].filter(Boolean).length} / 4 Active
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {[
+                            { key: 'vendorPortal', label: 'Publish to Vendor Portal', sub: '218 Vendor Workspaces', icon: Globe, color: 'text-indigo-600' },
+                            { key: 'email', label: 'Send Email', sub: 'Direct Inbox Campaigns', icon: Mail, color: 'text-blue-600' },
+                            { key: 'whatsapp', label: 'Send WhatsApp', sub: 'Instant Bot Dispatch', icon: MessageCircle, color: 'text-emerald-600' },
+                            { key: 'linkedin', label: 'Share on LinkedIn', sub: 'B2B Social Sourcing', icon: Linkedin, color: 'text-sky-600' },
+                          ].map((chan) => (
+                            <div 
+                              key={chan.key}
+                              className={cn("p-3.5 rounded-xl border flex items-center justify-between transition-all",
+                                (broadcastSettings as any)[chan.key] 
+                                  ? "bg-slate-50 border-slate-200" 
+                                  : "bg-slate-50/50 border-slate-100 opacity-60"
+                              )}
+                            >
+                              <div className="flex items-center gap-3">
+                                <chan.icon className={cn("w-5 h-5", chan.color)} />
+                                <div>
+                                  <span className="text-xs font-bold text-slate-800 block">{chan.label}</span>
+                                  <span className="text-[10px] text-slate-500">{chan.sub}</span>
+                                </div>
+                              </div>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={!!(broadcastSettings as any)[chan.key]}
+                                  onChange={(e) => {
+                                    const next = { ...broadcastSettings, [chan.key]: e.target.checked };
+                                    const anyActive = next.vendorPortal || next.email || next.whatsapp || next.linkedin;
+                                    next.masterEnabled = anyActive;
+                                    setBroadcastSettings(next);
+                                    toast.info(`${chan.label} broadcasting ${e.target.checked ? 'ENABLED' : 'STOPPED'}`);
+                                  }}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
 
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-800">Target Vendors</h3>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors">
-                        <input type="radio" name="target" checked={broadcastSettings.target === "all"} onChange={() => setBroadcastSettings({...broadcastSettings, target: "all"})} className="w-4 h-4 text-indigo-600" />
-                        <div className="flex-1">
-                          <span className="text-sm font-bold text-slate-700 block">Broadcast to All</span>
-                          <span className="text-xs text-slate-500">218 Vendors</span>
+                      {/* Target Vendor Groups Section */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                            <Users className="w-4 h-4 text-emerald-600" /> Target Vendor Groups
+                          </h3>
                         </div>
-                      </label>
-                      <label className="flex items-center gap-3 p-3 border border-emerald-200 bg-emerald-50/50 rounded-xl hover:bg-emerald-50 cursor-pointer transition-colors">
-                        <input type="radio" name="target" checked={broadcastSettings.target === "ai"} onChange={() => setBroadcastSettings({...broadcastSettings, target: "ai"})} className="w-4 h-4 text-emerald-600" />
-                        <div className="flex-1">
-                          <span className="text-sm font-bold text-emerald-900 block flex items-center gap-1"><Zap className="w-4 h-4 text-emerald-500" /> AI Suggested Vendors</span>
-                          <span className="text-xs text-emerald-700">Top 20 Matches (95% avg match)</span>
+                        <div className="space-y-2">
+                          {[
+                            { key: 'targetAll', tag: 'all', title: 'Broadcast to All', count: '218 Vendors', desc: 'Entire registered agency network', color: 'border-slate-200' },
+                            { key: 'targetAi', tag: 'ai', title: 'AI Suggested Vendors', count: 'Top 20 Matches (95% avg match)', desc: 'AI matched on requirement skills & past fulfillment', color: 'border-emerald-200 bg-emerald-50/30' },
+                            { key: 'targetSap', tag: 'sap', title: 'SAP Vendors', count: '47 Vendors', desc: 'Pre-vetted SAP ERP & HANA specialists', color: 'border-slate-200' },
+                            { key: 'targetSalesforce', tag: 'salesforce', title: 'Salesforce Vendors', count: '31 Vendors', desc: 'Pre-vetted CRM & Cloud specialists', color: 'border-slate-200' },
+                          ].map((grp) => (
+                            <div key={grp.key} className={cn("p-3.5 rounded-xl border flex items-center justify-between transition-all", grp.color)}>
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="radio"
+                                  name="targetGrpSelect"
+                                  checked={broadcastSettings.target === grp.tag}
+                                  onChange={() => {
+                                    setBroadcastSettings({ ...broadcastSettings, target: grp.tag, [grp.key]: true });
+                                    toast.info(`Target group set to: ${grp.title}`);
+                                  }}
+                                  className="w-4 h-4 text-indigo-600"
+                                />
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-slate-800">{grp.title}</span>
+                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-[10px] font-bold">{grp.count}</span>
+                                  </div>
+                                  <p className="text-[11px] text-slate-500">{grp.desc}</p>
+                                </div>
+                              </div>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={broadcastSettings.target === grp.tag}
+                                  onChange={(e) => {
+                                    if (!e.target.checked) {
+                                      setBroadcastSettings({ ...broadcastSettings, target: 'none' });
+                                      toast.info(`Stopped broadcasting to ${grp.title}`);
+                                    } else {
+                                      setBroadcastSettings({ ...broadcastSettings, target: grp.tag });
+                                      toast.info(`Enabled broadcasting to ${grp.title}`);
+                                    }
+                                  }}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                              </label>
+                            </div>
+                          ))}
                         </div>
-                      </label>
-                      <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors">
-                        <input type="radio" name="target" checked={broadcastSettings.target === "sap"} onChange={() => setBroadcastSettings({...broadcastSettings, target: "sap"})} className="w-4 h-4 text-indigo-600" />
-                        <div className="flex-1">
-                          <span className="text-sm font-bold text-slate-700 block">SAP Vendors</span>
-                          <span className="text-xs text-slate-500">47 Vendors</span>
-                        </div>
-                      </label>
-                      <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors">
-                        <input type="radio" name="target" checked={broadcastSettings.target === "salesforce"} onChange={() => setBroadcastSettings({...broadcastSettings, target: "salesforce"})} className="w-4 h-4 text-indigo-600" />
-                        <div className="flex-1">
-                          <span className="text-sm font-bold text-slate-700 block">Salesforce Vendors</span>
-                          <span className="text-xs text-slate-500">31 Vendors</span>
-                        </div>
-                      </label>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* TAB 2: BROADCAST CHANNELS LIST */}
+                  {broadcastTab === 'channels' && (
+                    <div className="space-y-4 animate-in fade-in duration-200">
+                      <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-900 flex items-center justify-between font-medium">
+                        <span>Select which channels should publish or distribute this requisition in real time.</span>
+                        <button
+                          onClick={() => {
+                            const allOff = !broadcastSettings.vendorPortal && !broadcastSettings.email && !broadcastSettings.whatsapp && !broadcastSettings.linkedin;
+                            setBroadcastSettings({
+                              ...broadcastSettings,
+                              vendorPortal: !allOff,
+                              email: !allOff,
+                              whatsapp: !allOff,
+                              linkedin: !allOff,
+                              masterEnabled: !allOff
+                            });
+                          }}
+                          className="text-indigo-700 font-bold underline hover:text-indigo-900 text-[11px]"
+                        >
+                          Toggle All Channels
+                        </button>
+                      </div>
+
+                      <div className="space-y-3">
+                        {[
+                          { key: 'vendorPortal', title: 'Publish to Vendor Portal', badge: '218 Vendors', desc: 'Indexes requisition in HireNest Vendor Workspace marketplace for instant discovery & candidate submission.', icon: Globe, statusText: broadcastSettings.vendorPortal ? 'Active & Publishing' : 'Disabled / Off' },
+                          { key: 'email', title: 'Send Email', badge: 'Direct Inboxes', desc: 'Sends structured HTML email campaign with JD attachment and direct vendor portal response link.', icon: Mail, statusText: broadcastSettings.email ? 'Active & Publishing' : 'Disabled / Off' },
+                          { key: 'whatsapp', title: 'Send WhatsApp', badge: 'Bot Dispatch', desc: 'Triggers instant WhatsApp Bot broadcast to verified account manager contacts.', icon: MessageCircle, statusText: broadcastSettings.whatsapp ? 'Active & Publishing' : 'Disabled / Off' },
+                          { key: 'linkedin', title: 'Share on LinkedIn', badge: 'Social Reach', desc: 'Creates trackable LinkedIn B2B network post with applicant tracking source tag.', icon: Linkedin, statusText: broadcastSettings.linkedin ? 'Active & Publishing' : 'Disabled / Off' },
+                        ].map((c) => {
+                          const isActive = !!(broadcastSettings as any)[c.key];
+                          return (
+                            <div key={c.key} className={cn("p-4 rounded-xl border transition-all flex items-start justify-between gap-4",
+                              isActive ? "bg-white border-slate-200 shadow-xs" : "bg-slate-50 border-slate-200 opacity-65"
+                            )}>
+                              <div className="flex items-start gap-3.5">
+                                <div className={cn("p-2.5 rounded-xl shrink-0 mt-0.5", isActive ? "bg-indigo-50 text-indigo-600" : "bg-slate-200 text-slate-500")}>
+                                  <c.icon className="w-5 h-5" />
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="text-sm font-bold text-slate-900">{c.title}</h4>
+                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold">{c.badge}</span>
+                                    <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
+                                      isActive ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
+                                    )}>
+                                      {c.statusText}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-500 leading-relaxed">{c.desc}</p>
+                                </div>
+                              </div>
+                              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                                <input
+                                  type="checkbox"
+                                  checked={isActive}
+                                  onChange={(e) => {
+                                    setBroadcastSettings({ ...broadcastSettings, [c.key]: e.target.checked });
+                                    toast.info(`${c.title} set to ${e.target.checked ? 'ON' : 'OFF'}`);
+                                  }}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 3: TARGET VENDOR LISTS */}
+                  {broadcastTab === 'targets' && (
+                    <div className="space-y-4 animate-in fade-in duration-200">
+                      <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-xs text-emerald-900 flex items-center justify-between font-medium">
+                        <span>Select vendor target segment to receive this requisition broadcast.</span>
+                        <span className="text-[11px] font-bold text-emerald-700">Available Segments: 4</span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {[
+                          { key: 'targetAll', tag: 'all', title: 'Broadcast to All', count: '218 Vendors', desc: 'Dispatches requisition to all 218 active agency partners in the HireNest SSOT network.', samples: ['Apex Staffing', 'CloudTech Partners', 'Zenith HR', 'Global Placement'] },
+                          { key: 'targetAi', tag: 'ai', title: 'AI Suggested Vendors', count: 'Top 20 Matches (95% avg match)', desc: 'AI algorithm selects vendors with highest historical fulfillment rate for these skills.', samples: ['Integration Pros', 'Delivery Tech', 'Agile Workforce', 'Enterprise Solutions'] },
+                          { key: 'targetSap', tag: 'sap', title: 'SAP Vendors', count: '47 Vendors', desc: 'Filtered list of specialized SAP ERP, HANA, S/4HANA, and Fiori agency partners.', samples: ['SAP Talent Group', 'ERP Workforce', 'Hana Experts Ltd', 'Enterprise ERP'] },
+                          { key: 'targetSalesforce', tag: 'salesforce', title: 'Salesforce Vendors', count: '31 Vendors', desc: 'Filtered list of certified Salesforce CRM, Apex, LWC, and Cloud architect agencies.', samples: ['CRM Force Partners', 'CloudApex', 'Salesforce Staffing', 'Lightning Talent'] },
+                        ].map((t) => {
+                          const isSelected = broadcastSettings.target === t.tag;
+                          return (
+                            <div key={t.key} className={cn("p-4 rounded-xl border transition-all flex items-start justify-between gap-4",
+                              isSelected ? "bg-emerald-50/40 border-emerald-300 shadow-xs" : "bg-white border-slate-200 opacity-80"
+                            )}>
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="radio"
+                                    name="targetVendorListRadio"
+                                    checked={isSelected}
+                                    onChange={() => {
+                                      setBroadcastSettings({ ...broadcastSettings, target: t.tag });
+                                      toast.info(`Broadcasting targeted to: ${t.title}`);
+                                    }}
+                                    className="w-4 h-4 text-emerald-600"
+                                  />
+                                  <h4 className="text-sm font-bold text-slate-900">{t.title}</h4>
+                                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded-full">{t.count}</span>
+                                  <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+                                    isSelected ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500"
+                                  )}>
+                                    {isSelected ? 'TARGETED' : 'PAUSED'}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-600">{t.desc}</p>
+                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase">Sample Vendors:</span>
+                                  {t.samples.map((s, idx) => (
+                                    <span key={idx} className="text-[10px] font-semibold bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-600">
+                                      {s}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    if (!e.target.checked) {
+                                      setBroadcastSettings({ ...broadcastSettings, target: 'none' });
+                                      toast.info(`Stopped targeting ${t.title}`);
+                                    } else {
+                                      setBroadcastSettings({ ...broadcastSettings, target: t.tag });
+                                      toast.info(`Enabled targeting ${t.title}`);
+                                    }
+                                  }}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 4: HISTORY & SESSIONS */}
+                  {broadcastTab === 'history' && (
+                    <div className="space-y-4 animate-in fade-in duration-200">
+                      <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                        <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                          <History className="w-4 h-4 text-indigo-600" /> Active Broadcast Session Ledger
+                        </h4>
+                        <div className="divide-y divide-slate-100 bg-white rounded-lg border border-slate-200 text-xs">
+                          <div className="p-3 flex items-center justify-between">
+                            <div>
+                              <span className="font-bold text-slate-800">Session #BC-9042</span>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">Dispatched: Today, 10:45 AM</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[10px]">ACTIVE</span>
+                              <button 
+                                onClick={() => handleToggleMasterBroadcast(false)}
+                                className="px-2.5 py-1 bg-rose-50 border border-rose-200 text-rose-700 font-bold rounded hover:bg-rose-100 transition-colors text-[11px]"
+                              >
+                                Stop Session
+                              </button>
+                            </div>
+                          </div>
+                          <div className="p-3 flex items-center justify-between">
+                            <div>
+                              <span className="font-bold text-slate-800">Session #BC-8810</span>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">Dispatched: Yesterday, 04:20 PM</span>
+                            </div>
+                            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded font-bold text-[10px]">COMPLETED</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
+                /* RUNNING OR COMPLETED PROGRESS VIEW */
                 <div className="py-8 space-y-8 animate-in fade-in zoom-in duration-300">
                   <div className="text-center space-y-2">
                     {broadcastProgress?.done ? (
@@ -2645,96 +3031,116 @@ Powered by Hirenest CRM AI`;
               )}
             </div>
 
-            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
-              {!isBroadcastRunning && !broadcastProgress?.done ? (
-                <>
+            {/* FOOTER ACTIONS */}
+            <div className="p-5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <button
+                onClick={() => handleToggleMasterBroadcast(false)}
+                className="px-4 py-2 bg-rose-100 hover:bg-rose-200 text-rose-800 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5"
+              >
+                <Power className="w-3.5 h-3.5" /> Stop All Broadcasting
+              </button>
+
+              <div className="flex items-center gap-2">
+                {!isBroadcastRunning && !broadcastProgress?.done ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setIsBroadcastOpen(false);
+                        setBroadcastTargetJob(null);
+                      }}
+                      className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold text-xs transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const isTargetClosed = broadcastTargetJob ? ['closed', 'closed / fulfilled', 'fulfilled', 'filled', 'inactive'].includes((broadcastTargetJob.status || '').toString().toLowerCase()) : false;
+                        if (isTargetClosed) {
+                          toast.error("Cannot broadcast a closed requirement. Please reopen the requirement first.");
+                          return;
+                        }
+                        if (!broadcastSettings.masterEnabled) {
+                          toast.error("Broadcasting is currently turned OFF. Enable master switch to broadcast.");
+                          return;
+                        }
+                        setIsBroadcastRunning(true);
+                        const targetTotal = broadcastSettings.target === 'ai' ? 20 : (broadcastSettings.target === 'sap' ? 47 : (broadcastSettings.target === 'salesforce' ? 31 : (broadcastSettings.target === 'none' ? 0 : 218)));
+                        
+                        setBroadcastProgress({
+                          total: targetTotal,
+                          portal: 0,
+                          email: 0,
+                          wa: 0,
+                          done: false
+                        });
+                        
+                        // API Call
+                        try {
+                          await apiFetch(`/api/requirements/${broadcastTargetJob.id}/broadcast`, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                              settings: broadcastSettings,
+                              targetVendors: targetTotal,
+                              performedBy: user?.id
+                            })
+                          });
+                        } catch (err) {
+                          console.error(err);
+                        }
+                        
+                        // Simulation
+                        let currentPortal = 0;
+                        let currentEmail = 0;
+                        let currentWa = 0;
+                        
+                        const interval = setInterval(() => {
+                          currentPortal = Math.min(targetTotal, currentPortal + Math.floor(targetTotal / 5));
+                          currentEmail = Math.min(targetTotal, currentEmail + Math.floor(targetTotal / 6));
+                          currentWa = Math.min(targetTotal, currentWa + Math.floor(targetTotal / 7));
+                          
+                          setBroadcastProgress({
+                            total: targetTotal,
+                            portal: currentPortal,
+                            email: currentEmail,
+                            wa: currentWa,
+                            done: false
+                          });
+                          
+                          if (currentPortal >= targetTotal && currentEmail >= targetTotal && currentWa >= targetTotal) {
+                            clearInterval(interval);
+                            setBroadcastProgress({
+                              total: targetTotal,
+                              portal: targetTotal,
+                              email: targetTotal,
+                              wa: targetTotal,
+                              done: true
+                            });
+                            setIsBroadcastRunning(false);
+                            toast.success("Requirement broadcasted successfully!");
+                            refreshAll();
+                          }
+                        }, 500);
+                      }}
+                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-all shadow-md flex items-center gap-2"
+                    >
+                      <Zap className="w-4 h-4" /> Execute Broadcast Now
+                    </button>
+                  </>
+                ) : broadcastProgress?.done ? (
                   <button
                     onClick={() => {
                       setIsBroadcastOpen(false);
                       setBroadcastTargetJob(null);
+                      setBroadcastProgress(null);
                     }}
-                    className="px-6 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold text-sm transition-all"
+                    className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs transition-all"
                   >
-                    Cancel
+                    Close & Finish
                   </button>
-                  <button
-                    onClick={async () => {
-                      setIsBroadcastRunning(true);
-                      const targetTotal = broadcastSettings.target === 'ai' ? 20 : (broadcastSettings.target === 'sap' ? 47 : (broadcastSettings.target === 'salesforce' ? 31 : 218));
-                      
-                      setBroadcastProgress({
-                        total: targetTotal,
-                        portal: 0,
-                        email: 0,
-                        wa: 0,
-                        done: false
-                      });
-                      
-                      // API Call
-                      try {
-                        await apiFetch(`/api/requirements/${broadcastTargetJob.id}/broadcast`, {
-                          method: 'POST',
-                          body: JSON.stringify({
-                            settings: broadcastSettings,
-                            targetVendors: targetTotal,
-                            performedBy: user?.id
-                          })
-                        });
-                      } catch (err) {
-                        console.error(err);
-                      }
-                      
-                      // Simulation
-                      let currentPortal = 0;
-                      let currentEmail = 0;
-                      let currentWa = 0;
-                      
-                      const interval = setInterval(() => {
-                        currentPortal = Math.min(targetTotal, currentPortal + Math.floor(targetTotal / 5));
-                        currentEmail = Math.min(targetTotal, currentEmail + Math.floor(targetTotal / 6));
-                        currentWa = Math.min(targetTotal, currentWa + Math.floor(targetTotal / 7));
-                        
-                        setBroadcastProgress({
-                          total: targetTotal,
-                          portal: currentPortal,
-                          email: currentEmail,
-                          wa: currentWa,
-                          done: false
-                        });
-                        
-                        if (currentPortal >= targetTotal && currentEmail >= targetTotal && currentWa >= targetTotal) {
-                          clearInterval(interval);
-                          setBroadcastProgress({
-                            total: targetTotal,
-                            portal: targetTotal,
-                            email: targetTotal,
-                            wa: targetTotal,
-                            done: true
-                          });
-                          setIsBroadcastRunning(false);
-                          toast.success("Requirement broadcasted successfully!");
-                          window.location.reload();
-                        }
-                      }, 500);
-                    }}
-                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md flex items-center gap-2"
-                  >
-                    <Zap className="w-4 h-4" /> Broadcast Now
-                  </button>
-                </>
-              ) : broadcastProgress?.done ? (
-                <button
-                  onClick={() => {
-                    setIsBroadcastOpen(false);
-                    setBroadcastTargetJob(null);
-                    setBroadcastProgress(null);
-                  }}
-                  className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-sm transition-all"
-                >
-                  Close
-                </button>
-              ) : null}
+                ) : null}
+              </div>
             </div>
+
           </div>
         </div>
       )}
@@ -2999,7 +3405,7 @@ ${window.location.origin}/#/vendor-submit/${selectedJob.id}
                 </div>
                 <div className="w-full md:w-auto flex flex-col items-center bg-white p-6 rounded-2xl border border-emerald-100 shadow-lg relative overflow-hidden group hover:border-emerald-300 transition-colors cursor-pointer"
     onClick={() => {
-      const inviteUrl = `${window.location.origin}/vendor-submit/${selectedRequirement.id}`;
+      const inviteUrl = `${window.location.origin}/vendor-submit/${selectedJob.id}`;
       navigator.clipboard.writeText(inviteUrl);
       toast.success("Network Invite Link copied to clipboard!");
     }}>

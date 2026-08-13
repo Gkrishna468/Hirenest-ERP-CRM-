@@ -38,6 +38,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { UserRepository } from '@/repositories/UserRepository';
 import { RequirementRepository } from '@/repositories/RequirementRepository';
+import { User360 } from '@/components/User360';
 import { CandidateRepository } from '@/repositories/CandidateRepository';
 import { AgentRepository } from '@/repositories/AgentRepository';
 import { SystemRepository } from '@/repositories/SystemRepository';
@@ -53,6 +54,7 @@ import type { Role } from '@/types';
 
 export default function Settings() {
   const { user, apiFetch } = useAuth();
+  const [selectedUser360Id, setSelectedUser360Id] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('workflows');
   const [loading, setLoading] = useState(false);
   const [gmailConnected, setGmailConnected] = useState(false);
@@ -1472,7 +1474,12 @@ System Administrator`}
                                     )}
                                   </div>
                                   <div>
-                                    <h4 className="font-bold text-slate-900">{member.name || (member.email ? member.email.split('@')[0] : 'Invited User')}</h4>
+                                    <button 
+                                      onClick={() => setSelectedUser360Id(member.id)}
+                                      className="font-bold text-slate-900 hover:text-indigo-600 hover:underline text-left"
+                                    >
+                                      {member.name || (member.email ? member.email.split('@')[0] : 'Invited User')}
+                                    </button>
                                     <p className="text-[10px] text-slate-400 font-mono flex items-center flex-wrap gap-x-2 gap-y-0.5">
                                       <span>{member.email}</span>
                                       <span className="text-slate-200">|</span>
@@ -1799,6 +1806,14 @@ System Administrator`}
           )}
         </div>
       </div>
+
+      {selectedUser360Id && (
+        <User360
+          userId={selectedUser360Id}
+          onClose={() => setSelectedUser360Id(null)}
+          onUserUpdated={loadUsers}
+        />
+      )}
     </div>
   );
 }

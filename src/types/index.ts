@@ -66,6 +66,8 @@ export interface Client {
   name?: string;
   email?: string;
   phone?: string;
+  contactEmail?: string;
+  contactPhone?: string;
   location?: string;
   industry?: string;
   budget?: string;
@@ -73,6 +75,9 @@ export interface Client {
   website?: string;
   clientCode?: string;
   notes?: string;
+  status?: 'active' | 'inactive' | string;
+  commercialTerms?: string;
+  bdmOwner?: string;
   userId?: string;
   companyId?: string;
   createdAt: string;
@@ -132,6 +137,7 @@ export interface Job {
   status: 'open' | 'closed' | 'filled' | 'pending';
   approvalStatus?: string;
   broadcastToVendors?: boolean;
+  publishToVendorPortal?: boolean;
   broadcastsSent?: number;
   vendorResponses?: number;
   clientId?: string;
@@ -143,6 +149,8 @@ export interface Job {
 
   // Nice-to-have fields:
   workMode?: 'Remote' | 'Hybrid' | 'Onsite';
+  experience?: string;
+  notes?: string;
   noticePeriod?: string;
   shiftTiming?: string;
   interviewMode?: string;

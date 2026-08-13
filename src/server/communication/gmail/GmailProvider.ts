@@ -1,5 +1,4 @@
-import { CommunicationProvider } from '../adapter';
-import { UniversalMessage } from '../schema';
+import { CommunicationProvider, CommunicationMessage } from '../adapter';
 import * as crypto from 'crypto';
 
 export class GmailProvider implements CommunicationProvider {
@@ -10,18 +9,24 @@ export class GmailProvider implements CommunicationProvider {
     // Setup OAuth, pub/sub webhooks, etc.
   }
 
-  async send(message: Partial<UniversalMessage>): Promise<any> {
-    console.log(`Sending email via Gmail to ${message.recipients?.map(r => r.address).join(', ')}`);
+  async send(message: Partial<CommunicationMessage>): Promise<CommunicationMessage> {
+    console.log(`Sending email via Gmail to ${message.recipient}`);
     // Connect to Gmail API to send the message
     return {
-      ...message,
       id: crypto.randomUUID(),
-      provider: "gmail",
-      timestamp: new Date().toISOString()
-    } as any;
+      threadId: message.threadId || crypto.randomUUID(),
+      sender: message.sender || 'system@hirenest.ai',
+      recipient: message.recipient || '',
+      subject: message.subject,
+      body: message.body || '',
+      channel: 'email',
+      timestamp: new Date().toISOString(),
+      metadata: message.metadata,
+      attachments: message.attachments,
+    };
   }
 
-  async receive(messageId: string): Promise<any | null> {
+  async receive(messageId: string): Promise<CommunicationMessage | null> {
     // Fetch message by ID from Gmail API
     return null;
   }

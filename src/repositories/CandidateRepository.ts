@@ -1,47 +1,22 @@
-import { auth } from '@/services/firebase/config';
+import { apiFetch } from '@/lib/api';
 import type { Candidate } from '@/types';
 import { handleFirestoreError, OperationType } from '@/services/firebase/error';
 import { safeISOString, safeBudget } from '@/utils/safe';
-
-async function apiFetch(url: string, options?: RequestInit) {
-  let token = '';
-  const execSession = localStorage.getItem('hirenest_exec_session');
-  if (execSession) {
-    token = 'executive-bypass-token';
-  } else if (auth.currentUser) {
-    token = await auth.currentUser.getIdToken();
-  } else {
-    token = localStorage.getItem('fb_token') || '';
-  }
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options?.headers,
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-  };
-  
-  const res = await fetch(url, { ...options, headers });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || err.message || "API request failed");
-  }
-  return res;
-}
 
 export const CandidateRepository = {
   async getById(id: string): Promise<Candidate | null> {
     try {
       const res = await apiFetch(`/api/candidates/${id}`);
-      if (!res.ok) return null;
+      if (res.status === 404) return null;
       const data = await res.json();
-      if (!data) return null;
+      if (!data || data.error) return null;
       return {
         ...data,
         createdAt: safeISOString(data.createdAt || data.created_at),
         updatedAt: safeISOString(data.updatedAt || data.updated_at),
       };
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `candidates/${id}`);
+      console.warn(`[CandidateRepository.getById] Could not fetch candidate ${id}:`, error);
       return null;
     }
   },
@@ -49,7 +24,9 @@ export const CandidateRepository = {
   async list(): Promise<Candidate[]> {
     try {
       const res = await apiFetch(`/api/candidates`);
+      if (res.status === 404) return [];
       const docs = await res.json();
+      if (!Array.isArray(docs)) return [];
       return docs.map((d: any) => ({
         ...d,
         name: d.name ? d.name.replace(/\.(pdf|docx?|txt)$/i, '').replace(/_/g, ' ') : d.name,
@@ -58,7 +35,7 @@ export const CandidateRepository = {
         updatedAt: safeISOString(d.updatedAt || d.updated_at),
       }));
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'candidates');
+      console.warn("[CandidateRepository.list] Unable to list candidates:", error);
       return [];
     }
   },
