@@ -58,6 +58,42 @@ export class DomainEventPublisher {
     } else {
       await ref.set(event);
     }
+
+    // Automatically log matching user activity events
+    try {
+      const { userActivityService } = require("../services/UserActivityService");
+      let activityType: any = null;
+      let description = "";
+
+      if (eventType === "INTERVIEW_CREATED") {
+        activityType = "INTERVIEW_SCHEDULED";
+        description = `Interview scheduled for candidate submission.`;
+      } else if (eventType === "OFFER_CREATED") {
+        activityType = "OFFER_ISSUED";
+        description = `Offer issued to candidate.`;
+      } else if (eventType === "PLACEMENT_CREATED") {
+        activityType = "PLACEMENT_CREATED";
+        description = `Placement successfully created.`;
+      }
+
+      if (activityType) {
+        await userActivityService.logActivity({
+          userId: performedBy || "System",
+          userEmail: metadata?.actorEmail || metadata?.email || "system@hirenestworkforce.com",
+          userRole: metadata?.actorRole || "Admin",
+          eventType: activityType,
+          description,
+          organizationId: metadata?.organizationId || "bootstrap-org",
+          metadata: {
+            entityId,
+            entityType,
+            details: metadata || {}
+          }
+        });
+      }
+    } catch (activityErr) {
+      console.error("[DomainEventPublisher] UserActivityService auto-logging error:", activityErr);
+    }
     
     // Map to DomainEvent and Trigger Projection Engine
     await ProjectionEngine.handleEvent({

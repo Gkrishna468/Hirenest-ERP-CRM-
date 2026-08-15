@@ -1,78 +1,267 @@
-
-import { submissionService } from "./SubmissionService";
+import { submissionService } from "./SubmissionService.js";
 import { requirementMatchParser } from "../ai/parsers/RequirementMatch.js";
-import { CandidateRepository, candidateRepository } from "../repositories/CandidateRepository";
-import { getAdminDb } from "../utils/firebaseAdmin";
-import { DomainEventPublisher } from "../events/DomainEventPublisher";
+import { CandidateRepository, candidateRepository } from "../repositories/CandidateRepository.js";
+import { getAdminDb } from "../utils/firebaseAdmin.js";
+import { DomainEventPublisher } from "../events/DomainEventPublisher.js";
 import { FieldValue } from "firebase-admin/firestore";
 import { executeServerAITask } from "../controllers/aiGateway.js";
-import { resumeParser } from "../ai/parsers/ResumeParser";
+import { resumeParser } from "../ai/parsers/ResumeParser.js";
 
-
+// Strict Deterministic Screening Engine Imports
+import { DocumentIntelligenceService } from "./document/DocumentIntelligenceService.js";
+import { PureResumeParser } from "./screening/PureResumeParser.js";
+import { ExperienceCalculator } from "./screening/ExperienceCalculator.js";
+import { SkillEvidenceEngine } from "./screening/SkillEvidenceEngine.js";
+import { TimelineConsistencyEngine } from "./screening/TimelineConsistencyEngine.js";
+import { ScreeningProfileService } from "./screening/ScreeningProfileService.js";
+import { PureMatchingEngine } from "./screening/PureMatchingEngine.js";
+import { ScreeningDecisionEngine } from "./screening/ScreeningDecisionEngine.js";
+import { ScreeningReportService } from "./screening/ScreeningReportService.js";
+import { ScreeningAuditService } from "./screening/ScreeningAuditService.js";
+import { LinkedInVerification } from "./screening/LinkedInVerification.js";
 
 export class CandidateIngestionService {
-  
-  
-  async ingestCandidateFile(vendorId: string, requirementId: string, fileBuffer: Buffer, fileName: string, mimeType: string, isPool: boolean = false) {
-    console.log("[IngestService] Starting ingestion for", fileName, "Size:", fileBuffer?.length);
+  /**
+   * Primary Entry Point for Candidate File Upload & Strict Deterministic Screening
+   */
+  async ingestCandidateFile(
+    vendorId: string,
+    requirementId: string,
+    fileBuffer: Buffer,
+    fileName: string,
+    mimeType: string,
+    isPool: boolean = false,
+    source: string = "Vendor"
+  ) {
+    console.log("[IngestService] Starting strict deterministic screening for:", fileName, "Size:", fileBuffer?.length);
     try {
-      // 1. Extract text from PDF
-      console.log("[IngestService] STEP 1: Upload OK. Buffer size:", fileBuffer?.length);
-      
+      // 1. File Validation (.pdf and .docx only)
       const isDocx = fileName.toLowerCase().endsWith('.docx') || mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
       const isPdf = fileName.toLowerCase().endsWith('.pdf') || mimeType === 'application/pdf';
 
       if (!isDocx && !isPdf) {
-        return { status: 400, data: { success: false, error: "Unsupported file format. Only PDF and DOCX are allowed." } };
+        return { 
+          status: 400, 
+          data: { 
+            success: false, 
+            error: "Unsupported file format. Only PDF and DOCX documents are accepted." 
+          } 
+        };
       }
 
-      console.log("[IngestService] STEP 2: Text Extraction Starting...", isDocx ? "(DOCX)" : "(PDF)");
-      let resumeText = "";
-      try {
-        if (isDocx) {
-          const mammoth = await import("mammoth");
-          const result = await mammoth.extractRawText({ buffer: fileBuffer });
-          resumeText = result.value;
-        } else {
+      // 2. Document Extraction & OCR Quality Check
+      const docResult = await DocumentIntelligenceService.extractDocument(fileBuffer, fileName, mimeType);
+      if (!docResult.normalizedText || docResult.normalizedText.length < 40) {
+        return {
+          status: 400,
+          data: {
+            success: false,
+            error: "Unable to extract readable text from resume. Please ensure the PDF or DOCX is not password-protected or empty."
+          }
+        };
+      }
+
+      // 3. Pure Deterministic Parsing (Offline & Non-LLM)
+      const parsedResume = PureResumeParser.parse(docResult.normalizedText, fileName);
+
+      // 4. Fetch Requirement Context (if linked)
+      let requirementDoc: any = null;
+      if (!isPool) {
+        if (!requirementId || requirementId === "UNKNOWN" || requirementId === "POOL" || requirementId === "GENERAL") {
+          return {
+            status: 400,
+            data: {
+              success: false,
+              error: "Submission Block: Every candidate submission must have a valid requirementId."
+            }
+          };
+        }
+        try {
+          requirementDoc = await candidateRepository.getRequirement(requirementId);
+        } catch (e) {
+          console.warn("[IngestService] Could not fetch requirement doc:", e);
+        }
+        if (!requirementDoc) {
+          return {
+            status: 400,
+            data: {
+              success: false,
+              error: `Submission Block: The provided requirementId "${requirementId}" is invalid or does not exist.`
+            }
+          };
+        }
+      } else {
+        if (requirementId && requirementId !== "UNKNOWN" && requirementId !== "POOL") {
           try {
-            let pdfParseMod = await import("pdf-parse");
-            const PDFParse = pdfParseMod.PDFParse;
-            const parser = new PDFParse({ data: new Uint8Array(fileBuffer) });
-            const result = await parser.getText();
-            resumeText = result.text || result;
-          } catch (pdfError) {
-             console.log("ERROR:", "[IngestService] pdf-parse Failed:", pdfError.name, pdfError.message || pdfError);
-             // Always fallback to raw text for testing purposes
-             resumeText = fileBuffer.toString('utf-8');
-             console.log("[IngestService] Fallback to raw text read due to PDF error");
+            requirementDoc = await candidateRepository.getRequirement(requirementId);
+          } catch (e) {
+            console.warn("[IngestService] Could not fetch requirement doc:", e);
           }
         }
-      } catch (extError) {
-        console.log("ERROR:", "[IngestService] Extraction Failed:", extError.message || extError);
-        return { status: 400, data: { success: false, error: "Failed to extract text from file. The file might be corrupted." } };
-      }
-      console.log("[IngestService] STEP 2: Extraction OK. Text length:", resumeText?.length);
-
-      
-      if (!resumeText || resumeText.trim().length === 0) {
-        return { status: 400, data: { success: false, error: "Could not extract text from file" } };
       }
 
-      // 2. Parse using AI
-      console.log("[IngestService] STEP 3: Starting AI Parse");
-      const identityData = await resumeParser.parse(resumeText);
-      console.log("[IngestService] STEP 3: AI Parse OK. Identity:", identityData?.name);
-      const candidateName = identityData.name && identityData.name !== "Unknown Candidate" ? identityData.name : fileName;
-      
-      // 3. Delegate to existing logic
-      console.log("[IngestService] STEP 4: Identity & Candidate Save");
-      let result;
+      // 5. Build Screening Profile
+      const screeningProfile = ScreeningProfileService.getProfileForRequirement(requirementDoc);
+
+      // 6. Experience Calculation (Total vs Relevant)
+      const experienceBreakdown = ExperienceCalculator.calculate(
+        parsedResume,
+        screeningProfile.requiredSkills
+      );
+
+      // 7. Evidence Level Validation (0 to 4)
+      const evidenceEvaluation = SkillEvidenceEngine.evaluateSkillsEvidence(
+        parsedResume,
+        screeningProfile.requiredSkills,
+        screeningProfile.criticalSkills
+      );
+
+      // 8. Timeline Inconsistency & Risk Checks
+      const consistencyEvaluation = TimelineConsistencyEngine.evaluate(parsedResume);
+
+      // 9. LinkedIn Verification State
+      const linkedinState = LinkedInVerification.createInitialState(parsedResume.linkedinUrl);
+
+      // 10. Pure Matching Engine Score Calculation
+      const matchResult = PureMatchingEngine.evaluate(
+        parsedResume,
+        evidenceEvaluation,
+        experienceBreakdown,
+        screeningProfile,
+        requirementDoc?.location,
+        requirementDoc?.noticePeriodDays
+      );
+
+      // 11. Screening Decision (PASS / REVIEW / REJECT)
+      const screeningDecision = ScreeningDecisionEngine.evaluate(
+        matchResult,
+        evidenceEvaluation,
+        consistencyEvaluation,
+        experienceBreakdown,
+        screeningProfile,
+        docResult.extractionQuality
+      );
+
+      // 12. Create Comprehensive Candidate Screening Report
+      const screeningReport = ScreeningReportService.createReport(
+        parsedResume,
+        docResult,
+        evidenceEvaluation,
+        experienceBreakdown,
+        consistencyEvaluation,
+        matchResult,
+        screeningDecision,
+        linkedinState,
+        requirementDoc
+      );
+
+      const candidateName = parsedResume.name || fileName.replace(/\.[^/.]+$/, "");
+      const candidateHash = DocumentIntelligenceService.computeIdentityHash(candidateName, parsedResume.email, parsedResume.phone);
+
+      const identityPayload = {
+        name: candidateName,
+        email: parsedResume.email,
+        phone: parsedResume.phone,
+        location: parsedResume.location,
+        currentTitle: parsedResume.currentTitle,
+        currentCompany: parsedResume.currentCompany,
+        experience: experienceBreakdown.totalExperienceFormatted,
+        totalExperienceMonths: experienceBreakdown.totalExperienceMonths,
+        totalExperienceFormatted: experienceBreakdown.totalExperienceFormatted,
+        relevantExperienceMonths: experienceBreakdown.relevantExperienceMonths,
+        relevantExperienceFormatted: experienceBreakdown.relevantExperienceFormatted,
+        skillExperienceMap: experienceBreakdown.skillExperienceMap,
+        skills: parsedResume.skills,
+        primarySkills: parsedResume.primarySkills,
+        noticePeriod: parsedResume.noticePeriod,
+        currentCTC: parsedResume.currentCTC,
+        expectedCTC: parsedResume.expectedCTC,
+        linkedinUrl: parsedResume.linkedinUrl,
+        linkedinVerification: linkedinState,
+        resumeHash: docResult.fileHash,
+        candidateHash,
+        source,
+        // Deterministic Screening Results
+        screeningReportId: screeningReport.screeningId,
+        screeningResult: {
+          passed: screeningDecision.status === "PASS",
+          status: screeningDecision.status,
+          overallScore: screeningReport.overallScore,
+          riskScore: consistencyEvaluation.riskScore,
+          summary: screeningDecision.primaryReason,
+          rejectionReasons: screeningDecision.rejectionReasons,
+          reviewFlags: screeningDecision.reviewFlags,
+          scoreBreakdown: matchResult.breakdown,
+          evidenceScore: evidenceEvaluation.overallEvidenceScore,
+          checks: [
+            { 
+              name: "Mandatory Identity & Contact", 
+              passed: !!(parsedResume.name && (parsedResume.email || parsedResume.phone)), 
+              score: 95, 
+              detail: `Extracted name, email (${parsedResume.email || 'N/A'}), phone (${parsedResume.phone || 'N/A'}).` 
+            },
+            { 
+              name: "Technical Skill Depth", 
+              passed: matchResult.missingCriticalSkills.length === 0, 
+              score: matchResult.breakdown.skills.percentage, 
+              detail: `Matched ${matchResult.matchedSkills.length}/${screeningProfile.requiredSkills.length} required skills.` 
+            },
+            { 
+              name: "Relevant Hands-on Experience", 
+              passed: experienceBreakdown.relevantExperienceMonths >= (screeningProfile.minimumRelevantExperienceMonths || 12), 
+              score: matchResult.breakdown.relevantExperience.percentage, 
+              detail: `${experienceBreakdown.relevantExperienceFormatted} verified hands-on domain experience.` 
+            },
+            { 
+              name: "Project Implementation Evidence", 
+              passed: !evidenceEvaluation.isKeywordOnlyProfile, 
+              score: evidenceEvaluation.overallEvidenceScore, 
+              detail: evidenceEvaluation.isKeywordOnlyProfile ? "Keywords listed without implementation context" : "Documented production project evidence." 
+            },
+            { 
+              name: "Timeline & Career Stability", 
+              passed: !consistencyEvaluation.hasCriticalInconsistencies, 
+              score: 100 - consistencyEvaluation.riskScore, 
+              detail: consistencyEvaluation.hasCriticalInconsistencies ? "Chronology conflict flagged" : "Consistent employment timeline." 
+            },
+            { 
+              name: "Document & Profile Quality", 
+              passed: docResult.extractionQuality !== "DOCUMENT_QUALITY_REVIEW", 
+              score: docResult.extractionQuality === "HIGH" ? 95 : 75, 
+              detail: `Extraction quality: ${docResult.extractionQuality} (${docResult.ocrInfo.ocrUsed ? 'OCR processed' : 'Direct digital text'}).` 
+            }
+          ],
+          skillEvidenceMap: evidenceEvaluation.skillEvidenceMap
+        },
+        aiMatchScore: isPool ? null : matchResult.overallScore,
+        aiStatus: "screened"
+      };
+
+      // 13. Persist Candidate Record
+      let result: any;
       if (isPool) {
-        result = await this.submitToPool(vendorId, candidateName, identityData);
+        result = await this.submitToPool(vendorId, candidateName, identityPayload, docResult.fileHash);
       } else {
-        result = await this.submitCandidateToRequirement(vendorId, candidateName, requirementId, identityData);
+        result = await this.submitCandidateToRequirement(vendorId, candidateName, requirementId, identityPayload, candidateHash);
       }
-      console.log("[IngestService] STEP 7: Response ready", result?.status);
+
+      // 14. Record Audit Event to Ledger and Screening Collections
+      if (result?.data?.candidateId) {
+        await ScreeningAuditService.recordScreening(
+          result.data.candidateId,
+          screeningReport,
+          vendorId
+        );
+      }
+
+      // 15. Attach screening decision & report to response
+      if (result?.data) {
+        result.data.screeningDecision = screeningDecision;
+        result.data.screeningReport = screeningReport;
+        result.data.screeningScore = matchResult.overallScore;
+        result.data.status = screeningDecision.status;
+      }
+
       return result;
     } catch (e: any) {
       console.log("ERROR:", "[CandidateIngestionService.ingestCandidateFile] Error:", e);
@@ -84,7 +273,7 @@ export class CandidateIngestionService {
     const db = getAdminDb();
     const existingVaultDoc = await candidateRepository.findIdentityByEmailOrPhone(identityData.email, identityData.phone);
     
-    console.log("[IngestService] STEP 4: Running Transaction for Identity/Candidate...");
+    console.log("[IngestService] Running Transaction for Identity/Candidate...");
     const txResult = await db.runTransaction(async (transaction) => {
       if (existingVaultDoc) {
         if (existingVaultDoc.vendorId !== vendorId) {
@@ -112,7 +301,7 @@ export class CandidateIngestionService {
       }
 
       const assignedBdm = "Ravi"; 
-      const aiMatchScore = identityData.aiMatchScore || 75;
+      const aiMatchScore = identityData.aiMatchScore || identityData.screeningResult?.overallScore || 75;
       const skillsList = identityData.skills || [];
 
       let candidateId = existingVaultDoc?.candidateId;
@@ -156,6 +345,10 @@ export class CandidateIngestionService {
       return { candidateId, isUpdate, reqId, assignedBdm, aiMatchScore, skillsList, candidateName };
     });
 
+    if (txResult._conflict) {
+      return { status: txResult.status, data: txResult.data };
+    }
+
     const candidateId = txResult.candidateId;
     const isUpdate = txResult.isUpdate;
     const reqId = txResult.reqId;
@@ -163,13 +356,7 @@ export class CandidateIngestionService {
     const aiMatchScore = txResult.aiMatchScore;
     const skillsList = txResult.skillsList;
     
-    // Redefine db for non-transactional calls
     const dbAdmin = getAdminDb();
-    console.log("[IngestService] STEP 5: Candidate Save OK. ID:", candidateId);
-    
-    if (txResult._conflict) {
-      return { status: txResult.status, data: txResult.data };
-    }
     
     const matchRef = await dbAdmin.collection("matches").add({
       requirementId: reqId,
@@ -178,7 +365,7 @@ export class CandidateIngestionService {
       vendorId: vendorId,
       score: aiMatchScore,
       skills: skillsList,
-      status: "AI Reviewed",
+      status: "Screened",
       createdAt: new Date().toISOString(),
       bdmMandate: assignedBdm,
       source: "Vendor Workspace"
@@ -193,7 +380,6 @@ export class CandidateIngestionService {
       createdAt: new Date().toISOString()
     }, vendorId, { workspace: "Vendor", vendorId });
 
-    console.log("[IngestService] STEP 6: Projection Engine (Domain Events)...");
     await DomainEventPublisher.publishDomainEvent({
       type: "CANDIDATE_SUBMITTED",
       aggregateType: "Candidate",
@@ -259,7 +445,8 @@ export class CandidateIngestionService {
           createdAt: new Date().toISOString()
         });
       } else {
-        transaction.update(db.collection("candidates").doc(candidateId), {
+        const candRef = db.collection("candidates").doc(candidateId);
+        transaction.update(candRef, {
           ...identityData,
           name: candidateName,
           updatedAt: new Date().toISOString(),
@@ -267,36 +454,42 @@ export class CandidateIngestionService {
         });
       }
 
-      transaction.set(db.collection("system_events").doc(), {
-        eventType: "CANDIDATE_POOL_SYNCED",
-        entityCollection: "candidates",
-        entityId: candidateId,
-        metadata: { vendorId, candidateName },
-        createdAt: new Date().toISOString()
-      });
-
-      return { status: 200, data: { success: true, action: isUpdate ? "UPDATED" : "CREATED", candidateId } };
+      return {
+        status: 200,
+        data: {
+          success: true,
+          action: isUpdate ? "UPDATED_IN_POOL" : "ADDED_TO_POOL",
+          candidateId
+        }
+      };
     });
+
     return txResult;
   }
 
-  async reprocessAiQueue() {
+  async reprocessAiQueue(limitCount: number = 10) {
     const db = getAdminDb();
-    const pendingItems = await candidateRepository.getAiReprocessingQueuePending(10);
-    
-    if (pendingItems.length === 0) {
-      return { success: true, processedCount: 0, message: "No pending items in the AI reprocessing queue." };
+    const queueSnapshot = await db
+      .collection("ai_reprocessing_queue")
+      .where("status", "in", ["pending", "retrying"])
+      .limit(limitCount)
+      .get();
+
+    if (queueSnapshot.empty) {
+      return { success: true, processedCount: 0, message: "Queue is empty." };
     }
-    
+
     let processedCount = 0;
     let successCount = 0;
     let failCount = 0;
 
-    for (const queueData of pendingItems) {
-      const { candidateId, candidateName, vendorId, candidateHash, identityData, attempts, id: queueDocId } = queueData;
+    for (const doc of queueSnapshot.docs) {
       processedCount++;
+      const queueItem = doc.data();
+      const queueDocId = doc.id;
+      const { candidateId, candidateName, vendorId, attempts, identityData } = queueItem;
 
-      let parsedTitle = identityData?.current_title || identityData?.currentTitle || "Software Engineer";
+      let parsedTitle = identityData?.title || "Software Professional";
       let parsedSkills = identityData?.skills || [];
       let parsedSummary = identityData?.cover_note || "Talent Pool asset available for redeployment.";
       let fraudDetected = false;

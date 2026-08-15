@@ -24,6 +24,7 @@ export default function Candidates() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStage, setFilterStage] = useState<string>("all");
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
+  const [sourcePoolFilter, setSourcePoolFilter] = useState<string>("all"); // 'all', 'vendor', 'direct'
 
   const isSubmissionsPage = location.pathname.includes("submissions");
 
@@ -48,7 +49,16 @@ export default function Candidates() {
       matchesStage = c.stage === "placed" || c.stage === "joined";
     else matchesStage = c.stage === filterStage;
 
-    return matchesSearch && matchesStage;
+    // Vendor / Direct Separation
+    let matchesSourcePool = true;
+    const isVendorCand = !!c.vendorId || c.source?.toLowerCase() === "vendor";
+    if (sourcePoolFilter === "vendor") {
+      matchesSourcePool = isVendorCand;
+    } else if (sourcePoolFilter === "direct") {
+      matchesSourcePool = !isVendorCand;
+    }
+
+    return matchesSearch && matchesStage && matchesSourcePool;
   });
 
   const getStageColor = (stage: string) => {
@@ -107,6 +117,43 @@ export default function Candidates() {
         <SubmissionsTable />
       ) : (
         <>
+          {/* Pool Selection Tabs (Vendor / Direct Separation) */}
+          <div className="flex border-b border-slate-200 gap-2 mb-2">
+            <button
+              onClick={() => setSourcePoolFilter("all")}
+              className={cn(
+                "px-5 py-2.5 border-b-2 font-bold text-xs uppercase tracking-wider font-mono transition-all cursor-pointer",
+                sourcePoolFilter === "all"
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              )}
+            >
+              All Pool ({safeArray(candidates).length})
+            </button>
+            <button
+              onClick={() => setSourcePoolFilter("vendor")}
+              className={cn(
+                "px-5 py-2.5 border-b-2 font-bold text-xs uppercase tracking-wider font-mono transition-all cursor-pointer",
+                sourcePoolFilter === "vendor"
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Vendor Agency Pool ({safeArray(candidates).filter(c => !!c.vendorId || c.source?.toLowerCase() === "vendor").length})
+            </button>
+            <button
+              onClick={() => setSourcePoolFilter("direct")}
+              className={cn(
+                "px-5 py-2.5 border-b-2 font-bold text-xs uppercase tracking-wider font-mono transition-all cursor-pointer",
+                sourcePoolFilter === "direct"
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Direct Talent Pool ({safeArray(candidates).filter(c => !c.vendorId && c.source?.toLowerCase() !== "vendor").length})
+            </button>
+          </div>
+
           <div className="skeuo-card p-4 flex flex-col md:flex-row gap-4">
         <div className="relative flex-1 group">
           <Search className="absolute left-3 top-2.5 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors drop-shadow-sm" />
@@ -190,7 +237,17 @@ export default function Candidates() {
                       </div>
                     </td>
                     <td className="p-4">
-                      {qualityScore !== undefined ? (
+                      {cand.screeningResult ? (
+                        <div className="flex items-center gap-1.5">
+                          <div className={cn(
+                            "px-2 py-0.5 rounded text-[10px] font-bold border flex items-center gap-1",
+                            cand.screeningResult.passed ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
+                          )}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            Screen: {cand.screeningResult.overallScore}%
+                          </div>
+                        </div>
+                      ) : qualityScore !== undefined ? (
                          <div className="flex items-center gap-1.5">
                             <div className={cn(
                                "px-2 py-0.5 rounded text-[10px] font-bold border",
@@ -237,7 +294,7 @@ export default function Candidates() {
               })}
               {filteredCandidates.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="p-8 text-center text-slate-500">
+                  <td colSpan={5} className="p-8 text-center text-slate-500">
                     No candidates found.
                   </td>
                 </tr>

@@ -1,6 +1,7 @@
 import { requirementRepository } from "../repositories/RequirementRepository";
 import { getAdminDb } from "../utils/firebaseAdmin";
 import { DomainEventPublisher } from "../events/DomainEventPublisher";
+import { userActivityService } from "./UserActivityService";
 import * as crypto from "crypto";
 
 export function normalizeRequirementData(data: any, userContext?: any): any {
@@ -272,6 +273,20 @@ export class RequirementService {
     }, userContext);
 
     const created = await requirementRepository.create(normalized, performedBy);
+
+    await userActivityService.logActivity({
+      userId: userContext?.userId || userContext?.uid || performedBy || "System",
+      userEmail: userContext?.email || "system@hirenestworkforce.com",
+      userRole: userContext?.role || "Admin",
+      eventType: "REQUIREMENT_CREATED",
+      description: `Requirement created: ${created.title || created.roleName || created.id}`,
+      organizationId: created.organizationId || "bootstrap-org",
+      metadata: {
+        requirementId: created.id,
+        title: created.title || created.roleName || "",
+        status: created.status || "",
+      }
+    });
 
     await DomainEventPublisher.publishDomainEvent({
       type: "REQUIREMENT_CREATED",

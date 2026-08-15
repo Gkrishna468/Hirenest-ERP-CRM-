@@ -6,23 +6,62 @@ const router = Router();
 router.get('/', async (req: any, res: any) => {
   try {
     const db = getAdminDb();
-    let queryRef: any = db.collection("system_events");
-    
-    if (req.query.entityType) {
-      queryRef = queryRef.where('entityType', '==', req.query.entityType);
+    let items: any[] = [];
+
+    try {
+      let queryRef: any = db.collection("system_events");
+      
+      if (req.query.entityType) {
+        queryRef = queryRef.where('entityType', '==', req.query.entityType);
+      }
+      if (req.query.entityId) {
+        queryRef = queryRef.where('entityId', '==', req.query.entityId);
+      }
+      if (req.query.actorId) {
+        queryRef = queryRef.where('actorId', '==', req.query.actorId);
+      }
+      
+      const query = await queryRef.orderBy('timestamp', 'desc').limit(100).get();
+      query.forEach((doc: any) => {
+        items.push({ id: doc.id, ...doc.data() });
+      });
+    } catch (queryErr: any) {
+      console.warn("[system_events] Index query failed, using in-memory sort/filter fallback:", queryErr.message);
+      let fallbackQuery: any = db.collection("system_events");
+      if (req.query.entityType) {
+        fallbackQuery = fallbackQuery.where('entityType', '==', req.query.entityType);
+      } else if (req.query.entityId) {
+        fallbackQuery = fallbackQuery.where('entityId', '==', req.query.entityId);
+      } else {
+        fallbackQuery = fallbackQuery.limit(200);
+      }
+      const fallbackSnap = await fallbackQuery.get();
+      fallbackSnap.forEach((doc: any) => {
+        items.push({ id: doc.id, ...doc.data() });
+      });
+      
+      if (req.query.entityType) {
+        items = items.filter(it => it.entityType === req.query.entityType);
+      }
+      if (req.query.entityId) {
+        items = items.filter(it => it.entityId === req.query.entityId);
+      }
+      if (req.query.actorId) {
+        items = items.filter(it => it.actorId === req.query.actorId || it.userId === req.query.actorId || it.performedBy === req.query.actorId);
+      }
+      
+      items.sort((a, b) => {
+        const timeA = new Date(a.timestamp || a.createdAt || 0).getTime();
+        const timeB = new Date(b.timestamp || b.createdAt || 0).getTime();
+        return timeB - timeA;
+      });
+      items = items.slice(0, 100);
     }
-    if (req.query.entityId) {
-      queryRef = queryRef.where('entityId', '==', req.query.entityId);
-    }
-    
-    const query = await queryRef.orderBy('timestamp', 'desc').limit(100).get();
-    const items: any[] = [];
-    query.forEach(doc => {
-      items.push({ id: doc.id, ...doc.data() });
-    });
+
     res.status(200).json(items);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error("[system_events error]", error);
+    res.status(200).json([]);
   }
 });
 

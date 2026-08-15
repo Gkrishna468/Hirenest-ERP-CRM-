@@ -32,6 +32,7 @@ import { UserRepository } from '@/repositories/UserRepository';
 import { SystemRepository } from '@/repositories/SystemRepository';
 import { CandidateRepository } from '@/repositories/CandidateRepository';
 import { RequirementRepository } from '@/repositories/RequirementRepository';
+import { SubmissionRepository } from '@/repositories/SubmissionRepository';
 import { useAuth } from '@/contexts/AuthContext';
 import type { User as UserType } from '@/types';
 
@@ -62,6 +63,7 @@ export function User360({
   // Real records created by or linked to this user
   const [userCandidates, setUserCandidates] = useState<any[]>([]);
   const [userRequirements, setUserRequirements] = useState<any[]>([]);
+  const [userSubmissions, setUserSubmissions] = useState<any[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(false);
 
   // Admin password reset state inside drawer
@@ -130,9 +132,10 @@ export function User360({
       async function fetchRecords() {
         setLoadingRecords(true);
         try {
-          const [cands, reqs] = await Promise.all([
+          const [cands, reqs, subs] = await Promise.all([
             CandidateRepository.list(),
-            RequirementRepository.list()
+            RequirementRepository.list(),
+            SubmissionRepository.list()
           ]);
           
           // Filter records created or owned by this user
@@ -145,9 +148,16 @@ export function User360({
             r.userId === userData.id || 
             (userData.clientId && r.clientId === userData.clientId)
           );
+          const ownedSubs = subs.filter(s =>
+            s.createdBy === userData.id ||
+            s.userId === userData.id ||
+            (userData.vendorId && s.vendorId === userData.vendorId) ||
+            (userData.clientId && s.clientId === userData.clientId)
+          );
 
           setUserCandidates(ownedCands);
           setUserRequirements(ownedReqs);
+          setUserSubmissions(ownedSubs);
         } catch (err) {
           console.warn('Could not fetch user created records:', err);
         } finally {
@@ -353,7 +363,7 @@ export function User360({
                           className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                         >
                           <option value="active">Active</option>
-                          <option value="inactive">Inactive / Suspended</option>
+                          <option value="disabled">Disabled / Suspended</option>
                         </select>
                       </div>
                     </div>
@@ -409,6 +419,20 @@ export function User360({
                   <div className="p-3 bg-slate-50 rounded-xl space-y-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Organization Partition ID</span>
                     <p className="font-bold text-slate-800 font-mono">{userData.organizationId || 'bootstrap-org'}</p>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-xl space-y-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Account Created Date</span>
+                    <p className="font-bold text-slate-800 font-mono">
+                      {userData.createdAt ? new Date(userData.createdAt).toLocaleString() : 'N/A'}
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-xl space-y-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Last Activity Detected</span>
+                    <p className="font-bold text-slate-800 font-mono">
+                      {userData.lastActivity ? new Date(userData.lastActivity).toLocaleString() : (userData.lastLogin ? new Date(userData.lastLogin).toLocaleString() : 'N/A')}
+                    </p>
                   </div>
 
                   {userData.vendorId && (
@@ -566,7 +590,7 @@ Temporary Password: ${resetSuccessCreds.tempPw}`}
                         <span className="text-[10px] text-slate-400">{evt.timestamp ? new Date(evt.timestamp).toLocaleString() : ''}</span>
                       </div>
                       <p className="text-slate-700 font-medium">
-                        {evt.details || (evt.metadata ? JSON.stringify(evt.metadata) : 'System Event')}
+                        {evt.payload?.description || evt.description || evt.details || (evt.payload?.metadata ? JSON.stringify(evt.payload.metadata) : (evt.metadata ? JSON.stringify(evt.metadata) : 'System Event'))}
                       </p>
                     </div>
                   ))}
@@ -650,6 +674,41 @@ Temporary Password: ${resetSuccessCreds.tempPw}`}
                           </span>
                           <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* SUBMISSIONS CREATED */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider font-mono flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-indigo-600" />
+                    Submissions Created ({userSubmissions.length})
+                  </h4>
+                </div>
+
+                {loadingRecords ? (
+                  <div className="p-4 text-center text-slate-400 text-xs font-mono animate-pulse">Loading records...</div>
+                ) : userSubmissions.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic p-3 bg-slate-50 rounded-xl">No submissions directly created or managed by this user.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {userSubmissions.slice(0, 10).map((sub) => (
+                      <div 
+                        key={sub.id} 
+                        className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between transition-all"
+                      >
+                        <div>
+                          <h5 className="font-bold text-slate-900 text-xs">Submission ID: {sub.id.slice(0, 8)}...</h5>
+                          <p className="text-[10px] text-slate-500 font-mono">
+                            Candidate: {sub.candidateName || sub.candidateId?.slice(0, 8)} • Requirement: {sub.requirementTitle || sub.requirementId?.slice(0, 8)}
+                          </p>
+                        </div>
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold rounded uppercase">
+                          {sub.status || 'Submitted'}
+                        </span>
                       </div>
                     ))}
                   </div>

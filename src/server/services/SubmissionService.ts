@@ -1,6 +1,8 @@
-import { submissionRepository } from "../repositories/SubmissionRepository";
-import { getAdminDb } from "../utils/firebaseAdmin";
-import { DomainEventPublisher } from "../events/DomainEventPublisher";
+import { submissionRepository } from "../repositories/SubmissionRepository.js";
+import { getAdminDb } from "../utils/firebaseAdmin.js";
+import { DomainEventPublisher } from "../events/DomainEventPublisher.js";
+import { ScreeningAuditService } from "./screening/ScreeningAuditService.js";
+import { userActivityService } from "./UserActivityService.js";
 import * as crypto from "crypto";
 
 export class SubmissionService {
@@ -49,6 +51,60 @@ export class SubmissionService {
   }
 
   async create(data: any, performedBy: string = 'System', userContext?: any) {
+    const db = getAdminDb();
+
+    // Enforce requirementId presence and validity
+    if (!data.requirementId || data.requirementId === "UNKNOWN" || data.requirementId === "POOL" || data.requirementId === "GENERAL") {
+      throw new Error("Submission Block: Every submission MUST have a valid requirementId.");
+    }
+    const reqDoc = await db.collection("requirements").doc(data.requirementId).get();
+    if (!reqDoc.exists) {
+      throw new Error(`Submission Block: Provided requirementId "${data.requirementId}" is invalid or does not exist.`);
+    }
+
+    // Submission Gate Validation (Phase 19)
+    if (data.candidateId) {
+      try {
+        const candDoc = await db.collection("candidates").doc(data.candidateId).get();
+        if (candDoc.exists) {
+          const cand = candDoc.data();
+          const screening = cand?.screeningResult;
+          if (screening) {
+            if (screening.status === "REJECT" && !data.overrideReason) {
+              throw new Error(`Submission Gate Block: Candidate failed strict profile screening (${screening.summary || 'Technical qualifications benchmark not met'}). Admin override required.`);
+            }
+
+            if (data.overrideReason) {
+              await ScreeningAuditService.recordOverride(
+                data.candidateId,
+                data.requirementId || "GENERAL",
+                data.overrideReason,
+                performedBy
+              );
+
+              await userActivityService.logActivity({
+                userId: userContext?.userId || userContext?.uid || performedBy || "System",
+                userEmail: userContext?.email || "system@hirenestworkforce.com",
+                userRole: userContext?.role || "Admin",
+                eventType: "SCREENING_OVERRIDE",
+                description: `Screening override applied for candidate ${data.candidateId} on requirement ${data.requirementId || 'GENERAL'}`,
+                organizationId: userContext?.organizationId || data.organizationId || "bootstrap-org",
+                metadata: {
+                  candidateId: data.candidateId,
+                  requirementId: data.requirementId || "GENERAL",
+                  overrideReason: data.overrideReason,
+                }
+              });
+            }
+          }
+        }
+      } catch (gateErr: any) {
+        if (gateErr.message?.includes("Submission Gate Block")) {
+          throw gateErr;
+        }
+      }
+    }
+
     const id = data.id || crypto.randomUUID();
     const item: any = {
       ...data,
@@ -60,6 +116,20 @@ export class SubmissionService {
     };
 
     const created = await submissionRepository.create(item, performedBy);
+
+    await userActivityService.logActivity({
+      userId: userContext?.userId || userContext?.uid || performedBy || "System",
+      userEmail: userContext?.email || "system@hirenestworkforce.com",
+      userRole: userContext?.role || "Admin",
+      eventType: "SUBMISSION",
+      description: `Candidate ${data.candidateId} was successfully submitted to requirement ${data.requirementId}.`,
+      organizationId: created.organizationId || "bootstrap-org",
+      metadata: {
+        submissionId: id,
+        candidateId: data.candidateId,
+        requirementId: data.requirementId,
+      }
+    });
 
     await DomainEventPublisher.publishDomainEvent({
       type: "CANDIDATE_SUBMITTED",
@@ -139,4 +209,3 @@ export class SubmissionService {
 }
 
 export const submissionService = new SubmissionService();
-

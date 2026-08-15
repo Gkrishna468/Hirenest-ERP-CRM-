@@ -21,13 +21,13 @@ export async function apiFetch(url: string, options?: RequestInit): Promise<Resp
   }
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(options?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options?.headers as Record<string, string> || {}),
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
   };
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-  const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
+  const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`;
 
   let res: Response;
   try {

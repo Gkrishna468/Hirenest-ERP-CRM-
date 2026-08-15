@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import * as dotenv from "dotenv";
 
 import { getAdminApp, getAdminDb, getAdminAuthClient } from "../utils/firebaseAdmin";
+import { userActivityService } from "../services/UserActivityService";
 
 export default async function handler(req: Request, res: Response) {
   if (req.method !== "POST") {
@@ -35,6 +36,22 @@ export default async function handler(req: Request, res: Response) {
     };
 
     const firebaseToken = await getAdminAuthClient().createCustomToken(user.id, customClaims);
+
+    // Log the successful login activity
+    await userActivityService.logActivity({
+      userId: user.id || user.uid,
+      userEmail: user.email || "",
+      userRole: user.role || "viewer",
+      eventType: "LOGIN",
+      description: `User ${user.email} signed in successfully.`,
+      organizationId: user.organizationId || "default",
+      metadata: {
+        ip: req.ip || "",
+        userAgent: req.headers["user-agent"] || "",
+        bypassUsed: req.body && req.body.secret === 'founding2026_exec_bypass',
+      }
+    });
+
     res.status(200).json({ firebaseToken });
   } catch (error: any) {
     console.error("[FIREBASE TOKEN ERROR] Failed creating Firebase custom token:", error);

@@ -1515,7 +1515,7 @@ System Administrator`}
                                   member.status === 'active' || !member.status ? "text-emerald-700 bg-emerald-50" : "text-slate-400 bg-slate-100"
                                 )}>
                                   <span className={cn("w-1.5 h-1.5 rounded-full", member.status === 'active' || !member.status ? "bg-emerald-500 animate-pulse" : "bg-slate-400")} />
-                                  {member.status === 'active' || !member.status ? 'Active' : 'Inactive'}
+                                  {member.status === 'active' || !member.status ? 'Active' : 'Disabled'}
                                 </span>
                               </td>
                               {(user?.role === 'admin' || user?.role === 'founder') && (
@@ -1546,9 +1546,9 @@ System Administrator`}
                                     <button
                                       disabled={member.id === user.id}
                                       onClick={() => handleUpdateUserAccess(member.id, {
-                                        status: (member.status === 'active' || !member.status) ? 'inactive' : 'active'
+                                        status: (member.status === 'active' || !member.status) ? 'disabled' : 'active'
                                       })}
-                                      title="Toggle Member Status"
+                                      title="Toggle Member Status (Deactivate / Reactivate)"
                                       className={cn(
                                         "p-1 rounded-lg transition-all",
                                         (member.status === 'active' || !member.status) ? "bg-amber-50 hover:bg-amber-100 text-amber-600" : "bg-emerald-50 hover:bg-emerald-100 text-emerald-600"
