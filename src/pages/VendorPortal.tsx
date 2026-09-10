@@ -1083,11 +1083,13 @@ Your task is to answer user's question. Be professional, direct, and helpful. Gu
             </p>
           </div>
           <button 
+            id="btn-vendor-sign-out"
             onClick={handleLogout}
-            title="Disconnect Connection"
-            className="p-2 text-slate-400 hover:text-rose-500 bg-slate-950 border border-slate-800 rounded-lg hover:border-rose-500/30 transition-all shadow"
+            title="Sign Out / Disconnect Session"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-300 hover:text-rose-400 bg-slate-950 border border-slate-800 rounded-lg hover:border-rose-500/30 transition-all shadow"
           >
-            <Unlock className="w-4 h-4" />
+            <Unlock className="w-3.5 h-3.5" />
+            <span>Sign Out</span>
           </button>
         </div>
       </header>

@@ -25,6 +25,9 @@ import authHandler from "./src/server/controllers/auth";
 import gmailRouter from "./src/server/routers/gmail";
 import candidatesRouter from "./src/server/routers/candidates";
 import candidatesHandler from "./src/server/controllers/candidates";
+import qualityControlRouter from "./src/server/routers/quality-control";
+import { commercialsRouter } from "./src/server/routers/commercials";
+import { hrRouter } from "./src/server/routers/hr";
 import aiRouter from "./src/server/routers/ai";
 import brokerRouter from "./src/server/routers/broker";
 import openAIRouter from "./src/api-lib/handlers/openai";
@@ -76,6 +79,9 @@ app.use("/api/users", usersRouter);
 app.use("/api/contacts", contactsRouter);
 app.use("/api/system_events", systemEventsRouter);
 app.use("/api/system", systemRouter);
+app.use("/api/quality-control", qualityControlRouter);
+app.use("/api/commercials", commercialsRouter);
+app.use("/api/hr", hrRouter);
 
 // 1. Health check
 app.use("/api/health", healthRouter);

@@ -37,9 +37,12 @@ import PublicApply from "./pages/PublicApply";
 import VendorSubmit from "./pages/VendorSubmit";
 import VendorPortal from "./pages/VendorPortal";
 import AIAccuracy from "./pages/AIAccuracy";
+import QualityControl from "./pages/QualityControl";
 import Agents from "./pages/Agents";
 import AIControlCenter from "./pages/AIControlCenter";
 import KnowledgeVault from "./pages/KnowledgeVault";
+import HROperations from "./pages/HROperations";
+import TwentyCRM from "./pages/TwentyCRM";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -243,6 +246,30 @@ export default function App() {
                 element={
                   <PrivateRoute>
                     <AIAccuracy />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/quality-control"
+                element={
+                  <PrivateRoute>
+                    <QualityControl />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/hr"
+                element={
+                  <PrivateRoute>
+                    <HROperations />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/twenty-crm"
+                element={
+                  <PrivateRoute>
+                    <TwentyCRM />
                   </PrivateRoute>
                 }
               />

@@ -892,14 +892,14 @@ export default function Candidate360({ candidateId, onClose }: Candidate360Props
                               <div className="text-center px-2">
                                 <p className="text-[10px] font-mono font-bold uppercase text-slate-400">Match Score</p>
                                 <p className={cn("text-2xl font-black font-mono", isPass ? "text-emerald-600" : isReview ? "text-amber-600" : "text-rose-600")}>
-                                  {screening.overallScore || 88}<span className="text-xs text-slate-400">/100</span>
+                                  {screening.overallScore ?? 'N/A'}<span className="text-xs text-slate-400">/100</span>
                                 </p>
                               </div>
                               <div className="w-px h-8 bg-slate-200" />
                               <div className="text-center px-2">
                                 <p className="text-[10px] font-mono font-bold uppercase text-slate-400">Risk Factor</p>
                                 <p className={cn("text-2xl font-black font-mono", (screening.riskScore || 0) < 30 ? "text-slate-700" : "text-rose-600")}>
-                                  {screening.riskScore || 12}%
+                                  {screening.riskScore !== undefined && screening.riskScore !== null ? `${screening.riskScore}%` : '0%'}
                                 </p>
                               </div>
                             </div>

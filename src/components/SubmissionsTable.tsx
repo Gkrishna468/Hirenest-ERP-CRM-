@@ -36,7 +36,7 @@ export const SubmissionsTable: React.FC = () => {
             clientName: req?.clientName || client?.name || (c as any).clientName || "Direct Client Partner",
             vendorId: c.vendorId || "vendor-direct",
             vendorName: c.vendorName || "In-house Sourcing",
-            matchScore: c.aiMatchScore || 88,
+            matchScore: c.aiMatchScore ?? (c as any).screeningResult?.overallScore ?? null,
             status: c.status || "Submitted to Client",
             submittedAt: c.createdAt ? new Date(c.createdAt).toLocaleDateString("en-US") : "Today",
             assignedBdm: c.assignedBdm || "Ravi Sharma",
@@ -140,9 +140,13 @@ export const SubmissionsTable: React.FC = () => {
 
                 {/* AI Match Score */}
                 <td className="p-3.5 text-center">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <Sparkles className="w-3 h-3" /> {sub.matchScore}%
-                  </span>
+                  {sub.matchScore !== null && sub.matchScore !== undefined ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <Sparkles className="w-3 h-3" /> {sub.matchScore}%
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 font-mono">NOT MATCHED</span>
+                  )}
                 </td>
 
                 {/* Status */}

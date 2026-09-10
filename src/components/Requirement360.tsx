@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Briefcase, Building2, MapPin, DollarSign, Calendar, CheckCircle, Users, Sparkles, ArrowRight, Globe, Power, Sliders, Mail, MessageCircle, Linkedin, Zap, History } from "lucide-react";
+import { X, Briefcase, Building2, MapPin, DollarSign, Calendar, CheckCircle, Users, Sparkles, ArrowRight, Globe, Power, Sliders, Mail, MessageCircle, Linkedin, Zap, History, Radio } from "lucide-react";
 import { useData } from "@/contexts/DataContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -525,7 +525,7 @@ export const Requirement360: React.FC<Requirement360Props> = ({
                   <div>
                     <div className="text-sm font-bold text-slate-800">{c.name}</div>
                     <div className="text-xs text-slate-500">
-                      {c.currentTitle || "Software Engineer"} • Match Score: <span className="font-bold text-emerald-600">{c.aiMatchScore || 88}%</span>
+                      {c.currentTitle || "Software Engineer"} • Match Score: <span className="font-bold text-emerald-600">{c.aiMatchScore ? `${c.aiMatchScore}%` : 'NOT MATCHED'}</span>
                     </div>
                   </div>
                   <button className="text-xs font-semibold text-indigo-600 flex items-center gap-1">

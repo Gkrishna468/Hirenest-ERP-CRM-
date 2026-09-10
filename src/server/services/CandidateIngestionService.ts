@@ -301,7 +301,7 @@ export class CandidateIngestionService {
       }
 
       const assignedBdm = "Ravi"; 
-      const aiMatchScore = identityData.aiMatchScore || identityData.screeningResult?.overallScore || 75;
+      const aiMatchScore = identityData.aiMatchScore ?? identityData.screeningResult?.overallScore ?? null;
       const skillsList = identityData.skills || [];
 
       let candidateId = existingVaultDoc?.candidateId;

@@ -62,6 +62,16 @@ export class SubmissionService {
       throw new Error(`Submission Block: Provided requirementId "${data.requirementId}" is invalid or does not exist.`);
     }
 
+    const reqData = reqDoc.data();
+    const reqStatus = (reqData?.status || "").toLowerCase();
+    const isBroadcast = reqData?.broadcast !== false && reqData?.broadcast !== "false";
+    if (userContext?.workspace === "Vendor" || data.vendorId) {
+      if (reqStatus === "closed" || reqStatus === "on_hold" || reqStatus === "cancelled" || !isBroadcast) {
+        const stateDesc = reqStatus === "on_hold" ? "ON HOLD" : reqStatus === "closed" ? "CLOSED" : "not open for vendor submissions";
+        throw new Error(`Submission Block: This requirement is currently ${stateDesc}.`);
+      }
+    }
+
     // Submission Gate Validation (Phase 19)
     if (data.candidateId) {
       try {

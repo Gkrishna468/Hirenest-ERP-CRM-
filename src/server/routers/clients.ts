@@ -22,6 +22,16 @@ clientsRouter.get("/:id", async (req, res) => {
   }
 });
 
+clientsRouter.get("/:id/360", async (req, res) => {
+  try {
+    const data = await clientService.getClient360(req.params.id, (req as any).user);
+    if (!data) return res.status(404).json({ error: "Client not found" });
+    res.status(200).json(data);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 clientsRouter.post("/", async (req, res) => {
   try {
     const data = await clientService.create(req.body.payload || req.body, req.body.performedBy, (req as any).user);

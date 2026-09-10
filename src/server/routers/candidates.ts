@@ -116,7 +116,7 @@ router.get('/:id/screening', async (req: any, res: any) => {
         return res.status(200).json({
           screeningId: candDoc.data()?.screeningReportId || "LEGACY-REPORT",
           candidateName: candDoc.data()?.name,
-          overallScore: candDoc.data()?.screeningResult?.overallScore || candDoc.data()?.aiMatchScore || 85,
+          overallScore: candDoc.data()?.screeningResult?.overallScore ?? candDoc.data()?.aiMatchScore ?? null,
           decision: {
             status: candDoc.data()?.screeningResult?.status || "PASS",
             primaryReason: candDoc.data()?.screeningResult?.summary || "Legacy candidate verified."

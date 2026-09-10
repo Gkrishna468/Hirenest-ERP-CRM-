@@ -27,7 +27,7 @@ export class VectorSearchService {
 
       // 2. Upsert to Pinecone
       const index = this.pinecone.Index(this.indexName);
-      await index.upsert([{
+      await (index as any).upsert([{
         id: candidateId,
         values: mockEmbedding,
         metadata: {

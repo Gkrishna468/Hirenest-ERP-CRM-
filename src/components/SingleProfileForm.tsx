@@ -145,7 +145,7 @@ export const SingleProfileForm: React.FC<SingleProfileFormProps> = ({
                   </p>
                 </div>
                 <div className="text-3xl font-black text-white font-mono">
-                  {submissionResult.screeningScore || submissionResult.aiMatchScore || 85}%
+                  {submissionResult.screeningScore ?? submissionResult.aiMatchScore ?? 'N/A'}{typeof (submissionResult.screeningScore ?? submissionResult.aiMatchScore) === 'number' ? '%' : ''}
                   <span className="text-[11px] text-slate-400 block font-normal mt-1 font-sans">
                     Deterministic Benchmark Match
                   </span>

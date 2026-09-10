@@ -42,7 +42,7 @@ export class IntentEngine {
       organizationId: 'default',
       actorId: 'system',
       actorRole: 'System',
-      sourceApp: 'IntentEngine',
+      sourceApp: 'AI',
       sourceWorkspace: 'System',
       payload: {
         messageId: message.id,

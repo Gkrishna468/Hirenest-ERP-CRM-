@@ -66,20 +66,27 @@ const navGroups = [
     ]
   },
   {
+    title: "Workforce",
+    items: [
+       { icon: Users, label: 'HR Operations', path: '/hr' },
+    ]
+  },
+  {
     title: "CRM",
     items: [
        { icon: Building2, label: 'Clients', path: '/accounts' },
        { icon: Users, label: 'Contacts', path: '/contacts' },
+       { icon: Zap, label: 'Twenty CRM Hub', path: '/twenty-crm' },
     ]
   },
   {
     title: "Intelligence & Ops",
     adminOnly: true,
     items: [
+       { icon: ShieldCheck, label: 'Quality Control', path: '/quality-control' },
        { icon: Megaphone, label: 'Marketing Studio', path: '/marketing' },
        { icon: Zap, label: 'Financials', path: '/revenue' },
        { icon: TrendingUp, label: 'AI Operations', path: '/ai-accuracy' },
-       // { icon: ShieldCheck, label: 'Governance', path: '/migration' },
        { icon: GitBranch, label: 'Automation Studio', path: '/automation' },
        { icon: Settings, label: 'Settings', path: '/settings' },
     ]

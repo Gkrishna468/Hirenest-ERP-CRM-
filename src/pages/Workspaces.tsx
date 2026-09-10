@@ -115,7 +115,7 @@ export default function Workspaces() {
       events.push({
         id: `cand-sub-${c.id}`,
         type: "feedback",
-        description: `Candidate profile [${c.name}] submitted by vendor/sourcing partner with AI match score: ${c.aiMatchScore || 85}%.`,
+        description: `Candidate profile [${c.name}] submitted by vendor/sourcing partner${c.aiMatchScore ? ` with AI match score: ${c.aiMatchScore}%` : ''}.`,
         timestamp: c.createdAt || new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
         author: c.vendorName || "Recruiter"
       });
@@ -608,7 +608,7 @@ export default function Workspaces() {
                                 <div className="flex items-center gap-2">
                                   <h4 className="font-black text-slate-900 text-sm">{cand.name}</h4>
                                   <span className="text-[9px] font-mono bg-indigo-50 text-indigo-600 border border-indigo-200 px-1.5 py-0.5 rounded font-black">
-                                    MATCH: {cand.aiMatchScore || 85}%
+                                    MATCH: {cand.aiMatchScore ? `${cand.aiMatchScore}%` : 'NOT MATCHED'}
                                   </span>
                                 </div>
                                 <p className="text-xs text-slate-500">

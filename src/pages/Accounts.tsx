@@ -50,6 +50,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { safeArray, safeString } from '@/utils/safe';
 import { SourceBadge } from '@/components/SourceBadge';
+import { Client360 } from '@/components/Client360';
 import { 
   calculateRelationshipScore, 
   analyzeOpportunity, 
@@ -85,6 +86,7 @@ export default function Clients() {
   });
 
   const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [is360DrawerOpen, setIs360DrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "pipeline" | "timeline" | "meetings" | "dealroom" | "portal" | "copilot">("overview");
 
   // Kanban Pipeline State
@@ -648,6 +650,14 @@ Return your output STRICTLY as a JSON object matching this TypeScript model. Do 
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <button
+                      id="open_client_360_drawer_btn"
+                      onClick={() => setIs360DrawerOpen(true)}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5"
+                    >
+                      <Compass className="w-3.5 h-3.5" />
+                      <span>Launch Client 360</span>
+                    </button>
                     <button 
                       onClick={() => setSelectedClient(null)}
                       className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 rounded-xl transition-colors"
@@ -1479,6 +1489,14 @@ Return your output STRICTLY as a JSON object matching this TypeScript model. Do 
             </form>
           </div>
         </div>
+      )}
+
+      {/* Client 360 Workspace Drawer */}
+      {is360DrawerOpen && selectedClient && (
+        <Client360
+          clientId={selectedClient.id}
+          onClose={() => setIs360DrawerOpen(false)}
+        />
       )}
     </div>
   );

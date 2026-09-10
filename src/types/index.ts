@@ -455,3 +455,5 @@ export interface ActivityLedger {
   metadata?: any;
 }
 
+export * from './hr';
+

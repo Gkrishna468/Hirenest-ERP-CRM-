@@ -149,10 +149,10 @@ export function User360({
             (userData.clientId && r.clientId === userData.clientId)
           );
           const ownedSubs = subs.filter(s =>
-            s.createdBy === userData.id ||
+            (s as any).createdBy === userData.id ||
             s.userId === userData.id ||
             (userData.vendorId && s.vendorId === userData.vendorId) ||
-            (userData.clientId && s.clientId === userData.clientId)
+            (userData.clientId && (s as any).clientId === userData.clientId)
           );
 
           setUserCandidates(ownedCands);
@@ -424,14 +424,14 @@ export function User360({
                   <div className="p-3 bg-slate-50 rounded-xl space-y-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Account Created Date</span>
                     <p className="font-bold text-slate-800 font-mono">
-                      {userData.createdAt ? new Date(userData.createdAt).toLocaleString() : 'N/A'}
+                      {(userData as any).createdAt ? new Date((userData as any).createdAt).toLocaleString() : 'N/A'}
                     </p>
                   </div>
 
                   <div className="p-3 bg-slate-50 rounded-xl space-y-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Last Activity Detected</span>
                     <p className="font-bold text-slate-800 font-mono">
-                      {userData.lastActivity ? new Date(userData.lastActivity).toLocaleString() : (userData.lastLogin ? new Date(userData.lastLogin).toLocaleString() : 'N/A')}
+                      {(userData as any).lastActivity ? new Date((userData as any).lastActivity).toLocaleString() : (userData.lastLogin ? new Date(userData.lastLogin).toLocaleString() : 'N/A')}
                     </p>
                   </div>
 

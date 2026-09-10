@@ -290,7 +290,7 @@ export default function VendorSubmit() {
         setPipelineLog(prev => [
           ...prev, 
           '✔ Deterministic Screening Complete.', 
-          `✔ Decision: ${result.screeningDecision?.status || result.status || 'PASS'} (Score: ${result.screeningScore || result.aiMatchScore || 85}%)`,
+          `✔ Decision: ${result.screeningDecision?.status || result.status || 'PASS'} (Score: ${result.screeningScore ?? result.aiMatchScore ?? 'N/A'}${typeof (result.screeningScore ?? result.aiMatchScore) === 'number' ? '%' : ''})`,
           '✔ Assigned Account Lead mapped & ledger updated.'
         ]);
         setSubmissionResult(result);

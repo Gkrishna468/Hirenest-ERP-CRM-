@@ -201,8 +201,13 @@ export class RequirementService {
       if (userContext.workspace === "Client" && userContext.clientId && normalized.clientId !== userContext.clientId) {
         return null;
       }
-      if (userContext.workspace === "Vendor" && normalized.status !== "open" && normalized.status !== "broadcast" && normalized.broadcast !== true) {
-        return null;
+      if (userContext.workspace === "Vendor") {
+        const isBroadcast = normalized.broadcast !== false && normalized.broadcast !== "false";
+        const isOpen = (normalized.status === "open" || normalized.status === "broadcast");
+        const isNotBlocked = normalized.status !== "on_hold" && normalized.status !== "closed" && normalized.status !== "cancelled";
+        if (!isOpen || !isBroadcast || !isNotBlocked) {
+          return null;
+        }
       }
     }
     return normalized;
@@ -226,7 +231,10 @@ export class RequirementService {
         }
 
         if (userContext.workspace === "Vendor") {
-          return item.status === "open" || item.broadcast === true || item.status === "broadcast";
+          const isBroadcast = item.broadcast !== false && item.broadcast !== "false";
+          const isOpen = (item.status === "open" || item.status === "broadcast");
+          const isNotBlocked = item.status !== "on_hold" && item.status !== "closed" && item.status !== "cancelled";
+          return isOpen && isBroadcast && isNotBlocked;
         }
 
         return true;
