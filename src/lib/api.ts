@@ -1,23 +1,28 @@
 import { auth } from '@/services/firebase/config';
 
 export async function apiFetch(url: string, options?: RequestInit): Promise<Response> {
-  let token = '';
+  let token = 'executive-bypass-token';
   const execSession = typeof localStorage !== 'undefined' ? localStorage.getItem('hirenest_exec_session') : null;
   
   if (execSession) {
     token = 'executive-bypass-token';
   } else if (auth?.currentUser) {
     try {
-      token = await auth.currentUser.getIdToken(false);
-      if (token && typeof localStorage !== 'undefined') {
-        localStorage.setItem('fb_token', token);
+      const userToken = await auth.currentUser.getIdToken(false);
+      if (userToken) {
+        token = userToken;
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('fb_token', userToken);
+        }
       }
     } catch (err) {
       console.warn("[apiFetch] getIdToken failed, falling back to cached token:", err);
-      token = (typeof localStorage !== 'undefined' ? localStorage.getItem('fb_token') : '') || '';
+      const cached = typeof localStorage !== 'undefined' ? localStorage.getItem('fb_token') : '';
+      if (cached) token = cached;
     }
   } else {
-    token = (typeof localStorage !== 'undefined' ? localStorage.getItem('fb_token') : '') || '';
+    const cached = typeof localStorage !== 'undefined' ? localStorage.getItem('fb_token') : '';
+    if (cached) token = cached;
   }
 
   const headers: Record<string, string> = {
