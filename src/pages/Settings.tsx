@@ -39,6 +39,7 @@ import { cn } from '@/lib/utils';
 import { UserRepository } from '@/repositories/UserRepository';
 import { RequirementRepository } from '@/repositories/RequirementRepository';
 import { User360 } from '@/components/User360';
+import { AccessControlCenter } from '@/components/AccessControlCenter';
 import { CandidateRepository } from '@/repositories/CandidateRepository';
 import { AgentRepository } from '@/repositories/AgentRepository';
 import { SystemRepository } from '@/repositories/SystemRepository';
@@ -554,6 +555,7 @@ export default function Settings() {
             { id: 'security', label: 'Security & RLS', icon: Shield },
             { id: 'profile', label: 'User Profile', icon: User },
             { id: 'company', label: 'Organization', icon: Building2 },
+            { id: 'access-control', label: 'Access Control', icon: KeyRound },
           ].map(tab => (
             <button
               key={tab.id}
@@ -1798,7 +1800,9 @@ System Administrator`}
             </div>
           )}
 
-          {activeTab !== 'firebase' && activeTab !== 'gmail' && activeTab !== 'security' && activeTab !== 'profile' && activeTab !== 'company' && activeTab !== 'workflows' && (
+          {activeTab === 'access-control' && <AccessControlCenter />}
+
+          {activeTab !== 'firebase' && activeTab !== 'gmail' && activeTab !== 'security' && activeTab !== 'profile' && activeTab !== 'company' && activeTab !== 'workflows' && activeTab !== 'access-control' && (
             <div className="flex flex-col items-center justify-center h-full text-slate-400 p-20 border border-slate-100 border-dashed rounded-2xl">
               <SettingsIcon className="w-12 h-12 mb-4 opacity-10" />
               <p className="font-medium">{activeTab[0].toUpperCase() + activeTab.slice(1)} settings coming in next module.</p>

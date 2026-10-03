@@ -1,6 +1,8 @@
 import { requirementsRouter } from "./src/server/routers/requirements";
 import { clientsRouter } from "./src/server/routers/clients";
 import { submissionsRouter } from "./src/server/routers/submissions";
+import { revenueOSRouter } from "./src/server/routers/revenue_os";
+import { accessControlRouter } from "./src/server/routers/access_control";
 import express from "express";
 import path from "path";
 // import { createServer as createViteServer } from "vite";
@@ -82,6 +84,8 @@ app.use("/api/system", systemRouter);
 app.use("/api/quality-control", qualityControlRouter);
 app.use("/api/commercials", commercialsRouter);
 app.use("/api/hr", hrRouter);
+app.use("/api/revenue-os", revenueOSRouter);
+app.use("/api/access-control", accessControlRouter);
 
 // 1. Health check
 app.use("/api/health", healthRouter);
@@ -139,6 +143,11 @@ try {
   setupAgentRuntime();
 } catch (error) {
   console.error("[AgentRuntime] Failed to execute setupAgentRuntime", error);
+}
+
+if (process.env.NODE_ENV === "production" && !process.env.CRON_SECRET) {
+  console.error("FATAL CONFIGURATION ERROR: CRON_SECRET is required in production environments.");
+  process.exit(1);
 }
 
 async function startServer() {
