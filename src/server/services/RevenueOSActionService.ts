@@ -2,6 +2,8 @@ import { getAdminDb } from "../utils/firebaseAdmin";
 import { DomainEventPublisher } from "../events/DomainEventPublisher";
 import { executeAITask } from "@/utils/aiGateway";
 import { accessControlService } from "./AccessControlService";
+import { signalEngine } from "./SignalEngine";
+import { nextBestActionEngine } from "./NextBestActionEngine";
 import * as crypto from "crypto";
 
 export class RevenueOSActionService {
@@ -207,16 +209,22 @@ export class RevenueOSActionService {
       }
     });
 
+    const signals = await signalEngine.evaluateSignals(organizationId, userContext);
+    const nextBestActions = nextBestActionEngine.generateActions(signals);
+
     return {
       metrics: {
-        urgentActionsCount: urgentActions.length,
-        followUpsCount: followUps.length,
+        urgentActionsCount: nextBestActions.filter(a => a.priority === "CRITICAL" || a.priority === "HIGH").length,
+        followUpsCount: nextBestActions.filter(a => a.priority === "MEDIUM" || a.priority === "LOW").length,
         pipelineValue: "$1.4M",
-        activeRequirements: requirements.length
+        activeRequirements: requirements.length,
+        signalsDetected: signals.length
       },
+      signals,
+      nextBestActions,
       urgentActions,
       followUps,
-      aiSummary: `RevenueOS evaluated ${requirements.length} authorized requirements and ${tasks.length} tasks for your scope. Prioritizing stalling requirements and dormant accounts.`
+      aiSummary: `RevenueOS Signal & NBA Engines evaluated ${signals.length} authorized signals across your scope. Generated ${nextBestActions.length} deterministic next-best-actions.`
     };
   }
 

@@ -3,6 +3,7 @@ import { Transaction } from "firebase-admin/firestore";
 import { getAdminDb } from "../utils/firebaseAdmin";
 import * as crypto from "crypto";
 import { ProjectionEngine } from "../engine/ProjectionEngine";
+import { userActivityService } from "../services/UserActivityService";
 
 export interface DomainEvent {
   id: string;
@@ -61,7 +62,6 @@ export class DomainEventPublisher {
 
     // Automatically log matching user activity events
     try {
-      const { userActivityService } = require("../services/UserActivityService");
       let activityType: any = null;
       let description = "";
 
