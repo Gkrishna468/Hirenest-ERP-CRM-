@@ -17,7 +17,26 @@ router.get('/me', async (req: any, res: any) => {
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    const userProfile = await userService.getById(userId);
+    let userProfile = await userService.getById(userId);
+    if (!userProfile) {
+      const email = req.user?.email || 'user@hirenestworkforce.com';
+      const isAdminEmail = userId === 'executive-root' || email === 'gopalkrishna0046@gmail.com' || email === 'gopal@hirenestworkforce.com' || email === 'admin@hirenestworkforce.com';
+      const role = isAdminEmail ? 'admin' : 'recruiter';
+      const newUserData = {
+        id: userId,
+        uid: userId,
+        email,
+        name: email.split('@')[0],
+        role,
+        organizationId: 'bootstrap-org',
+        status: 'active',
+        permissions: isAdminEmail ? ['*'] : ['recruiter:read', 'recruiter:write'],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      await userService.create(newUserData, 'System');
+      userProfile = await userService.getById(userId);
+    }
     if (userProfile && (userProfile.email === 'gopal@hirenestworkforce.com' || userProfile.email === 'gopalkrishna0046@gmail.com' || userProfile.email === 'admin@hirenestworkforce.com') && userProfile.role !== 'admin') {
       await userService.update(userId, { role: 'admin' });
       userProfile.role = 'admin';

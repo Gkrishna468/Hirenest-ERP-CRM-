@@ -63,6 +63,7 @@ const navGroups = [
     subtitle: "crm.hirenestworkforce.com",
     items: [
        { icon: Building2, label: 'Accounts & Clients', path: '/accounts' },
+       { icon: Users, label: 'Users & Directory', path: '/users' },
        { icon: Users, label: 'Contacts', path: '/contacts' },
        { icon: Target, label: 'Revenue & Pipeline', path: '/revenue' },
        { icon: Zap, label: 'Twenty CRM Hub', path: '/twenty-crm' },
@@ -75,6 +76,7 @@ const navGroups = [
     domain: 'CORE',
     adminOnly: true,
     items: [
+       { icon: Users, label: 'Users & Directory', path: '/users' },
        { icon: Server, label: 'AI Control Center', path: '/ai-control' },
        { icon: BrainCircuit, label: 'AI SDR & Copilots', path: '/agents' },
        { icon: Layers, label: 'Multi-Workspaces', path: '/workspaces' },

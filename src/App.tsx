@@ -21,6 +21,7 @@ import { ProductionIntegrityCheck } from "./components/ProductionIntegrityCheck"
 // Pages
 import Dashboard from "./pages/Dashboard";
 import Workspaces from "./pages/Workspaces";
+import Users from "./pages/Users";
 import Accounts from "./pages/Accounts";
 import Contacts from "./pages/Contacts";
 import Requirements from "./pages/Requirements";
@@ -112,6 +113,14 @@ export default function App() {
                 element={
                   <PrivateRoute>
                     <Workspaces />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/users"
+                element={
+                  <PrivateRoute>
+                    <Users />
                   </PrivateRoute>
                 }
               />

@@ -82,7 +82,28 @@ export class WorkspaceResolver {
             permissions = userData.permissions;
           }
         } else {
-            console.log(`[WorkspaceResolver] User not found by email fallback either.`);
+            console.log(`[WorkspaceResolver] User not found by email fallback either. Auto-provisioning user record.`);
+            const isAdminEmail = isExecRoot || email === 'gopalkrishna0046@gmail.com' || email === 'gopal@hirenestworkforce.com' || email === 'admin@hirenestworkforce.com';
+            role = isAdminEmail ? 'admin' : (roleFromToken || 'recruiter');
+            workspace = isAdminEmail ? 'Executive' : 'Recruiter';
+            permissions = isAdminEmail ? ['*'] : ['recruiter:read', 'recruiter:write', 'candidates:read', 'candidates:write'];
+            
+            const newUserDoc = {
+              id: userId,
+              uid: userId,
+              email: email || 'user@hirenestworkforce.com',
+              name: email ? email.split('@')[0] : 'User',
+              role,
+              organizationId,
+              status: 'active',
+              workspace,
+              permissions,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+            await db.collection("users").doc(userId).set(newUserDoc, { merge: true });
+            userExists = true;
+            console.log(`[WorkspaceResolver] Auto-provisioned missing user document for ${email} with role ${role}`);
         }
       }
 

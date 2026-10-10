@@ -244,7 +244,24 @@ export default function Settings() {
       // Check if email already exists in Firestore
       const existingUser = await UserRepository.getByEmail(emailLower);
       if (existingUser) {
-        throw new Error(`A user profile with email ${emailLower} already exists.`);
+        toast.info(`A user profile with email ${emailLower} already exists. Updating details.`);
+        await UserRepository.update(existingUser.id, {
+          name: newUserForm.name,
+          phone: newUserForm.phone,
+          role: newUserForm.role,
+          status: newUserForm.status,
+          organizationId: newUserForm.organizationId || 'bootstrap-org',
+          workspace: newUserForm.workspace,
+          permissions: newUserForm.permissions.split(',').map(p => p.trim()).filter(Boolean),
+          vendorId: newUserForm.vendorId || undefined,
+          clientId: newUserForm.clientId || undefined,
+          updatedAt: new Date().toISOString()
+        });
+        toast.success("Existing user profile updated successfully!");
+        setShowAddUser(false);
+        loadUsers();
+        setLoading(false);
+        return;
       }
 
       // We no longer create the Auth credentials client-side.
@@ -390,7 +407,7 @@ export default function Settings() {
     
     setLoading(true);
     try {
-      const response = await apiFetch(`/api/auth/users/${deletingUser.id}`, {
+      const response = await apiFetch(`/api/users/${deletingUser.id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
