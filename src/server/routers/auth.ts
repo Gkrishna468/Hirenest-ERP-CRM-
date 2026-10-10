@@ -20,26 +20,22 @@ router.get('/me', async (req: any, res: any) => {
     let userProfile = await userService.getById(userId);
     if (!userProfile) {
       const email = req.user?.email || 'user@hirenestworkforce.com';
-      const isAdminEmail = userId === 'executive-root' || email === 'gopalkrishna0046@gmail.com' || email === 'gopal@hirenestworkforce.com' || email === 'admin@hirenestworkforce.com';
-      const role = isAdminEmail ? 'admin' : 'recruiter';
+      const role = req.workspaceContext?.role || req.user?.role || 'recruiter';
+      const isPrivileged = role === 'admin' || role === 'founder' || userId === 'executive-root';
       const newUserData = {
         id: userId,
         uid: userId,
         email,
         name: email.split('@')[0],
         role,
-        organizationId: 'bootstrap-org',
+        organizationId: req.workspaceContext?.organizationId || 'bootstrap-org',
         status: 'active',
-        permissions: isAdminEmail ? ['*'] : ['recruiter:read', 'recruiter:write'],
+        permissions: isPrivileged ? ['*'] : ['recruiter:read', 'recruiter:write'],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
       await userService.create(newUserData, 'System');
       userProfile = await userService.getById(userId);
-    }
-    if (userProfile && (userProfile.email === 'gopal@hirenestworkforce.com' || userProfile.email === 'gopalkrishna0046@gmail.com' || userProfile.email === 'admin@hirenestworkforce.com') && userProfile.role !== 'admin') {
-      await userService.update(userId, { role: 'admin' });
-      userProfile.role = 'admin';
     }
     if (!userProfile) {
       return res.status(404).json({ error: "User profile not found" });

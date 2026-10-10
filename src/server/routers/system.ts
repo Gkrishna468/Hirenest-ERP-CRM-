@@ -687,4 +687,193 @@ router.post('/ingestion_executions', async (req: any, res: any) => {
   }
 });
 
+router.post('/alert_simulation', async (req: any, res: any) => {
+  try {
+    const userRole = req.user?.role;
+    if (!req.user || (userRole !== 'admin' && userRole !== 'founder' && req.user.id !== 'executive-root')) {
+      return res.status(403).json({ error: "Forbidden: Admin role required for alert simulation" });
+    }
+
+    const orgId = req.user.organizationId;
+    if (!orgId) {
+      return res.status(400).json({ error: "Bad Request: Organization membership required" });
+    }
+
+    const { severity, title, message, scope } = req.body;
+    if (!title || !message) {
+      return res.status(400).json({ error: "Bad Request: title and message are required" });
+    }
+
+    const db = getAdminDb();
+    const validSeverity = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].includes((severity || '').toUpperCase()) ? severity.toUpperCase() : 'HIGH';
+    
+    // Organization-scoped deterministic 5-minute window bucket key using alert title fingerprint (ignores changing metric numbers in body)
+    const crypto = require('crypto');
+    const windowBucket = Math.floor(Date.now() / (5 * 60 * 1000));
+    const fingerprint = crypto.createHash('sha256').update(`${orgId}:${title.trim().toLowerCase()}`).digest('hex').substring(0, 16);
+    const eventId = `evt-alert-${orgId}-${fingerprint}-${windowBucket}`;
+    const eventRef = db.collection("system_events").doc(eventId);
+
+    let isDeduplicated = false;
+    let finalEventDoc: any = null;
+
+    // Use Firestore Transaction for true atomic read-and-create across serverless instances
+    await db.runTransaction(async (transaction) => {
+      const doc = await transaction.get(eventRef);
+      if (doc.exists) {
+        isDeduplicated = true;
+        finalEventDoc = doc.data();
+        return;
+      }
+
+      const nowIso = new Date().toISOString();
+      finalEventDoc = {
+        id: eventId,
+        type: 'SYSTEM_ALERT',
+        severity: validSeverity,
+        title,
+        message,
+        scope: scope || 'ORGANIZATION',
+        organizationId: orgId,
+        actorId: req.user.id,
+        dispatchStatus: 'PENDING',
+        dispatchAttempts: 0,
+        lastDispatchAt: null,
+        timestamp: nowIso,
+        createdAt: nowIso
+      };
+
+      transaction.set(eventRef, finalEventDoc);
+    });
+
+    if (isDeduplicated) {
+      return res.status(200).json({
+        success: true,
+        message: "Atomic duplicate alert suppressed within 5-minute window",
+        alertId: eventId,
+        event: finalEventDoc,
+        deduplicated: true
+      });
+    }
+
+    // Fan-out alert event to registered Agent Runtime for real-time notification dispatch
+    try {
+      const { agentRuntime } = require('../agents/AgentRuntime');
+      await agentRuntime.processEvent(finalEventDoc);
+      await eventRef.update({
+        dispatchStatus: 'DELIVERED',
+        dispatchAttempts: 1,
+        lastDispatchAt: new Date().toISOString()
+      });
+      finalEventDoc.dispatchStatus = 'DELIVERED';
+    } catch (e: any) {
+      console.warn("[AlertSimulation] Agent fanout warning:", e?.message);
+      await eventRef.update({
+        dispatchStatus: 'FAILED',
+        dispatchAttempts: 1,
+        lastDispatchError: e?.message || 'Unknown error',
+        lastDispatchAt: new Date().toISOString()
+      });
+      finalEventDoc.dispatchStatus = 'FAILED';
+    }
+
+    res.status(201).json({
+      success: true,
+      alert: finalEventDoc,
+      eventPublished: eventId,
+      deduplicated: false
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/outbox_recovery', async (req: any, res: any) => {
+  try {
+    const userRole = req.user?.role;
+    if (!req.user || (userRole !== 'admin' && userRole !== 'founder' && req.user.id !== 'executive-root')) {
+      return res.status(403).json({ error: "Forbidden: Admin role required for outbox recovery worker" });
+    }
+
+    const db = getAdminDb();
+    const pendingSnap = await db.collection("system_events")
+      .where("type", "==", "SYSTEM_ALERT")
+      .where("dispatchStatus", "in", ["PENDING", "FAILED"])
+      .limit(10)
+      .get();
+
+    if (pendingSnap.empty) {
+      return res.status(200).json({
+        success: true,
+        message: "No pending or failed alert outbox items found",
+        processedCount: 0
+      });
+    }
+
+    const { agentRuntime } = require('../agents/AgentRuntime');
+    let recoveredCount = 0;
+    let failedCount = 0;
+
+    for (const doc of pendingSnap.docs) {
+      const docRef = doc.ref;
+      let eventData: any = null;
+      let shouldProcess = false;
+
+      // Atomically claim document for processing
+      await db.runTransaction(async (transaction) => {
+        const freshSnap = await transaction.get(docRef);
+        if (!freshSnap.exists) return;
+        const currentData = freshSnap.data();
+        const attempts = currentData.dispatchAttempts || 0;
+        
+        if (attempts >= 3) {
+          transaction.update(docRef, { dispatchStatus: 'TERMINAL_FAILURE', updatedAt: new Date().toISOString() });
+          return;
+        }
+
+        if (currentData.dispatchStatus === 'PROCESSING') return;
+
+        shouldProcess = true;
+        eventData = currentData;
+        transaction.update(docRef, {
+          dispatchStatus: 'PROCESSING',
+          dispatchAttempts: attempts + 1,
+          lastDispatchAt: new Date().toISOString()
+        });
+      });
+
+      if (shouldProcess && eventData) {
+        try {
+          await agentRuntime.processEvent(eventData);
+          await docRef.update({
+            dispatchStatus: 'DELIVERED',
+            lastDispatchAt: new Date().toISOString()
+          });
+          recoveredCount++;
+        } catch (dispatchErr: any) {
+          console.warn(`[OutboxRecovery] Recovery attempt failed for ${doc.id}:`, dispatchErr?.message);
+          const currentAttempts = (eventData.dispatchAttempts || 0) + 1;
+          const nextStatus = currentAttempts >= 3 ? 'TERMINAL_FAILURE' : 'FAILED';
+          await docRef.update({
+            dispatchStatus: nextStatus,
+            lastDispatchError: dispatchErr?.message || 'Dispatch failed',
+            lastDispatchAt: new Date().toISOString()
+          });
+          failedCount++;
+        }
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Outbox recovery worker execution completed",
+      recoveredCount,
+      failedCount,
+      scanned: pendingSnap.size
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

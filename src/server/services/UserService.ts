@@ -2,9 +2,9 @@ import { userRepository } from "../repositories/UserRepository";
 import { DomainEventPublisher } from "../events/DomainEventPublisher";
 
 export class UserService {
-  async getById(id: string) {
-    console.log(`[UserService] Fetching user by id: ${id}`);
-    const user = await userRepository.findById(id);
+  async getById(id: string, includeArchived: boolean = false) {
+    console.log(`[UserService] Fetching user by id: ${id} (includeArchived: ${includeArchived})`);
+    const user = await userRepository.findById(id, includeArchived);
     if (!user) {
       console.log(`[UserService] User ${id} not found in repository`);
     } else {
@@ -13,40 +13,48 @@ export class UserService {
     return user;
   }
   
-  async getByEmail(email: string) {
-    return await userRepository.findByEmail(email);
+  async getByEmail(email: string, includeArchived: boolean = false) {
+    return await userRepository.findByEmail(email, includeArchived);
   }
 
-  async list() {
-    return await userRepository.findAll();
+  async list(includeArchived: boolean = false) {
+    return await userRepository.findAll(includeArchived);
   }
 
   async create(data: any, performedBy: string = 'System') {
     let authUid = data.id;
+    const cleanData = { ...data };
 
-    if (data.temporaryPassword) {
+    if (cleanData.temporaryPassword) {
+      const tempPass = cleanData.temporaryPassword;
+      delete cleanData.temporaryPassword; // Remove sensitive field before Firestore persistence
+      
+      // Enforce temporary credential lifecycle tracking flags
+      cleanData.mustChangePassword = true;
+      cleanData.passwordResetRequired = true;
+
       try {
         const { getAdminAuthClient } = require("../utils/firebaseAdmin");
         const adminAuth = getAdminAuthClient();
-        console.log(`[UserService] Creating Firebase Auth user for ${data.email}`);
+        console.log(`[UserService] Creating Firebase Auth user for ${cleanData.email}`);
         const userRecord = await adminAuth.createUser({
-          email: data.email,
-          password: data.temporaryPassword,
-          displayName: data.name,
+          email: cleanData.email,
+          password: tempPass,
+          displayName: cleanData.name,
         });
         authUid = userRecord.uid;
-        data.id = authUid; // Use the Firebase Auth UID as the Firestore document ID
+        cleanData.id = authUid; // Use the Firebase Auth UID as the Firestore document ID
       } catch (error: any) {
-        console.error(`[UserService] Error creating Firebase Auth user:`, error);
+        console.error(`[UserService] Error creating Firebase Auth user:`, error.message);
         if (error.code === 'auth/email-already-exists') {
-          console.log(`[UserService] Firebase Auth user already exists, using email lookup`);
+          console.log(`[UserService] Firebase Auth user already exists, binding UID`);
           const { getAdminAuthClient } = require("../utils/firebaseAdmin");
           const adminAuth = getAdminAuthClient();
-          const userRecord = await adminAuth.getUserByEmail(data.email);
+          const userRecord = await adminAuth.getUserByEmail(cleanData.email);
           authUid = userRecord.uid;
-          data.id = authUid;
-          if (data.temporaryPassword) {
-            await adminAuth.updateUser(authUid, { password: data.temporaryPassword });
+          cleanData.id = authUid;
+          if (tempPass) {
+            await adminAuth.updateUser(authUid, { password: tempPass });
           }
         } else {
           throw error;
@@ -54,33 +62,51 @@ export class UserService {
       }
     }
 
-    const user = await userRepository.create(data, performedBy);
+    const user = await userRepository.create(cleanData, performedBy);
     
-    // Publish USER_CREATED
+    // Ensure temporaryPassword is clean in returned object and event payload
+    delete user.temporaryPassword;
+
+    // Publish USER_CREATED event (sanitized)
     await DomainEventPublisher.publishDomainEvent({
       type: "USER_CREATED",
       aggregateType: "User",
-      aggregateId: user.id || data.id,
-      organizationId: user.organizationId || data.organizationId || "default",
+      aggregateId: user.id || cleanData.id,
+      organizationId: user.organizationId || cleanData.organizationId || "default",
       actorId: performedBy,
       actorRole: "Admin",
       sourceApp: "CRM",
       sourceWorkspace: "Admin",
-      payload: user
+      payload: {
+        id: user.id || cleanData.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        organizationId: user.organizationId,
+        status: user.status || 'active',
+        workspace: user.workspace
+      }
     });
 
     // If invited, publish USER_INVITED
-    if (user.status === "invited" || data.status === "invited") {
+    if (user.status === "invited" || cleanData.status === "invited") {
       await DomainEventPublisher.publishDomainEvent({
         type: "USER_INVITED",
         aggregateType: "User",
-        aggregateId: user.id || data.id,
-        organizationId: user.organizationId || data.organizationId || "default",
+        aggregateId: user.id || cleanData.id,
+        organizationId: user.organizationId || cleanData.organizationId || "default",
         actorId: performedBy,
         actorRole: "Admin",
         sourceApp: "CRM",
         sourceWorkspace: "Admin",
-        payload: user
+        payload: {
+          id: user.id || cleanData.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          organizationId: user.organizationId,
+          status: user.status
+        }
       });
     }
     return user;
@@ -134,6 +160,29 @@ export class UserService {
         sourceApp: "CRM",
         sourceWorkspace: "Admin",
         payload: { id, deleted: true }
+      });
+    }
+  }
+
+  async restore(id: string, performedBy: string = 'System') {
+    const user = await userRepository.findById(id, true);
+    if (user) {
+      const { getAdminDb } = require("../utils/firebaseAdmin");
+      await getAdminDb().collection("users").doc(id).update({
+        deleted: false,
+        status: "active",
+        updatedAt: new Date().toISOString()
+      });
+      await DomainEventPublisher.publishDomainEvent({
+        type: "USER_ACTIVATED",
+        aggregateType: "User",
+        aggregateId: id,
+        organizationId: user.organizationId || "default",
+        actorId: performedBy,
+        actorRole: "Admin",
+        sourceApp: "CRM",
+        sourceWorkspace: "Admin",
+        payload: { id, deleted: false, status: "active" }
       });
     }
   }

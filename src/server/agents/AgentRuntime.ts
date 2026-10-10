@@ -14,6 +14,10 @@ export class AgentRuntime {
     console.log(`Registered Agent: ${agent.name}`);
   }
 
+  getRegisteredAgents(): string[] {
+    return this.agents.map(a => a.name);
+  }
+
   async processEvent(event: any) {
     console.log(`Agent Runtime processing event: ${event.type}`);
     

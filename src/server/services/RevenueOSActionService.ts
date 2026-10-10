@@ -157,7 +157,7 @@ export class RevenueOSActionService {
     const subsSnap = await db.collection("submissions").where("organizationId", "==", organizationId).get();
     const submissionJobIds = new Set<string>();
     for (const d of subsSnap.docs) {
-      const sub = { id: d.id, ...d.data() };
+      const sub: any = { id: d.id, ...d.data() };
       const authCheck = await accessControlService.authorizeResourceAccess(userContext, "read", "submission", sub);
       if (authCheck.allowed) {
         if (sub.jobId || sub.requirementId) {

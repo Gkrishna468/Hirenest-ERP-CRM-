@@ -254,9 +254,8 @@ export default function Settings() {
           workspace: newUserForm.workspace,
           permissions: newUserForm.permissions.split(',').map(p => p.trim()).filter(Boolean),
           vendorId: newUserForm.vendorId || undefined,
-          clientId: newUserForm.clientId || undefined,
-          updatedAt: new Date().toISOString()
-        });
+          clientId: newUserForm.clientId || undefined
+        } as any);
         toast.success("Existing user profile updated successfully!");
         setShowAddUser(false);
         loadUsers();

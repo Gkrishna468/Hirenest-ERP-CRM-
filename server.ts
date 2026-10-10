@@ -146,8 +146,7 @@ try {
 }
 
 if (process.env.NODE_ENV === "production" && !process.env.CRON_SECRET) {
-  console.warn("WARNING: CRON_SECRET is not set in production environments. Provisioning secure fallback secret.");
-  process.env.CRON_SECRET = "hirenest-secure-cron-fallback-" + Math.random().toString(36).substring(2);
+  console.warn("WARNING: CRON_SECRET is not configured in production environment. Protected cron endpoints require configuration.");
 }
 
 async function startServer() {

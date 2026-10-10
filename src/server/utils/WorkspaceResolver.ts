@@ -50,64 +50,84 @@ export class WorkspaceResolver {
       if (userDoc.exists) {
         userExists = true;
         const userData = userDoc.data() || {};
-        console.log(`[WorkspaceResolver] User doc found:`, userData);
-        role = userData.role || role;
+        console.log(`[WorkspaceResolver] User doc found:`, { uid: userId, role: userData.role, status: userData.status });
+        role = userData.role || roleFromToken || role;
         organizationId = userData.organizationId || userData.companyId || organizationId;
         vendorId = userData.vendorId;
         clientId = userData.clientId;
         userStatus = userData.status || "active";
-        if (userData.workspace) {
-          workspace = userData.workspace;
-        }
-        if (userData.permissions && Array.isArray(userData.permissions)) {
-          permissions = userData.permissions;
-        }
-      } else {
-        console.log(`[WorkspaceResolver] User doc not found, trying email fallback: ${email}`);
-        // Try searching by email as fallback
-        const emailQuery = await db.collection("users").where("email", "==", email).limit(1).get();
-        if (!emailQuery.empty) {
-          userExists = true;
-          const userData = emailQuery.docs[0].data() || {};
-          console.log(`[WorkspaceResolver] User found by email fallback:`, userData);
-          role = userData.role || role;
-          organizationId = userData.organizationId || userData.companyId || organizationId;
-          vendorId = userData.vendorId;
-          clientId = userData.clientId;
-          userStatus = userData.status || "active";
+        if (role === "admin" || role === "founder") {
+          workspace = "Executive";
+          permissions = ["*"];
+        } else {
           if (userData.workspace) {
             workspace = userData.workspace;
           }
           if (userData.permissions && Array.isArray(userData.permissions)) {
             permissions = userData.permissions;
           }
-        } else {
-            console.log(`[WorkspaceResolver] User not found by email fallback either. Auto-provisioning user record.`);
-            const isAdminEmail = isExecRoot || email === 'gopalkrishna0046@gmail.com' || email === 'gopal@hirenestworkforce.com' || email === 'admin@hirenestworkforce.com';
-            role = isAdminEmail ? 'admin' : (roleFromToken || 'recruiter');
-            workspace = isAdminEmail ? 'Executive' : 'Recruiter';
-            permissions = isAdminEmail ? ['*'] : ['recruiter:read', 'recruiter:write', 'candidates:read', 'candidates:write'];
-            
-            const newUserDoc = {
-              id: userId,
-              uid: userId,
-              email: email || 'user@hirenestworkforce.com',
-              name: email ? email.split('@')[0] : 'User',
-              role,
-              organizationId,
-              status: 'active',
-              workspace,
-              permissions,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            };
-            await db.collection("users").doc(userId).set(newUserDoc, { merge: true });
+        }
+      } else {
+        console.log(`[WorkspaceResolver] User doc not found by UID, trying email query: ${email}`);
+        if (email) {
+          const emailQuery = await db.collection("users").where("email", "==", email).limit(1).get();
+          if (!emailQuery.empty) {
             userExists = true;
-            console.log(`[WorkspaceResolver] Auto-provisioned missing user document for ${email} with role ${role}`);
+            const userData = emailQuery.docs[0].data() || {};
+            console.log(`[WorkspaceResolver] User found by email fallback:`, { email, role: userData.role });
+            role = userData.role || roleFromToken || role;
+            organizationId = userData.organizationId || userData.companyId || organizationId;
+            vendorId = userData.vendorId;
+            clientId = userData.clientId;
+            userStatus = userData.status || "active";
+            if (role === "admin" || role === "founder") {
+              workspace = "Executive";
+              permissions = ["*"];
+            } else {
+              if (userData.workspace) {
+                workspace = userData.workspace;
+              }
+              if (userData.permissions && Array.isArray(userData.permissions)) {
+                permissions = userData.permissions;
+              }
+            }
+          }
+        }
+
+        if (!userExists) {
+          console.log(`[WorkspaceResolver] User record missing. Auto-provisioning user profile.`);
+          // Secure auto-provisioning: respect token role if provided. If token claims missing, assign executive role only for verified executive domains (@hirenestworkforce.com), otherwise default to recruiter.
+          const isExecDomain = email && (email.toLowerCase().endsWith('@hirenestworkforce.com') || email === 'gopalkrishna0046@gmail.com');
+          const assignedRole = (roleFromToken && roleFromToken !== 'viewer') 
+            ? roleFromToken 
+            : (isExecDomain ? 'admin' : 'recruiter');
+          
+          const isPrivileged = assignedRole === 'admin' || assignedRole === 'founder';
+          role = assignedRole;
+          workspace = isPrivileged ? 'Executive' : 'Recruiter';
+          permissions = isPrivileged ? ['*'] : ['recruiter:read', 'recruiter:write', 'candidates:read', 'candidates:write'];
+          
+          const newUserDoc = {
+            id: userId,
+            uid: userId,
+            email: email || 'user@hirenestworkforce.com',
+            name: email ? email.split('@')[0] : 'User',
+            role,
+            organizationId,
+            status: 'active',
+            workspace,
+            permissions,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          await db.collection("users").doc(userId).set(newUserDoc, { merge: true });
+          userExists = true;
+          console.log(`[WorkspaceResolver] Auto-provisioned missing user document for ${email} with role ${role}`);
         }
       }
 
-      if (userExists && userStatus === "inactive") {
+      if (userExists && (userStatus === "inactive" || userStatus === "disabled")) {
+        console.warn(`[WorkspaceResolver] Access denied for deactivated user: ${userId}`);
         throw new Error("USER_INACTIVE");
       }
 

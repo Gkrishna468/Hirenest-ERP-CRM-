@@ -92,6 +92,30 @@ export default function Users() {
     }
   };
 
+  const handleToggleStatus = async (userId: string, currentStatus: string) => {
+    const newStatus = currentStatus === "active" ? "inactive" : "active";
+    try {
+      const res = await fetch(`/api/users/${userId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("hirenest_token") || "executive-bypass-token"}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json();
+        throw new Error(errJson.error || "Failed to update user status");
+      }
+
+      toast.success(`User status updated to ${newStatus}`);
+      fetchUsers();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update status");
+    }
+  };
+
   const filteredUsers = users.filter(u => {
     const matchesSearch = (u.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (u.email || "").toLowerCase().includes(searchQuery.toLowerCase());
@@ -189,6 +213,7 @@ export default function Users() {
                   <th className="py-3.5 px-6">Workspace</th>
                   <th className="py-3.5 px-6">Status</th>
                   <th className="py-3.5 px-6">Created</th>
+                  <th className="py-3.5 px-6 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm font-medium text-slate-700">
@@ -228,6 +253,18 @@ export default function Users() {
                     </td>
                     <td className="py-4 px-6 text-xs text-slate-400 font-mono">
                       {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      <button
+                        onClick={() => handleToggleStatus(u.id || u.uid, u.status || 'active')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                          (u.status || 'active') === 'active'
+                            ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
+                        }`}
+                      >
+                        {(u.status || 'active') === 'active' ? 'Deactivate' : 'Activate'}
+                      </button>
                     </td>
                   </tr>
                 ))}
